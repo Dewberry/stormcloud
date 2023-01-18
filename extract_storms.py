@@ -111,6 +111,7 @@ def main(start: str, duration: int):
 
     # run clustering algorithm
     clusterer = Clusterer(data, target_n_cells, minimum_threshold)
+    cluster_labels = clusterer.db_cluster()
 
     # manipulate clusters to match target number of cells
 

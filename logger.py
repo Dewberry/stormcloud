@@ -18,8 +18,8 @@ def set_up_logger(filename: str = None):
         logger.addHandler(file_handler)
     else:
         logger.addHandler(stream_handler)
-    logger.setLevel(logging.INFO)
-    return
+
+    return logger
 
 
 def log_to_json(fpath: str):
@@ -31,16 +31,3 @@ def log_to_json(fpath: str):
                 file_logs.append(jline)
 
             json.dump(file_logs, jf)
-
-
-"""
-example usage
-
-message = {
-            "job": "search-buckety-by-prefix",
-            "prefix": prefix,
-            "objects": f"{len(keys)}",
-        }
-
-logging.info(json.dumps(message))        
-"""

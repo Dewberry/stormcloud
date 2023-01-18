@@ -4,6 +4,10 @@ from scipy.ndimage import measurements
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 from typing import List, Tuple
+import warnings
+
+warnings.filterwarnings("ignore")
+
 import xarray as xr
 
 
@@ -35,6 +39,8 @@ class Clusterer:
             self.mask = data >= minimum_threshold
         else:
             self.mask = data >= self.threshold
+
+        self.__repr__ = "Clusterer"
 
         # # fill voids in mask
         # self.mask = self.fill_mask_voids()
@@ -416,25 +422,3 @@ def get_xr_dataset(
             xdata = xdata.sum(dim="time", skipna=True, min_count=1)
 
     return xdata
-
-
-def main(start: datetime, duration: int):
-    """
-    Main function to extract clusters from hourly AORC precipitation grids.
-    """
-    # read AORC data into xarray
-
-    # get precipitation numpy array
-
-    # determine target number of cells and the minimum threshold
-
-    # run clustering algorithm
-
-    # manipulate clusters to match target number of cells
-
-    # gather statistics on clusters
-
-    # store cluster data (png, nosql)
-
-    # write grid to dss
-    pass

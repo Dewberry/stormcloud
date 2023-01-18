@@ -117,6 +117,12 @@ def main(start: str, duration: int):
     for cluster_id in np.unique(cluster_labels):
         cluster = clusterer.get_cluster(cluster_labels, cluster_id)
 
+        while cluster.size != target_n_cells:
+            if cluster.size < target_n_cells:
+                cluster.add_cell()
+            else:
+                cluster.remove_cell()
+
     # gather statistics on clusters
 
     # store cluster data (png, nosql)

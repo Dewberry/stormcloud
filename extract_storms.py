@@ -26,6 +26,7 @@ def main(start: str, duration: int):
     # read in watershed geometry and transposition domain geometry (shapely polygons)
     transposition_geom = None
     watershed_geom = None
+    minimum_threshold = 1  # read in with geometries
 
     # read AORC data into xarray (time series)
     # this will be used later to write to dss
@@ -107,8 +108,6 @@ def main(start: str, duration: int):
 
     # get precipitation numpy array
     data = xsum.APCP_surface.to_numpy()
-
-    # determine target number of cells and the minimum threshold
 
     # run clustering algorithm
 

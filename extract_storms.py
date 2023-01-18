@@ -3,7 +3,7 @@ import json
 import logging
 import numpy as np
 import sys
-from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells
+from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells, write_dss
 from logger import set_up_logger, log_to_json
 
 
@@ -137,7 +137,18 @@ def main(start: str, duration: int):
     # store cluster data (png, nosql)
 
     # write grid to dss
-    pass
+    dss_file = ""  # placeholder
+    aoi_name = ""  # placeholder
+
+    write_dss(
+        xdata,
+        dss_file,
+        "SHG4K",
+        aoi_name.upper(),
+        "PRECIPITATION",
+        "AORC",
+        resolution=4000,
+    )
 
 
 if __name__ == "__main__":

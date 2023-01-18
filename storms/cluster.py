@@ -1,5 +1,8 @@
+from affine import Affine
 from datetime import datetime, timedelta
 import numpy as np
+from pydsstools.heclib.dss.HecDss import Open
+from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
 from scipy.ndimage import measurements
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
@@ -444,3 +447,103 @@ def number_of_cells(xdata: xr.Dataset, geom: Polygon) -> int:
     n_cells = data[np.isfinite(data)].size
 
     return n_cells
+
+
+def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
+    """
+    Converts grid to SHG with cell size <resolution> and writes to DSS.
+    The DSS file will be written to the path provided in <dss_path>.
+    The D-part and E-part of the pathnames will be gathered from the xarray dataset.
+
+    Parameters
+    ----------
+    xdata: xr.Dataset
+        time-series dataset to write to DSS
+    dss_path: str
+        output path to write DSS file
+    path_a: str
+        part a of pathname - grid reference system
+    path_b: str
+        part b of pathname - region name
+    path_c: str
+        part c of pathname - data parameter
+    path_f: str
+        part f of pathname - data version
+    resolution: int
+        Resolution of cells in reproject
+
+    """
+    # xdata = xdata.fillna(0)  # UNSURE IF I NEED THIS OR NOT
+    xdata = xdata.rio.reproject(SHG_WKT, resolution=resolution)
+    xdata = xdata.where(xdata.APCP_surface != xdata.APCP_surface.rio.nodata)
+    grid_type = "shg-time"
+
+    cell_zero_xcoord = 0
+    cell_zero_ycoord = 0
+
+    if xdata.y.to_numpy()[-1] < xdata.y.to_numpy()[0]:
+        y_coord = xdata.y.to_numpy()[-1]
+    else:
+        y_coord = xdata.y.to_numpy()[0]
+
+    if xdata.x.to_numpy()[-1] < xdata.x.to_numpy()[0]:
+        x_coord = xdata.x.to_numpy()[-1]
+    else:
+        x_coord = xdata.x.to_numpy()[0]
+
+    affine_transform = Affine(resolution, 0.0, x_coord, 0.0, resolution, y_coord)
+    wkt = xdata.rio.crs.wkt
+
+    with Open(dss_path) as fid:
+        for i, dt64 in enumerate(xdata.time.to_numpy()):
+            print(str(dt64))
+
+            start_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
+
+            data = xdata.isel(time=i).APCP_surface.to_numpy()
+
+            data[~np.isfinite(data)] = np.nan
+
+            if i == 0:
+                lower_left_x, lower_left_y = lower_left_xy_from_transform(
+                    affine_transform, data.shape, cell_zero_xcoord, cell_zero_ycoord
+                )
+
+            grid_info = gridInfo()
+
+            path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
+
+            end_dt = start_dt + timedelta(hours=1)
+
+            if end_dt.hour == 0 and end_dt.minute == 0:
+                path_e = start_dt.strftime("%d%b%Y:2400").upper()
+            else:
+                path_e = end_dt.strftime("%d%b%Y:%H%M").upper()
+
+            path = f"/{path_a}/{path_b}/{path_c}/{path_d}/{path_e}/{path_f}/"
+
+            grid_info.update(
+                [
+                    ("grid_type", grid_type),
+                    ("grid_crs", wkt),
+                    ("grid_transform", affine_transform),
+                    ("data_type", "per-cum"),
+                    ("data_units", "MM"),
+                    ("opt_crs_name", "WKT"),
+                    ("opt_crs_type", 0),
+                    ("opt_compression", "zlib deflate"),
+                    ("opt_dtype", data.dtype),
+                    ("opt_grid_origin", "top-left corner"),
+                    ("opt_data_source", ""),
+                    ("opt_tzid", ""),
+                    ("opt_tzoffset", 0),
+                    ("opt_is_interval", False),
+                    ("opt_time_stamped", False),
+                    ("opt_lower_left_x", lower_left_x),
+                    ("opt_lower_left_y", lower_left_y),
+                    ("opt_cell_zero_xcoord", cell_zero_xcoord),
+                    ("opt_cell_zero_ycoord", cell_zero_ycoord),
+                ]
+            )
+
+            fid.put_grid(path, data, grid_info)

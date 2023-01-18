@@ -113,7 +113,9 @@ def main(start: str, duration: int):
     clusterer = Clusterer(data, target_n_cells, minimum_threshold)
     cluster_labels = clusterer.db_cluster()
 
-    # manipulate clusters to match target number of cells
+    # iterate through clusters
+    for cluster_id in np.unique(cluster_labels):
+        cluster = clusterer.get_cluster(cluster_labels, cluster_id)
 
     # gather statistics on clusters
 

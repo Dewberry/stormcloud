@@ -27,9 +27,11 @@ class Clusterer:
         number of cells the clustering algorithm will attempt to output
     minimum_threshold: float
         lowest allowed value to include in clustering
+    fill_voids: bool
+        set to True to fill voids in the mask
     """
 
-    def __init__(self, data: np.ndarray, target_n_cells: int, minimum_threshold: float = 0):
+    def __init__(self, data: np.ndarray, target_n_cells: int, minimum_threshold: float = 0, fill_voids: bool = True):
         self.data = data
         self.target_n_cells = target_n_cells
         self.minimum_threshold = minimum_threshold
@@ -42,8 +44,9 @@ class Clusterer:
 
         self.__repr__ = "Clusterer"
 
-        # # fill voids in mask
-        # self.mask = self.fill_mask_voids()
+        # fill voids in mask
+        if fill_voids:
+            self.mask = self.fill_mask_voids()
 
     @property
     def shape(self) -> tuple:

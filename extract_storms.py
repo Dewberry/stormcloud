@@ -102,6 +102,9 @@ def main(start: str, duration: int):
             )
         )
 
+    # determine target number of cells (function)
+    target_n_cells = 1000
+
     # get precipitation numpy array
 
     # determine target number of cells and the minimum threshold

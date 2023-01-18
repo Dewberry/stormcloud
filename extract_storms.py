@@ -106,6 +106,7 @@ def main(start: str, duration: int):
     target_n_cells = 1000
 
     # get precipitation numpy array
+    data = xsum.APCP_surface.to_numpy()
 
     # determine target number of cells and the minimum threshold
 

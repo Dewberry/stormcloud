@@ -338,10 +338,7 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
     """
     Fetches a sorted list of AORC zarr files for a given time range.
     The start and end of the time range is inclusive.
-    Due to file naming conventions and precipatation being an hourly accumulation and temperature being
-    instanteous, if provided a start time of 1990-01-01 00:00:00 and end time of 1990-01-01 01:00:00,
-    the precipitation data type will return a single zarr file [1990010101.zarr] and temperature will return
-    two zarr files [1990010100.zarr, 1990010101.zarr].
+    Note that temperature is instaneous and precipitation is accumulative
 
     Parameters
     ----------
@@ -361,9 +358,7 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
     if start > end:
         raise ValueError("start `{start}` > end `{end}`")
 
-    if data_type == "precipitation":
-        dt = start + timedelta(hours=1)
-    elif data_type == "temperature":
+    if data_type in data_types:
         dt = start
     else:
         # duplicated from above, should add decorators for each specific file type

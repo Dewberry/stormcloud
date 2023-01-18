@@ -3,7 +3,7 @@ import json
 import logging
 import numpy as np
 import sys
-from storms.cluster import Clusterer, Cluster, get_xr_dataset
+from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells
 from logger import set_up_logger, log_to_json
 
 
@@ -103,8 +103,8 @@ def main(start: str, duration: int):
             )
         )
 
-    # determine target number of cells (function)
-    target_n_cells = 1000
+    # determine target number of cells
+    target_n_cells = number_of_cells(xsum, watershed_geom)
 
     # get precipitation numpy array
     data = xsum.APCP_surface.to_numpy()

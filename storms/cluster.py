@@ -420,3 +420,27 @@ def get_xr_dataset(
             xdata = xdata.sum(dim="time", skipna=True, min_count=1)
 
     return xdata
+
+
+def number_of_cells(xdata: xr.Dataset, geom: Polygon) -> int:
+    """
+    Returns the number of cells that overlap with the polygon geometry
+
+    Parameters
+    ----------
+    xdata: xr.Dataset
+        xarray dataset to overlay on
+    geom: Polygon
+        shapely geometry to overlay on grid
+    Return
+    ------
+    int
+    """
+
+    xclip = xdata.rio.clip([geom], drop=True, all_touched=True)
+
+    data = xclip.APCP_surface.to_numpy()
+
+    n_cells = data[np.isfinite(data)].size
+
+    return n_cells

@@ -64,6 +64,44 @@ def main(start: str, duration: int):
             )
         )
 
+    # read AORC data into xarray (aggregate)
+    # this will be used for clustering/identifying storms
+    aggregate_method = "sum"
+    try:
+        xsum = get_xr_dataset(data_type, start, duration, aggregate_method=aggregate_method, mask=transposition_geom)
+        logging.info(
+            json.dumps(
+                {
+                    "job": get_xr_dataset.__name__,
+                    "status": "success",
+                    "params": {
+                        "data_type": data_type,
+                        "start": start.strftime("%Y-%m-%d"),
+                        "duration": duration,
+                        "aggregate_method": aggregate_method,
+                        "mask": "",
+                    },  # should have some identifier for the transposition geom (mask)
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "job": get_xr_dataset.__name__,
+                    "status": "failed",
+                    "params": {
+                        "data_type": data_type,
+                        "start": start.strftime("%Y-%m-%d"),
+                        "duration": duration,
+                        "aggregate_method": aggregate_method,
+                        "mask": "",
+                    },  # should have some identifier for the transposition geom (mask)
+                    "error": str(e),
+                }
+            )
+        )
+
     # get precipitation numpy array
 
     # determine target number of cells and the minimum threshold

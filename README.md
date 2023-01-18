@@ -1,2 +1,2 @@
-# storm-sniffer
-Sniffs Historical Grids for storms
+# stormcloud
+Creates datasets for hydrologic modeling in the cloud.

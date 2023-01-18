@@ -18,39 +18,51 @@ def main(start: str, duration: int):
     example usage: python extract_storms.py 1979-02-01 2
     """
 
-    # example
-    ndarray = np.ndarray(shape=(2, 3))
-    cells = 3
-    minimum_threshold = 5
+    data_type = "precipitation"
 
-    c = Clusterer(ndarray, cells, minimum_threshold)
+    # convert str to datetime
+    start = datetime.strptime(start, "%Y-%m-%d")
 
-    # m = {"start": start, "duration": duration}
-    logging.info(json.dumps({"function_call": c.__repr__}))
+    # read in watershed geometry and transposition domain geometry (shapely polygons)
+    transposition_geom = None
+    watershed_geom = None
 
-    # read AORC data into xarray
+    # read AORC data into xarray (time series)
+    # this will be used later to write to dss
     try:
-        data = get_xr_dataset()
+        xdata = get_xr_dataset(data_type, start, duration, mask=transposition_geom)
         logging.info(
             json.dumps(
                 {
                     "job": get_xr_dataset.__name__,
                     "status": "success",
-                    "params": {"ndarray": ndarray, "cells": cells, "minimum_threshold": minimum_threshold},
+                    "params": {
+                        "data_type": data_type,
+                        "start": start.strftime("%Y-%m-%d"),
+                        "duration": duration,
+                        "aggregate_method": "",
+                        "mask": "",
+                    },  # should have some identifier for the transposition geom (mask)
                 }
             )
         )
-    except TypeError as e:
-        logging.debug(
+    except Exception as e:
+        logging.error(
             json.dumps(
                 {
                     "job": get_xr_dataset.__name__,
-                    "status": "success",
-                    "params": {"ndarray": ndarray.shape, "cells": cells, "minimum_threshold": minimum_threshold},
+                    "status": "failed",
+                    "params": {
+                        "data_type": data_type,
+                        "start": start.strftime("%Y-%m-%d"),
+                        "duration": duration,
+                        "aggregate_method": "",
+                        "mask": "",
+                    },  # should have some identifier for the transposition geom (mask)
+                    "error": str(e),
                 }
             )
         )
-        logging.error(json.dumps({get_xr_dataset.__name__: str(e)}))
 
     # get precipitation numpy array
 

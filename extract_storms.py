@@ -110,6 +110,7 @@ def main(start: str, duration: int):
     data = xsum.APCP_surface.to_numpy()
 
     # run clustering algorithm
+    clusterer = Clusterer(data, target_n_cells, minimum_threshold)
 
     # manipulate clusters to match target number of cells
 

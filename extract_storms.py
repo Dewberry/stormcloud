@@ -113,8 +113,9 @@ def main(start: str, duration: int):
     clusterer = Clusterer(data, target_n_cells, minimum_threshold)
     cluster_labels = clusterer.db_cluster()
 
-    # iterate through clusters
-    for cluster_id in np.unique(cluster_labels):
+    # iterate through clusters (move to multiprocessing)
+    uniq_cluster_labels = np.unique(cluster_labels)
+    for cluster_id in uniq_cluster_labels:
         cluster = clusterer.get_cluster(cluster_labels, cluster_id)
 
         while cluster.size != target_n_cells:
@@ -122,6 +123,14 @@ def main(start: str, duration: int):
                 cluster.add_cell()
             else:
                 cluster.remove_cell()
+
+                # check if cluster has become disconected (not contiguous)
+                disconnected, labels = cluster.disconnected()
+
+                if disconnected:
+                    # determine best way to add these clusters to processing pool
+                    split_clusters = cluster.split(labels)
+                    break
 
     # gather statistics on clusters
 

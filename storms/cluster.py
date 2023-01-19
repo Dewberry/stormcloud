@@ -170,14 +170,14 @@ class Cluster:
         """
         Returns the mean of cluster
         """
-        return self.__clusterer[self.cells[:, 1], self.cells[:, 0]].mean()
+        return self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]].mean()
 
     @property
     def max(self) -> float:
         """
         Returns the max of the cluster
         """
-        return self.__clusterer[self.cells[:, 1], self.cells[:, 0]].max()
+        return self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]].max()
 
     def normalize(self) -> float:
         """
@@ -336,8 +336,10 @@ def infer_threshold(data: np.ndarray, target_n_cells: int) -> Tuple[float, float
 
     if percentile > 100:
         percentile = 100
-
-    threshold = np.percentile(data, percentile, method="lower")
+    if np.__version__ < "1.22.0":
+        threshold = np.percentile(data, percentile, interpolation="lower")
+    else:
+        threshold = np.percentile(data, percentile, method="lower")
 
     return threshold, percentile
 
@@ -583,7 +585,7 @@ def rank_by_mean(clusters: List[Cluster]) -> np.ndarray:
     """
     values = []
     for cluster in clusters:
-        values.append(cluster.mean())
+        values.append(cluster.mean)
 
     return rankdata(values, method="ordinal")
 
@@ -595,7 +597,7 @@ def rank_by_max(clusters: List[Cluster]) -> np.ndarray:
     """
     values = []
     for cluster in clusters:
-        values.append(cluster.max())
+        values.append(cluster.max)
 
     return rankdata(values, method="ordinal")
 

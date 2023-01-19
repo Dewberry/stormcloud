@@ -408,10 +408,7 @@ def get_xr_dataset(
     if duration <= 0:
         raise ValueError("duration must be greater than 0")
 
-    if data_type == "temperature":
-        end = start + timedelta(hours=duration - 1)
-    else:
-        end = start + timedelta(hours=duration)
+    end = start + timedelta(hours=duration - 1)
 
     zarr_files = get_zarrfiles(data_type, start, end)
 

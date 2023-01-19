@@ -574,7 +574,7 @@ def adjust_cluster_size(cluster: Cluster, target_n_cells: int):
     return cluster
 
 
-def rank_by_mean(clusters: List[Cluster]) -> np.ndarry:
+def rank_by_mean(clusters: List[Cluster]) -> np.ndarray:
     """
     Ranks a list of clusters by their mean.
     Returns a list used to index by rank
@@ -586,7 +586,7 @@ def rank_by_mean(clusters: List[Cluster]) -> np.ndarry:
     return rankdata(values, method="ordinal")
 
 
-def rank_by_max(clusters: List[Cluster]) -> np.ndarry:
+def rank_by_max(clusters: List[Cluster]) -> np.ndarray:
     """
     Ranks a list of clusters by their mean.
     Returns a list used to index by rank
@@ -598,7 +598,7 @@ def rank_by_max(clusters: List[Cluster]) -> np.ndarry:
     return rankdata(values, method="ordinal")
 
 
-def rank_by_norm(clusters: List[Cluster]) -> np.ndarry:
+def rank_by_norm(clusters: List[Cluster]) -> np.ndarray:
     """
     Ranks a list of clusters by their normalized mean.
     Returns a list used to index by rank

@@ -22,6 +22,21 @@ from storms.cluster import (
 def main(start: str, duration: int):
     """
     Main function to extract clusters from hourly AORC precipitation grids.
+    AORC data is read and aggregated in an xarray dataset.
+    A combination of thresholding and clustering is used to identify continguous clusters
+    containing the greatest accumulated precipitation.
+
+    Multiprocessing is used for cluster size adjustments where cells are iteratively added and
+    removed from a cluster until the desired target number of cells are reached. In some instances,
+    removing a cell can make a cluster non-contiguous (i.e., two separate clusters). In this case,
+    those disconnected clusters are added back into the processing list (`args` variable). Additionally,
+    any cluster that has obtained the desired number of cells is removed from the processing list.
+    The process then restarts for any clusters remaining in the processing list, until that list is
+    empty, meaning that all clusters are at the desired size.
+
+    Once all clusters have finished processing, statistics and ranks are gathered to determine which
+    cluster has the greatest average, maximum, and normalized average accumulate precipitation.
+
 
     Parameters
     start: string (%Y-%m-%d)

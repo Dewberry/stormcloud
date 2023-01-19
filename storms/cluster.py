@@ -346,7 +346,10 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
     """
     Fetches a sorted list of AORC zarr files for a given time range.
     The start and end of the time range is inclusive.
-    Note that temperature is instaneous and precipitation is accumulative
+    Due to file naming conventions and precipatation being an hourly accumulation and temperature being
+    instanteous, if provided a start time of 1990-01-01 00:00:00 and end time of 1990-01-01 01:00:00,
+    the precipitation data type will return a single zarr file [1990010101.zarr] and temperature will return
+    two zarr files [1990010100.zarr, 1990010101.zarr].
 
     Parameters
     ----------
@@ -366,7 +369,9 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
     if start > end:
         raise ValueError("start `{start}` > end `{end}`")
 
-    if data_type in data_types:
+    if data_type == "precipitation":
+        dt = start + timedelta(hours=1)
+    elif data_type == "temperature":
         dt = start
     else:
         # duplicated from above, should add decorators for each specific file type
@@ -408,7 +413,10 @@ def get_xr_dataset(
     if duration <= 0:
         raise ValueError("duration must be greater than 0")
 
-    end = start + timedelta(hours=duration - 1)
+    if data_type == "temperature":
+        end = start + timedelta(hours=duration - 1)
+    else:
+        end = start + timedelta(hours=duration)
 
     zarr_files = get_zarrfiles(data_type, start, end)
 
@@ -495,9 +503,7 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
 
     with Open(dss_path) as fid:
         for i, dt64 in enumerate(xdata.time.to_numpy()):
-            print(str(dt64))
-
-            start_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
+            end_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
 
             data = xdata.isel(time=i).APCP_surface.to_numpy()
 
@@ -508,11 +514,9 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
                     affine_transform, data.shape, cell_zero_xcoord, cell_zero_ycoord
                 )
 
-            grid_info = gridInfo()
+            start_dt = end_dt - timedelta(hours=1)
 
             path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
-
-            end_dt = start_dt + timedelta(hours=1)
 
             if end_dt.hour == 0 and end_dt.minute == 0:
                 path_e = start_dt.strftime("%d%b%Y:2400").upper()
@@ -521,6 +525,7 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
 
             path = f"/{path_a}/{path_b}/{path_c}/{path_d}/{path_e}/{path_f}/"
 
+            grid_info = gridInfo()
             grid_info.update(
                 [
                     ("grid_type", grid_type),

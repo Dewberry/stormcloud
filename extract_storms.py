@@ -1,10 +1,12 @@
 from datetime import datetime
+from itertools import product
 import json
+from logger import set_up_logger, log_to_json
 import logging
+from multiprocessing import Pool
 import numpy as np
 import sys
-from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells, write_dss
-from logger import set_up_logger, log_to_json
+from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells, write_dss, adjust_cluster_size
 
 
 def main(start: str, duration: int):
@@ -113,24 +115,29 @@ def main(start: str, duration: int):
     clusterer = Clusterer(data, target_n_cells, minimum_threshold)
     cluster_labels = clusterer.db_cluster()
 
-    # iterate through clusters (move to multiprocessing)
-    uniq_cluster_labels = np.unique(cluster_labels)
-    for cluster_id in uniq_cluster_labels:
-        cluster = clusterer.get_cluster(cluster_labels, cluster_id)
+    # adjust clusters' sizes (multi-processing)
+    args = product(
+        [clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels)], [target_n_cells]
+    )
 
-        while cluster.size != target_n_cells:
-            if cluster.size < target_n_cells:
-                cluster.add_cell()
-            else:
-                cluster.remove_cell()
+    # will hold the final clusters
+    final_clusters = []
 
-                # check if cluster has become disconected (not contiguous)
-                disconnected, labels = cluster.disconnected()
+    while args:
+        with Pool(4) as p:
+            results = p.starmap(adjust_cluster_size, args)
 
-                if disconnected:
-                    # determine best way to add these clusters to processing pool
-                    split_clusters = cluster.split(labels)
-                    break
+        # flatten results (potentially mixed returns of Clusters and lists)
+        results = [
+            *[cluster for cluster in results if isinstance(cluster, Cluster)],
+            *[cluster for split_clusters in results if isinstance(split_clusters, list) for cluster in split_clusters],
+        ]
+
+        # overwrite args with "unfinished" (split) clusters
+        args = [cluster for cluster in results if cluster.size != target_n_cells]
+
+        # add "finished" clusters to the final list
+        final_clusters.extend([cluster for cluster in results if cluster.size == target_n_cells])
 
     # gather statistics on clusters
 

@@ -1,5 +1,6 @@
 from affine import Affine
 from datetime import datetime, timedelta
+import logging
 import numpy as np
 from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
@@ -547,3 +548,26 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
             )
 
             fid.put_grid(path, data, grid_info)
+
+
+def adjust_cluster_size(cluster: Cluster, target_n_cells: int):
+    """
+    Adds or removes cells from a cluster until the total number of cells matches the target number.
+    If removing cells makes the cluster non-contiguous (i.e., disconnected features) the split clusters will be
+    returned as a list.
+    """
+    while cluster.size != target_n_cells:
+        if cluster.size < target_n_cells:
+            cluster.add_cell()
+        else:
+            cluster.remove_cell()
+
+            # check if cluster has become disconected (not contiguous)
+            disconnected, labels = cluster.disconnected()
+
+            if disconnected:
+                # determine best way to add these clusters to processing pool
+                split_clusters = cluster.split(labels)
+                return split_clusters
+
+    return cluster

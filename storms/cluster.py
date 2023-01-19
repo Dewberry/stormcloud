@@ -5,6 +5,7 @@ import numpy as np
 from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
 from scipy.ndimage import measurements
+from scipy.stats import rankdata
 from shapely.geometry import Polygon
 from sklearn.cluster import DBSCAN
 from typing import List, Tuple
@@ -571,3 +572,39 @@ def adjust_cluster_size(cluster: Cluster, target_n_cells: int):
                 return split_clusters
 
     return cluster
+
+
+def rank_by_mean(clusters: List[Cluster]) -> np.ndarry:
+    """
+    Ranks a list of clusters by their mean.
+    Returns a list used to index by rank
+    """
+    values = []
+    for cluster in clusters:
+        values.append(cluster.mean())
+
+    return rankdata(values, method="ordinal")
+
+
+def rank_by_max(clusters: List[Cluster]) -> np.ndarry:
+    """
+    Ranks a list of clusters by their mean.
+    Returns a list used to index by rank
+    """
+    values = []
+    for cluster in clusters:
+        values.append(cluster.max())
+
+    return rankdata(values, method="ordinal")
+
+
+def rank_by_norm(clusters: List[Cluster]) -> np.ndarry:
+    """
+    Ranks a list of clusters by their normalized mean.
+    Returns a list used to index by rank
+    """
+    values = []
+    for cluster in clusters:
+        values.append(cluster.normalize())
+
+    return rankdata(values, method="ordinal")

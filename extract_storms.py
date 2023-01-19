@@ -126,8 +126,8 @@ def main(start: str, duration: int):
     cluster_labels = clusterer.db_cluster()
 
     # adjust clusters' sizes (multi-processing)
-    args = product(
-        [clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels)], [target_n_cells]
+    args = list(
+        product([clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels)], [target_n_cells])
     )
 
     # will hold the final clusters
@@ -152,8 +152,13 @@ def main(start: str, duration: int):
     # gather statistics on clusters (how to handle ties?)
     # mean_cluster = final_clusters[np.where(mean_ranks == 1)[0][0]]
     mean_ranks = rank_by_mean(final_clusters)
+    mean_cluster = final_clusters[np.argmax(mean_ranks)]
+
     max_ranks = rank_by_max(final_clusters)
+    max_cluster = final_clusters[np.argmax(max_ranks)]
+
     norm_ranks = rank_by_norm(final_clusters)
+    norm_cluster = final_clusters[np.argmax(norm_ranks)]
 
     # store cluster data (png, nosql)
 

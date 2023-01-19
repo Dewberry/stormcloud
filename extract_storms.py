@@ -5,6 +5,7 @@ from logger import set_up_logger, log_to_json
 import logging
 from multiprocessing import Pool
 import numpy as np
+from storms.utils import plotter
 import sys
 from storms.cluster import (
     Clusterer,
@@ -16,6 +17,7 @@ from storms.cluster import (
     rank_by_max,
     rank_by_mean,
     rank_by_norm,
+    cells_to_geometry,
 )
 
 
@@ -176,6 +178,15 @@ def main(start: str, duration: int):
     norm_cluster = final_clusters[np.argmax(norm_ranks)]
 
     # store cluster data (png, nosql)
+
+    # example to plot the cluster with the greatest mean
+    transform = xsum.rio.transform()
+    cellsize_x = abs(transform[0])
+    cellsize_y = abs(transform[4])
+    clust_geom = cells_to_geometry(
+        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, mean_cluster.cells
+    )
+    plotter.cluster_plot(xsum, clust_geom, 0, 5, "Accumulation (MM)")
 
     # write grid to dss
     dss_file = ""  # placeholder

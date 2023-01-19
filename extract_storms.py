@@ -6,7 +6,17 @@ import logging
 from multiprocessing import Pool
 import numpy as np
 import sys
-from storms.cluster import Clusterer, Cluster, get_xr_dataset, number_of_cells, write_dss, adjust_cluster_size
+from storms.cluster import (
+    Clusterer,
+    Cluster,
+    get_xr_dataset,
+    number_of_cells,
+    write_dss,
+    adjust_cluster_size,
+    rank_by_max,
+    rank_by_mean,
+    rank_by_norm,
+)
 
 
 def main(start: str, duration: int):
@@ -139,7 +149,11 @@ def main(start: str, duration: int):
         # add "finished" clusters to the final list
         final_clusters.extend([cluster for cluster in results if cluster.size == target_n_cells])
 
-    # gather statistics on clusters
+    # gather statistics on clusters (how to handle ties?)
+    # mean_cluster = final_clusters[np.where(mean_ranks == 1)[0][0]]
+    mean_ranks = rank_by_mean(final_clusters)
+    max_ranks = rank_by_max(final_clusters)
+    norm_ranks = rank_by_norm(final_clusters)
 
     # store cluster data (png, nosql)
 

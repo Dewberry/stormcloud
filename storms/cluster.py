@@ -6,7 +6,8 @@ from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
 from scipy.ndimage import measurements
 from scipy.stats import rankdata
-from shapely.geometry import Polygon
+from shapely.geometry import box, Polygon
+from shapely.ops import unary_union
 from sklearn.cluster import DBSCAN
 from typing import List, Tuple
 import warnings
@@ -612,3 +613,26 @@ def rank_by_norm(clusters: List[Cluster]) -> np.ndarray:
         values.append(cluster.normalize())
 
     return rankdata(values, method="ordinal")
+
+
+def cells_to_geometry(
+    longitudes: np.ndarray, latitudes: np.ndarray, cellsize_x: float, cellsize_y: float, cells: np.ndarray
+):
+    """
+    Creates a (Multi)Polygon geometry
+    Used to convert a cluster to a shapely geometry
+    """
+
+    coords = np.column_stack((longitudes[cells[:, 0]], latitudes[cells[:, 1]]))
+
+    boxes = []
+    for coord in coords:
+        x, y = coord
+        minx = x - (cellsize_x / 2)
+        maxx = x + (cellsize_x / 2)
+        miny = y - (cellsize_y / 2)
+        maxy = y + (cellsize_y / 2)
+
+        boxes.append(box(minx, miny, maxx, maxy))
+
+    return unary_union(boxes)

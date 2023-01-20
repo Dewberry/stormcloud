@@ -641,8 +641,7 @@ def cells_to_geometry(
     return unary_union(boxes)
 
 
-def s3_geometry_reader(session: Session, bucket_name: str, key: str, layer: str = None):
-    uri = f"s3://{bucket_name}/{key}"
+def s3_geometry_reader(session: Session, uri: str, layer: str = None):
     with fiona.Env(session=AWSSession(session)):
         if layer:
             with fiona.open(uri, layer=layer) as c:

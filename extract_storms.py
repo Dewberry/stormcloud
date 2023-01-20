@@ -1,3 +1,4 @@
+from boto3 import Session
 from datetime import datetime
 from itertools import product
 import json
@@ -5,6 +6,7 @@ from logger import set_up_logger, log_to_json
 import logging
 from multiprocessing import Pool
 import numpy as np
+import os
 from storms.utils import plotter
 import sys
 from storms.cluster import (
@@ -18,7 +20,10 @@ from storms.cluster import (
     rank_by_mean,
     rank_by_norm,
     cells_to_geometry,
+    s3_geometry_reader,
 )
+
+session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 
 
 def main(start: str, duration: int):
@@ -53,9 +58,9 @@ def main(start: str, duration: int):
     start = datetime.strptime(start, "%Y-%m-%d")
 
     # read in watershed geometry and transposition domain geometry (shapely polygons)
-    transposition_geom = None
-    watershed_geom = None
-    minimum_threshold = 1  # read in with geometries
+    transposition_geom = s3_geometry_reader(session, "tempest", "watersheds/kanawha/kanawha-transpo-area-v01.geojson")
+    watershed_geom = s3_geometry_reader(session, "tempest", "watersheds/kanawha/kanawha-basin.geojson")
+    minimum_threshold = 1
 
     # read AORC data into xarray (time series)
     # this will be used later to write to dss
@@ -167,7 +172,6 @@ def main(start: str, duration: int):
         final_clusters.extend([cluster for cluster in results if cluster.size == target_n_cells])
 
     # gather statistics on clusters (how to handle ties?)
-    # mean_cluster = final_clusters[np.where(mean_ranks == 1)[0][0]]
     mean_ranks = rank_by_mean(final_clusters)
     mean_cluster = final_clusters[np.argmax(mean_ranks)]
 

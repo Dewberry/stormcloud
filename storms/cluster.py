@@ -1,12 +1,15 @@
 from affine import Affine
+from boto3 import Session
 from datetime import datetime, timedelta
+import fiona
+from fiona.session import AWSSession
 import logging
 import numpy as np
 from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
 from scipy.ndimage import measurements
 from scipy.stats import rankdata
-from shapely.geometry import box, Polygon
+from shapely.geometry import box, Polygon, shape
 from shapely.ops import unary_union
 from sklearn.cluster import DBSCAN
 from typing import List, Tuple
@@ -636,3 +639,15 @@ def cells_to_geometry(
         boxes.append(box(minx, miny, maxx, maxy))
 
     return unary_union(boxes)
+
+
+def s3_geometry_reader(session: Session, bucket_name: str, key: str, layer: str = None):
+    uri = f"s3://{bucket_name}/{key}"
+    with fiona.Env(session=AWSSession(session)):
+        if layer:
+            with fiona.open(uri, layer=layer) as c:
+                geom = shape(next(iter(c))["geometry"])
+        else:
+            with fiona.open(uri) as c:
+                geom = shape(next(iter(c))["geometry"])
+        return geom

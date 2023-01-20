@@ -26,7 +26,17 @@ from storms.cluster import (
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 
 
-def main(start: str, duration: int, domain_uri: str, watershed_uri: str, minimum_threshold: float):
+def main(
+    start: str,
+    duration: int,
+    domain_name: str,
+    domain_uri: str,
+    watershed_uri: str,
+    minimum_threshold: float,
+    dss_dir: str,
+    png_dir: str,
+    scale_max: int,
+):
     """
     Main function to extract clusters from hourly AORC precipitation grids.
     AORC data is read and aggregated in an xarray dataset.
@@ -50,12 +60,20 @@ def main(start: str, duration: int, domain_uri: str, watershed_uri: str, minimum
         String format of date (%Y-%m-%d)
     duration: int
         interval or duration in hours
+    domain_name: str
+        name to include in the DSS paths
     domain_uri: str
         S3 URI for the transposition domain geometry
     watershed_uri: str
         S3 URI for the watershed geometry
     minimum_threshold: float
         lowest value to potentially include in clustering
+    dss_dir: str
+        file location to write DSS file to
+    png_dir: str
+        file location to write PNG files to
+    scale_max: int
+        value at the top of the scale in plotting
 
 
     example usage: python extract_storms.py 1979-02-01 2
@@ -65,6 +83,7 @@ def main(start: str, duration: int, domain_uri: str, watershed_uri: str, minimum
 
     # convert str to datetime
     start = datetime.strptime(start, "%Y-%m-%d")
+    start_as_str = start.strftime("%Y%m%d")  # for use in file naming
 
     # read in watershed geometry and transposition domain geometry (shapely polygons)
     transposition_geom = s3_geometry_reader(session, domain_uri)
@@ -190,25 +209,43 @@ def main(start: str, duration: int, domain_uri: str, watershed_uri: str, minimum
     norm_cluster = final_clusters[np.argmax(norm_ranks)]
 
     # store cluster data (png, nosql)
-
-    # example to plot the cluster with the greatest mean
     transform = xsum.rio.transform()
     cellsize_x = abs(transform[0])
     cellsize_y = abs(transform[4])
+
+    # pngs - add mm to inch conversion
+
+    # mean cluster
     clust_geom = cells_to_geometry(
         xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, mean_cluster.cells
     )
-    plotter.cluster_plot(xsum, clust_geom, 0, 5, "Accumulation (MM)")
+    plotter.cluster_plot(
+        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-mean.png")
+    )
+
+    # max cluster
+    clust_geom = cells_to_geometry(
+        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, max_cluster.cells
+    )
+    plotter.cluster_plot(
+        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-max.png")
+    )
+
+    # mean cluster
+    clust_geom = cells_to_geometry(
+        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, norm_cluster.cells
+    )
+    plotter.cluster_plot(
+        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-norm.png")
+    )
 
     # write grid to dss
-    dss_file = ""  # placeholder
-    aoi_name = ""  # placeholder
 
     write_dss(
         xdata,
-        dss_file,
+        os.path.join(dss_dir, f"{start_as_str}.dss",
         "SHG4K",
-        aoi_name.upper(),
+        domain_name.upper(),
         "PRECIPITATION",
         "AORC",
         resolution=4000,

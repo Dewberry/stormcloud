@@ -243,7 +243,7 @@ def main(
 
     write_dss(
         xdata,
-        os.path.join(dss_dir, f"{start_as_str}.dss",
+        os.path.join(dss_dir, f"{start_as_str}.dss"),
         "SHG4K",
         domain_name.upper(),
         "PRECIPITATION",

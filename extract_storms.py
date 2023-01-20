@@ -265,6 +265,14 @@ if __name__ == "__main__":
 
     start = args[1]
     duration = args[2]
-    main(start, duration)
+    domain_name = args[3]
+    domain_uri = args[4]
+    watershed_uri = args[5]
+    minimum_threshold = args[6]
+    dss_dir = args[7]
+    png_dir = args[8]
+    scale_max = args[9]
+
+    main(start, duration, domain_name, domain_uri, watershed_uri, minimum_threshold, dss_dir, png_dir, scale_max)
 
     # log_to_json(logfile)

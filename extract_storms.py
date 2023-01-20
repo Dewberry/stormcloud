@@ -26,7 +26,7 @@ from storms.cluster import (
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 
 
-def main(start: str, duration: int):
+def main(start: str, duration: int, domain_uri: str, watershed_uri: str, minimum_threshold: float):
     """
     Main function to extract clusters from hourly AORC precipitation grids.
     AORC data is read and aggregated in an xarray dataset.
@@ -46,8 +46,17 @@ def main(start: str, duration: int):
 
 
     Parameters
-    start: string (%Y-%m-%d)
-    duration: int (3) interval or duration of storms in hours
+    start: str
+        String format of date (%Y-%m-%d)
+    duration: int
+        interval or duration in hours
+    domain_uri: str
+        S3 URI for the transposition domain geometry
+    watershed_uri: str
+        S3 URI for the watershed geometry
+    minimum_threshold: float
+        lowest value to potentially include in clustering
+
 
     example usage: python extract_storms.py 1979-02-01 2
     """
@@ -58,9 +67,8 @@ def main(start: str, duration: int):
     start = datetime.strptime(start, "%Y-%m-%d")
 
     # read in watershed geometry and transposition domain geometry (shapely polygons)
-    transposition_geom = s3_geometry_reader(session, "tempest", "watersheds/kanawha/kanawha-transpo-area-v01.geojson")
-    watershed_geom = s3_geometry_reader(session, "tempest", "watersheds/kanawha/kanawha-basin.geojson")
-    minimum_threshold = 1
+    transposition_geom = s3_geometry_reader(session, domain_uri)
+    watershed_geom = s3_geometry_reader(session, watershed_uri)
 
     # read AORC data into xarray (time series)
     # this will be used later to write to dss

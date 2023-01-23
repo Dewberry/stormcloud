@@ -176,7 +176,10 @@ def main(
 
     # adjust clusters' sizes (multi-processing)
     args = list(
-        product([clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels)], [target_n_cells])
+        product(
+            [clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels) if label > -1],
+            [target_n_cells],
+        )
     )
 
     # will hold the final clusters

@@ -21,6 +21,7 @@ from storms.cluster import (
     rank_by_norm,
     cells_to_geometry,
     s3_geometry_reader,
+    get_atlas14,
 )
 
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
@@ -208,7 +209,15 @@ def main(
     max_ranks = rank_by_max(final_clusters)
     max_cluster = final_clusters[np.argmax(max_ranks)]
 
-    norm_ranks = rank_by_norm(final_clusters)
+    if duration <= 24:
+        atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{duration:02d}ha/2yr{duration:02d}ha.vrt"
+    else:
+        # add check here that duration divisible by 24
+        atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{int(duration/24):02d}da/2yr{int(duration/24):02d}da.vrt"
+
+    xnorm = get_atlas14(atlas_14_uri, xsum.APCP_surface)
+    inch_to_mm = 25.4
+    norm_ranks = rank_by_norm(final_clusters, xnorm.to_numpy(), inch_to_mm)
     norm_cluster = final_clusters[np.argmax(norm_ranks)]
 
     # store cluster data (png, nosql)

@@ -1,7 +1,5 @@
 # workflow
 
-Sandbox for downloading, analyzing, and cataloging historic storm data for use in Stochastic Storm Transposition (SST).
-
 The data download and analysis pipelines leverage both a PostgreSQL database and Python libraries to identify storm events and create visual documents for cataloging these events. React and Meilisearch are utilized to serve these documents as a catalog with search engine capabilities.
 
 ---
@@ -88,15 +86,6 @@ Typically, the query would just include a LIMIT to return N storms. However, thi
 
 ![](./docs/2017062900.png)
 
-*There likely needs to also be some sort of spatial check added when dealing with large transposition areas like Iowa. The two storms below appear like different events but only one could be included with the current implementation of the date declustering*
-
-*1979-08-18 (72 hours)*
-
-![](./docs/1979081800.png)
-
-*1979-08-19 (72 hours)*
-
-![](./docs/1979081900.png)
 
 ### 2-yr Normalization
 

@@ -17,6 +17,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import rioxarray as rxr
 import xarray as xr
 
 
@@ -659,3 +660,11 @@ def s3_geometry_reader(session: Session, uri: str, layer: str = None):
             with fiona.open(uri) as c:
                 geom = shape(next(iter(c))["geometry"])
         return geom
+
+
+def get_atlas14(s3_uri: str, interpolate_to: xr.DataArray = None):
+    atlas14 = rxr.open_rasterio(s3_uri, mask_and_scale=True).sel(band=1, drop=True).rename(x="longitude", y="latitude")
+    if interpolate_to is not None:
+        atlas14 = atlas14.interp_like(interpolate_to, method="linear")
+
+    return atlas14

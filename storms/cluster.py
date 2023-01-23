@@ -183,11 +183,20 @@ class Cluster:
         """
         return self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]].max()
 
-    def normalize(self) -> float:
+    def normalize(self, norm_arr: np.ndarray, norm_conversion: float = 1) -> float:
         """
         Normalize algorithm with Atlas14 data
         """
-        pass
+        if norm_arr.shape[0] == self.cells.shape[0] and len(norm_arr.shape) == 1:
+            normalized_values = self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]] / (norm_arr * norm_conversion)
+        else:
+            normalized_values = self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]] / (
+                norm_arr[self.cells[:, 1], self.cells[:, 0]] * norm_conversion
+            )
+
+        normalized_values[~np.isfinite(normalized_values)] = 0
+
+        return normalized_values.mean()
 
     def disconnected(self) -> Tuple[bool, np.ndarray]:
         """
@@ -606,14 +615,14 @@ def rank_by_max(clusters: List[Cluster]) -> np.ndarray:
     return rankdata(values, method="ordinal")
 
 
-def rank_by_norm(clusters: List[Cluster]) -> np.ndarray:
+def rank_by_norm(clusters: List[Cluster], norm_arr: np.ndarray, norm_conversion: float) -> np.ndarray:
     """
     Ranks a list of clusters by their normalized mean.
     Returns a list used to index by rank
     """
     values = []
     for cluster in clusters:
-        values.append(cluster.normalize())
+        values.append(cluster.normalize(norm_arr, norm_conversion))
 
     return rankdata(values, method="ordinal")
 

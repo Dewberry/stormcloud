@@ -15,6 +15,18 @@ class Translate:
     data: np.ndarray
     coords: np.ndarray
 
+    @property
+    def mean(self):
+        return self.data.mean()
+
+    @property
+    def sum(self):
+        return self.data.mean()
+
+    @property
+    def max(self):
+        return self.data.max()
+
 
 class Transposer:
     def __init__(
@@ -58,7 +70,7 @@ class Transposer:
                 ):
 
                     transl_indexes = np.column_stack((mask_idxs[:, 0] + x_diff, mask_idxs[:, 1] + y_diff))
-                    data_slice = self.data[transl_indexes]
+                    data_slice = self.data[transl_indexes[:, 1], transl_indexes[:, 0]]
 
                     if np.all(np.isfinite(data_slice)):
 

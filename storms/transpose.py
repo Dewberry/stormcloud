@@ -22,6 +22,34 @@ class Transposer:
         xmask = xsum.rio.clip([watershed_geom], drop=False, all_touched=True).copy()
         self.mask = np.isfinite(xmask[data_var].to_numpy())
 
+        # get possible translates
+        self.translates = self.__translates()
+
+    def __translates(self) -> np.ndarray:
+        translates = []
+        mask_minx, mask_miny, mask_maxx, mask_maxy = self.mask_bounds
+        max_x = self.xs.max()
+        max_y = self.ys.max()
+        mask_idxs = self.mask_idxs
+
+        for x in self.xs:
+            for y in self.ys:
+
+                x_diff = x - mask_minx
+                y_diff = y - mask_miny
+
+                if (
+                    mask_minx + x_diff >= 0
+                    and mask_maxx + x_diff <= max_x
+                    and mask_miny + y_diff >= 0
+                    and mask_maxy + y_diff <= max_y
+                ):
+
+                    if np.all(np.isfinite(self.data[mask_idxs[:, 1] + y_diff, mask_idxs[:, 0] + x_diff])):
+                        translates.append([x_diff, y_diff])
+
+        return np.array(translates)
+
     @property
     def shape(self) -> tuple:
         """

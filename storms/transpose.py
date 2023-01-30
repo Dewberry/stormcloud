@@ -1,7 +1,19 @@
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json
 import numpy as np
 from shapely.geometry import Polygon
 from typing import List
 import xarray as xr
+
+
+@dataclass_json
+@dataclass
+class Translate:
+    x_delta: int
+    y_delta: int
+    indexes: np.ndarray
+    data: np.ndarray
+    coords: np.ndarray
 
 
 class Transposer:
@@ -22,7 +34,7 @@ class Transposer:
         xmask = xsum.rio.clip([watershed_geom], drop=False, all_touched=True).copy()
         self.mask = np.isfinite(xmask[data_var].to_numpy())
 
-        # get possible translates
+        # get translates
         self.translates = self.__translates()
 
     def __translates(self) -> np.ndarray:
@@ -45,8 +57,20 @@ class Transposer:
                     and mask_maxy + y_diff <= max_y
                 ):
 
-                    if np.all(np.isfinite(self.data[mask_idxs[:, 1] + y_diff, mask_idxs[:, 0] + x_diff])):
-                        translates.append([x_diff, y_diff])
+                    transl_indexes = np.column_stack((mask_idxs[:, 0] + x_diff, mask_idxs[:, 1] + y_diff))
+                    data_slice = self.data[transl_indexes]
+
+                    if np.all(np.isfinite(data_slice)):
+
+                        coords = np.column_stack(
+                            (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
+                        )
+
+                        translates.append(
+                            Translate(
+                                x_delta=x_diff, y_delta=y_diff, indexes=transl_indexes, data=data_slice, coords=coords
+                            )
+                        )
 
         return np.array(translates)
 

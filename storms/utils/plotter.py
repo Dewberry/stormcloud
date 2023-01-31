@@ -13,8 +13,8 @@ def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: i
     (xdata["APCP_surface"] * multiplier).plot(
         ax=ax, cmap=colormap, cbar_kwargs={"label": scale_label}, vmin=vmin, vmax=vmax
     )
-    # if geom is not None:
-    #     GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
+    if geom is not None:
+        GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
     GeoSeries(cluster_geometry, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="black", lw=1)
     ax.set(title=None, xlabel=None, ylabel=None)
 

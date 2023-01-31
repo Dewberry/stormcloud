@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import box, Polygon
+from shapely.ops import unary_union
 from typing import List
 import xarray as xr
+from scipy.stats import rankdata
 
 
 @dataclass_json
@@ -14,6 +16,7 @@ class Translate:
     indexes: np.ndarray
     data: np.ndarray
     coords: np.ndarray
+    normalized_data: np.ndarray
 
     @property
     def mean(self):
@@ -27,6 +30,26 @@ class Translate:
     def max(self):
         return self.data.max()
 
+    @property
+    def normalized_mean(self):
+        if self.normalized_data is not None:
+            return (self.data / self.normalized_data).mean()
+        else:
+            return None
+
+    def geom(self, cellsize_x: float, cellsize_y: float):
+        boxes = []
+        for coord in self.coords:
+            x, y = coord
+            minx = x - (cellsize_x / 2)
+            maxx = x + (cellsize_x / 2)
+            miny = y - (cellsize_y / 2)
+            maxy = y + (cellsize_y / 2)
+
+            boxes.append(box(minx, miny, maxx, maxy))
+
+        return unary_union(boxes)
+
 
 class Transposer:
     def __init__(
@@ -36,6 +59,7 @@ class Transposer:
         data_var: str = "APCP_surface",
         x_var: str = "longitude",
         y_var: str = "latitude",
+        normalized_data: np.ndarray = None,
     ):
         self.xsum = xsum
         self.data = xsum[data_var].to_numpy()
@@ -45,6 +69,8 @@ class Transposer:
         # get watershed mask
         xmask = xsum.rio.clip([watershed_geom], drop=False, all_touched=True).copy()
         self.mask = np.isfinite(xmask[data_var].to_numpy())
+
+        self.normalized_data = normalized_data
 
         # get translates
         self.translates = self.__translates()
@@ -77,10 +103,18 @@ class Transposer:
                         coords = np.column_stack(
                             (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
                         )
-
+                        if self.normalized_data is not None:
+                            norm_data = self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]
+                        else:
+                            norm_data = None
                         translates.append(
                             Translate(
-                                x_delta=x_diff, y_delta=y_diff, indexes=transl_indexes, data=data_slice, coords=coords
+                                x_delta=x_diff,
+                                y_delta=y_diff,
+                                indexes=transl_indexes,
+                                data=data_slice,
+                                coords=coords,
+                                normalized_data=norm_data,
                             )
                         )
 
@@ -134,3 +168,26 @@ class Transposer:
             self.mask_idxs[:, 0].max(),
             self.mask_idxs[:, 1].max(),
         )
+
+    def stats(self, metric: str):
+        metrics = ["mean", "max", "sum", "normalized_mean"]
+
+        if metric in metrics:
+            if metric == "mean":
+                return np.array([t.mean for t in self.translates])
+            elif metric == "max":
+                return np.array([t.max for t in self.translates])
+            elif metric == "sum":
+                return np.array([t.sum for t in self.translates])
+            elif metric == "normalized_mean":
+                return np.array([t.normalized_mean for t in self.translates])
+
+        else:
+            raise ValueError(f"`{metric}` metric is not implemented.\nAcceptable value(s): " + ", ".join(metrics))
+
+    def ranks(self, metric: str, rank_method: str = "ordinal", order_high_low: bool = True):
+        # rank_methods = ["average", "min", "max", "dense", "ordinal"]
+        if order_high_low:
+            return rankdata(self.stats(metric) * -1, method=rank_method)
+        else:
+            return rankdata(self.stats(metric), method=rank_method)

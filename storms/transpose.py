@@ -17,6 +17,8 @@ class Translate:
     data: np.ndarray
     coords: np.ndarray
     normalized_data: np.ndarray
+    _cellsize_x: float
+    _cellsize_y: float
 
     @property
     def mean(self):
@@ -37,14 +39,15 @@ class Translate:
         else:
             return None
 
-    def geom(self, cellsize_x: float, cellsize_y: float):
+    @property
+    def geom(self):
         boxes = []
         for coord in self.coords:
             x, y = coord
-            minx = x - (cellsize_x / 2)
-            maxx = x + (cellsize_x / 2)
-            miny = y - (cellsize_y / 2)
-            maxy = y + (cellsize_y / 2)
+            minx = x - (self._cellsize_x / 2)
+            maxx = x + (self._cellsize_x / 2)
+            miny = y - (self._cellsize_y / 2)
+            maxy = y + (self._cellsize_y / 2)
 
             boxes.append(box(minx, miny, maxx, maxy))
 
@@ -70,7 +73,13 @@ class Transposer:
         xmask = xsum.rio.clip([watershed_geom], drop=False, all_touched=True).copy()
         self.mask = np.isfinite(xmask[data_var].to_numpy())
 
+        # array used to normalize xsum
         self.normalized_data = normalized_data
+
+        # get cell size for geoms
+        transform = xsum.rio.transform()
+        self._cellsize_x = abs(transform[0])
+        self._cellsize_y = abs(transform[4])
 
         # get translates
         self.translates = self.__translates()
@@ -118,6 +127,8 @@ class Transposer:
                                 data=data_slice,
                                 coords=coords,
                                 normalized_data=norm_data,
+                                _cellsize_x=self._cellsize_x,
+                                _cellsize_y=self._cellsize_y,
                             )
                         )
 
@@ -202,3 +213,19 @@ class Transposer:
             return rankdata(self.stats(metric) * -1, method=rank_method)
         else:
             return rankdata(self.stats(metric), method=rank_method)
+
+    def valid_space_geom(self):
+        cells = np.flip(np.column_stack(np.where(self.valid_space)), 1)
+        coords = np.column_stack((self.x_coords[cells[:, 0]], self.y_coords[cells[:, 1]]))
+
+        boxes = []
+        for coord in coords:
+            x, y = coord
+            minx = x - (self._cellsize_x / 2)
+            maxx = x + (self._cellsize_x / 2)
+            miny = y - (self._cellsize_y / 2)
+            maxy = y + (self._cellsize_y / 2)
+
+            boxes.append(box(minx, miny, maxx, maxy))
+
+        return unary_union(boxes)

@@ -75,6 +75,9 @@ class Transposer:
         # get translates
         self.translates = self.__translates()
 
+        # get valid space
+        self.valid_space = self.__valid_space()
+
     def __translates(self) -> np.ndarray:
         translates = []
         mask_minx, mask_miny, mask_maxx, mask_maxy = self.mask_bounds
@@ -119,6 +122,14 @@ class Transposer:
                         )
 
         return np.array(translates)
+
+    def __valid_space(self):
+
+        valid_space = np.full(self.mask.shape, False)
+        for t in self.translates:
+            valid_space[t.indexes[:, 1], t.indexes[:, 0]] = True
+
+        return valid_space
 
     @property
     def shape(self) -> tuple:

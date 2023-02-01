@@ -10,7 +10,7 @@ from scipy.stats import rankdata
 
 @dataclass_json
 @dataclass
-class Translate:
+class Transpose:
     x_delta: int
     y_delta: int
     indexes: np.ndarray
@@ -81,14 +81,14 @@ class Transposer:
         self._cellsize_x = abs(transform[0])
         self._cellsize_y = abs(transform[4])
 
-        # get translates
-        self.translates = self.__translates()
+        # get transposes
+        self.transposes = self.__transposes()
 
         # get valid space
         self.valid_space = self.__valid_space()
 
-    def __translates(self) -> np.ndarray:
-        translates = []
+    def __transposes(self) -> np.ndarray:
+        transposes = []
         mask_minx, mask_miny, mask_maxx, mask_maxy = self.mask_bounds
         max_x = self.xs.max()
         max_y = self.ys.max()
@@ -119,8 +119,8 @@ class Transposer:
                             norm_data = self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]
                         else:
                             norm_data = None
-                        translates.append(
-                            Translate(
+                        transposes.append(
+                            Transpose(
                                 x_delta=x_diff,
                                 y_delta=y_diff,
                                 indexes=transl_indexes,
@@ -132,12 +132,12 @@ class Transposer:
                             )
                         )
 
-        return np.array(translates)
+        return np.array(transposes)
 
     def __valid_space(self):
 
         valid_space = np.full(self.mask.shape, False)
-        for t in self.translates:
+        for t in self.transposes:
             valid_space[t.indexes[:, 1], t.indexes[:, 0]] = True
 
         return valid_space
@@ -196,13 +196,13 @@ class Transposer:
 
         if metric in metrics:
             if metric == "mean":
-                return np.array([t.mean for t in self.translates])
+                return np.array([t.mean for t in self.transposes])
             elif metric == "max":
-                return np.array([t.max for t in self.translates])
+                return np.array([t.max for t in self.transposes])
             elif metric == "sum":
-                return np.array([t.sum for t in self.translates])
+                return np.array([t.sum for t in self.transposes])
             elif metric == "normalized_mean":
-                return np.array([t.normalized_mean for t in self.translates])
+                return np.array([t.normalized_mean for t in self.transposes])
 
         else:
             raise ValueError(f"`{metric}` metric is not implemented.\nAcceptable value(s): " + ", ".join(metrics))

@@ -436,7 +436,7 @@ def get_xr_dataset(
 
     zarr_files = get_zarrfiles(data_type, start, end)
 
-    xdata = xr.open_mfdataset(zarr_files, engine="zarr", consolidated=True)
+    xdata = xr.open_mfdataset(zarr_files, engine="zarr", chunks="auto", consolidated=True)
 
     if mask:
         xdata = xdata.rio.clip([mask], drop=True, all_touched=True)

@@ -33,6 +33,10 @@ class Transpose:
         return self.data.max()
 
     @property
+    def min(self):
+        return self.data.min()
+
+    @property
     def normalized_mean(self):
         if self.normalized_data is not None:
             return (self.data / self.normalized_data).mean()

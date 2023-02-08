@@ -1,5 +1,6 @@
 from boto3 import Session
 from datetime import datetime
+from dotenv import load_dotenv, find_dotenv
 import json
 from logger import set_up_logger, log_to_json
 import logging
@@ -13,6 +14,8 @@ from storms.cluster import (
     get_atlas14,
 )
 from storms.transpose import Transposer
+
+load_dotenv(find_dotenv())
 
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 
@@ -35,8 +38,71 @@ def main(
     start_as_str = start.strftime("%Y%m%d")  # for use in file naming
 
     # read in watershed geometry and transposition domain geometry (shapely polygons)
-    transposition_geom = s3_geometry_reader(session, domain_uri)
-    watershed_geom = s3_geometry_reader(session, watershed_uri)
+    try:
+        transposition_geom = s3_geometry_reader(session, domain_uri)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": s3_geometry_reader.__name__,
+                    "status": "success",
+                    "params": {
+                        "session": str(session),
+                        "uri": domain_uri,
+                        "layer": None,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": s3_geometry_reader.__name__,
+                    "status": "failed",
+                    "params": {
+                        "session": str(session),
+                        "uri": domain_uri,
+                        "layer": None,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+
+    try:
+        watershed_geom = s3_geometry_reader(session, watershed_uri)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": s3_geometry_reader.__name__,
+                    "status": "success",
+                    "params": {
+                        "session": str(session),
+                        "uri": watershed_uri,
+                        "layer": None,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": s3_geometry_reader.__name__,
+                    "status": "failed",
+                    "params": {
+                        "session": str(session),
+                        "uri": watershed_uri,
+                        "layer": None,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
 
     # read AORC data into xarray (time series)
     # this will be used later to write to dss
@@ -45,6 +111,7 @@ def main(
         logging.info(
             json.dumps(
                 {
+                    "event_date": start.strftime("%Y-%m-%d"),
                     "job": get_xr_dataset.__name__,
                     "status": "success",
                     "params": {
@@ -61,6 +128,7 @@ def main(
         logging.error(
             json.dumps(
                 {
+                    "event_date": start.strftime("%Y-%m-%d"),
                     "job": get_xr_dataset.__name__,
                     "status": "failed",
                     "params": {
@@ -83,6 +151,7 @@ def main(
         logging.info(
             json.dumps(
                 {
+                    "event_date": start.strftime("%Y-%m-%d"),
                     "job": get_xr_dataset.__name__,
                     "status": "success",
                     "params": {
@@ -99,6 +168,7 @@ def main(
         logging.error(
             json.dumps(
                 {
+                    "event_date": start.strftime("%Y-%m-%d"),
                     "job": get_xr_dataset.__name__,
                     "status": "failed",
                     "params": {
@@ -114,59 +184,328 @@ def main(
         )
 
     # get atlas 14 data for normalizing (ADD CHECK THAT ATLAS14 DATA COVERS DOMAIN)
-    if duration <= 24:
-        atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{duration:02d}ha/2yr{duration:02d}ha.vrt"
-    else:
-        # add check here that duration divisible by 24
-        atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{int(duration/24):02d}da/2yr{int(duration/24):02d}da.vrt"
+    try:
+        if duration <= 24:
+            atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{duration:02d}ha/2yr{duration:02d}ha.vrt"
+        else:
+            # add check here that duration divisible by 24
+            atlas_14_uri = (
+                f"s3://tempest/transforms/atlas14/2yr{int(duration/24):02d}da/2yr{int(duration/24):02d}da.vrt"
+            )
 
-    # xnorm = get_atlas14(atlas_14_uri, xsum.APCP_surface)
-    # norm_arr = xnorm.to_numpy() * 25.4  # convert to mm
-    norm_arr = None
+        # xnorm = get_atlas14(atlas_14_uri, xsum.APCP_surface)
+        # norm_arr = xnorm.to_numpy() * 25.4  # convert to mm
+
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": get_atlas14.__name__,
+                    "status": "success",
+                    "params": {
+                        "s3_uri": atlas_14_uri,
+                        "interpolate_to": "xsum",
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": get_atlas14.__name__,
+                    "status": "failed",
+                    "params": {
+                        "s3_uri": atlas_14_uri,
+                        "interpolate_to": "xsum",
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+
+    norm_arr = None  # temporary for upper green processing
 
     # transpose watershed around transposition domain
-    transposer = Transposer(xsum, watershed_geom, normalized_data=norm_arr)
+    try:
+        transposer = Transposer(xsum, watershed_geom, normalized_data=norm_arr)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": Transposer.__name__,
+                    "status": "success",
+                    "params": {
+                        "xsum": "xsum",
+                        "watershed_geom": watershed_uri,
+                        "data_var": "APCP_surface",
+                        "x_var": "longitude",
+                        "y_var": "latitude",
+                        "normalized_data": None,  # temporary for upper green processing
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": Transposer.__name__,
+                    "status": "failed",
+                    "params": {
+                        "xsum": "xsum",
+                        "watershed_geom": watershed_uri,
+                        "data_var": "APCP_surface",
+                        "x_var": "longitude",
+                        "y_var": "latitude",
+                        "normalized_data": None,  # temporary for upper green processing
+                    },
+                    "error": str(e),
+                }
+            )
+        )
 
     # get translation with greatest mean (max used as tie breaker)
     # if still tied after max (arbitrarily select the 1st one)
-    mean_ranks = transposer.ranks("mean", rank_method="min")
-    max_ranks = transposer.ranks("max", rank_method="min")
-    translates = transposer.transposes[mean_ranks == 1]
 
-    if len(translates) > 1:
-        # log that there are ties
-        translates = translates[max_ranks[mean_ranks == 1] == max_ranks[mean_ranks == 1].min()]
+    # get mean ranks
+    rank_method = "min"
+    metric = "mean"
+    try:
+        mean_ranks = transposer.ranks("mean", rank_method)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.ranks.__name__,
+                    "status": "success",
+                    "params": {
+                        "metric": metric,
+                        "rank_method": rank_method,
+                        "order_high_low": True,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.ranks.__name__,
+                    "status": "failed",
+                    "params": {
+                        "metric": metric,
+                        "rank_method": rank_method,
+                        "order_high_low": True,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+
+    # get max ranks
+    metric = "max"
+    try:
+        max_ranks = transposer.ranks(metric, rank_method)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.ranks.__name__,
+                    "status": "success",
+                    "params": {
+                        "metric": metric,
+                        "rank_method": rank_method,
+                        "order_high_low": True,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.ranks.__name__,
+                    "status": "failed",
+                    "params": {
+                        "metric": metric,
+                        "rank_method": rank_method,
+                        "order_high_low": True,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+
+    # select best translate
+
+    try:
+        translates = transposer.transposes[mean_ranks == 1]
 
         if len(translates) > 1:
-            # log still tied
-            pass
+            logging.warning(
+                json.dumps(
+                    {
+                        "event_date": start.strftime("%Y-%m-%d"),
+                        "job": "get_best_translate",
+                        "message": f"{len(translates)} tied for mean",
+                    }
+                )
+            )
+            translates = translates[max_ranks[mean_ranks == 1] == max_ranks[mean_ranks == 1].min()]
 
-    best_translate = translates[0]
-    translate_geom = best_translate.geom
+            if len(translates) > 1:
+                logging.warning(
+                    json.dumps(
+                        {
+                            "event_date": start.strftime("%Y-%m-%d"),
+                            "job": "get_best_translate",
+                            "message": f"{len(translates)} tied for mean and max",
+                        }
+                    )
+                )
+
+        best_translate = translates[0]
+        translate_geom = best_translate.geom
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": "get_best_translate",
+                    "status": "success",
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": "get_best_translate",
+                    "status": "failed",
+                    "error": str(e),
+                }
+            )
+        )
 
     # store cluster data (png, nosql)
 
     # pngs - add mm to inch conversion
-    plotter.cluster_plot(
-        xsum,
-        translate_geom,
-        0,
-        scale_max,
-        "Accumulation (MM)",
-        geom=[watershed_geom, transposer.valid_space_geom()],
-        png=os.path.join(png_dir, f"{start_as_str}.png"),
-    )
+    png_path = os.path.join(png_dir, f"{start_as_str}.png")
+    scale_label = "Accumulation (MM)"
+    scale_min = 0
+    try:
+        plotter.cluster_plot(
+            xsum,
+            translate_geom,
+            scale_min,
+            scale_max,
+            scale_label,
+            geom=[watershed_geom, transposer.valid_space_geom()],
+            png=png_path,
+        )
+
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": plotter.cluster_plot.__name__,
+                    "status": "success",
+                    "params": {
+                        "xdata": "xsum",
+                        "cluster_geometry": "translate_geom",
+                        "vmin": scale_min,
+                        "vmax": scale_max,
+                        "scale_label": scale_label,
+                        "multiplier": 1,
+                        "geom": ["watershed_geom", "transposer.valid_space_geom"],
+                        "png": png_path,
+                    },
+                }
+            )
+        )
+
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": plotter.cluster_plot.__name__,
+                    "status": "failed",
+                    "params": {
+                        "xdata": "xsum",
+                        "cluster_geometry": "translate_geom",
+                        "vmin": scale_min,
+                        "vmax": scale_max,
+                        "scale_label": scale_label,
+                        "multiplier": 1,
+                        "geom": ["watershed_geom", "transposer.valid_space_geom"],
+                        "png": png_path,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
 
     # write grid to dss
-    write_dss(
-        xdata,
-        os.path.join(dss_dir, f"{start_as_str}.dss"),
-        "SHG4K",
-        domain_name.upper(),
-        "PRECIPITATION",
-        "AORC",
-        resolution=4000,
-    )
+    dss_path = os.path.join(dss_dir, f"{start_as_str}.dss")
+    path_a = "SHG4K"
+    path_b = domain_name.upper()
+    path_c = "PRECIPITATION"
+    path_f = "AORC"
+    resolution = 4000
+    try:
+        write_dss(
+            xdata,
+            dss_path,
+            path_a,
+            path_b,
+            path_c,
+            path_f,
+            resolution,
+        )
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": write_dss.__name__,
+                    "status": "success",
+                    "params": {
+                        "xdata": "xdata",
+                        "dss_path": dss_path,
+                        "path_a": path_a,
+                        "path_b": path_b,
+                        "path_c": path_c,
+                        "path_f": path_f,
+                        "resolution": resolution,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": write_dss.__name__,
+                    "status": "failed",
+                    "params": {
+                        "xdata": "xdata",
+                        "dss_path": dss_path,
+                        "path_a": path_a,
+                        "path_b": path_b,
+                        "path_c": path_c,
+                        "path_f": path_f,
+                        "resolution": resolution,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
 
 
 if __name__ == "__main__":
@@ -190,15 +529,75 @@ if __name__ == "__main__":
     png_dir = args[8]
     scale_max = args[9]
 
-    main(
-        start,
-        duration,
-        domain_name,
-        domain_uri,
-        watershed_uri,
-        dss_dir,
-        png_dir,
-        scale_max,
+    logging.info(
+        json.dumps(
+            {
+                "event_date": start,
+                "job": "main",
+                "status": "start",
+                "params": {
+                    "start": start,
+                    "duration": duration,
+                    "domain_name": domain_name,
+                    "domain_uri": domain_uri,
+                    "watershed_uri": watershed_uri,
+                    "dss_dir": dss_dir,
+                    "png_dir": png_dir,
+                    "scale_max": scale_max,
+                },
+            }
+        )
     )
+    try:
+        main(
+            start,
+            duration,
+            domain_name,
+            domain_uri,
+            watershed_uri,
+            dss_dir,
+            png_dir,
+            scale_max,
+        )
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": "main",
+                    "status": "success",
+                    "params": {
+                        "start": start,
+                        "duration": duration,
+                        "domain_name": domain_name,
+                        "domain_uri": domain_uri,
+                        "watershed_uri": watershed_uri,
+                        "dss_dir": dss_dir,
+                        "png_dir": png_dir,
+                        "scale_max": scale_max,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": "main",
+                    "status": "failed",
+                    "params": {
+                        "start": start,
+                        "duration": duration,
+                        "domain_name": domain_name,
+                        "domain_uri": domain_uri,
+                        "watershed_uri": watershed_uri,
+                        "dss_dir": dss_dir,
+                        "png_dir": png_dir,
+                        "scale_max": scale_max,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
 
-    # log_to_json(logfile)
+    log_to_json(logfile)

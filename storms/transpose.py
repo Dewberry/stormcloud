@@ -57,6 +57,10 @@ class Transpose:
 
         return unary_union(boxes)
 
+    @property
+    def center(self):
+        return self.coords[np.argmax(self.data)].tolist()
+
 
 class Transposer:
     def __init__(

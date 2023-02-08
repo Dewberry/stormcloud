@@ -22,24 +22,24 @@ class Transpose:
 
     @property
     def mean(self):
-        return self.data.mean()
+        return float(self.data.mean())
 
     @property
     def sum(self):
-        return self.data.mean()
+        return float(self.data.mean())
 
     @property
     def max(self):
-        return self.data.max()
+        return float(self.data.max())
 
     @property
     def min(self):
-        return self.data.min()
+        return float(self.data.min())
 
     @property
     def normalized_mean(self):
         if self.normalized_data is not None:
-            return (self.data / self.normalized_data).mean()
+            return float((self.data / self.normalized_data).mean())
         else:
             return None
 
@@ -59,7 +59,7 @@ class Transpose:
 
     @property
     def center(self):
-        return self.coords[np.argmax(self.data)].tolist()
+        return [float(coord) for coord in self.coords[np.argmax(self.data)].tolist()]
 
 
 class Transposer:
@@ -105,8 +105,8 @@ class Transposer:
         for x in self.xs:
             for y in self.ys:
 
-                x_diff = x - mask_minx
-                y_diff = y - mask_miny
+                x_diff = int(x - mask_minx)
+                y_diff = int(y - mask_miny)
 
                 if (
                     mask_minx + x_diff >= 0

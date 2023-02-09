@@ -3,7 +3,7 @@ from dataclasses_json import dataclass_json
 import numpy as np
 from shapely.geometry import box, Polygon
 from shapely.ops import unary_union
-from typing import List
+from typing import Tuple
 import xarray as xr
 from scipy.stats import rankdata
 
@@ -13,53 +13,13 @@ from scipy.stats import rankdata
 class Transpose:
     x_delta: int
     y_delta: int
-    indexes: np.ndarray
-    data: np.ndarray
-    coords: np.ndarray
-    normalized_data: np.ndarray
-    _cellsize_x: float
-    _cellsize_y: float
-
-    @property
-    def mean(self):
-        return float(self.data.mean())
-
-    @property
-    def sum(self):
-        return float(self.data.mean())
-
-    @property
-    def max(self):
-        return float(self.data.max())
-
-    @property
-    def min(self):
-        return float(self.data.min())
-
-    @property
-    def normalized_mean(self):
-        if self.normalized_data is not None:
-            return float((self.data / self.normalized_data).mean())
-        else:
-            return None
-
-    @property
-    def geom(self):
-        boxes = []
-        for coord in self.coords:
-            x, y = coord
-            minx = x - (self._cellsize_x / 2)
-            maxx = x + (self._cellsize_x / 2)
-            miny = y - (self._cellsize_y / 2)
-            maxy = y + (self._cellsize_y / 2)
-
-            boxes.append(box(minx, miny, maxx, maxy))
-
-        return unary_union(boxes)
-
-    @property
-    def center(self):
-        return [float(coord) for coord in self.coords[np.argmax(self.data)].tolist()]
+    count: int
+    mean: float
+    sum: float
+    max: float
+    min: float
+    normalized_mean: float
+    center: Tuple[float, float]
 
 
 class Transposer:
@@ -89,14 +49,13 @@ class Transposer:
         self._cellsize_x = abs(transform[0])
         self._cellsize_y = abs(transform[4])
 
-        # get transposes
-        self.transposes = self.__transposes()
-
-        # get valid space
-        self.valid_space = self.__valid_space()
+        # get transposes and valid space
+        self.transposes, self.valid_space = self.__transposes()
 
     def __transposes(self) -> np.ndarray:
         transposes = []
+        valid_space = np.full(self.mask.shape, False)
+
         mask_minx, mask_miny, mask_maxx, mask_maxy = self.mask_bounds
         max_x = self.xs.max()
         max_y = self.ys.max()
@@ -124,31 +83,29 @@ class Transposer:
                             (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
                         )
                         if self.normalized_data is not None:
-                            norm_data = self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]
+                            norm_mean = float(
+                                (data_slice / self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]).mean()
+                            )
                         else:
-                            norm_data = None
+                            norm_mean = None
+
                         transposes.append(
                             Transpose(
                                 x_delta=x_diff,
                                 y_delta=y_diff,
-                                indexes=transl_indexes,
-                                data=data_slice,
-                                coords=coords,
-                                normalized_data=norm_data,
-                                _cellsize_x=self._cellsize_x,
-                                _cellsize_y=self._cellsize_y,
+                                count=len(data_slice),
+                                mean=float(data_slice.mean()),
+                                sum=float(data_slice.mean()),
+                                max=float(data_slice.max()),
+                                min=float(data_slice.min()),
+                                normalized_mean=norm_mean,
+                                center=[float(coord) for coord in coords[np.argmax(data_slice)].tolist()],
                             )
                         )
 
-        return np.array(transposes)
+                        valid_space[transl_indexes[:, 1], transl_indexes[:, 0]] = True
 
-    def __valid_space(self):
-
-        valid_space = np.full(self.mask.shape, False)
-        for t in self.transposes:
-            valid_space[t.indexes[:, 1], t.indexes[:, 0]] = True
-
-        return valid_space
+        return np.array(transposes), valid_space
 
     @property
     def shape(self) -> tuple:
@@ -172,7 +129,7 @@ class Transposer:
         return np.array(range(self.shape[0]))
 
     @property
-    def meshgrid(self) -> List[np.ndarray]:
+    def meshgrid(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Meshgrid of x,y indexes
         Returns two arrays of shape (Y, X) for the x and y indexes
@@ -225,6 +182,25 @@ class Transposer:
     def valid_space_geom(self):
         cells = np.flip(np.column_stack(np.where(self.valid_space)), 1)
         coords = np.column_stack((self.x_coords[cells[:, 0]], self.y_coords[cells[:, 1]]))
+
+        boxes = []
+        for coord in coords:
+            x, y = coord
+            minx = x - (self._cellsize_x / 2)
+            maxx = x + (self._cellsize_x / 2)
+            miny = y - (self._cellsize_y / 2)
+            maxy = y + (self._cellsize_y / 2)
+
+            boxes.append(box(minx, miny, maxx, maxy))
+
+        return unary_union(boxes)
+
+    def transpose_geom(self, transpose: Transpose):
+        x_diff = transpose.x_delta
+        y_diff = transpose.y_delta
+        transl_indexes = np.column_stack((self.mask_idxs[:, 0] + x_diff, self.mask_idxs[:, 1] + y_diff))
+
+        coords = np.column_stack((self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]]))
 
         boxes = []
         for coord in coords:

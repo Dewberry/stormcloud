@@ -31,6 +31,7 @@ def main(
     dss_dir: str,
     png_dir: str,
     scale_max: int,
+    index_name: str,
 ):
 
     data_type = "precipitation"
@@ -72,6 +73,7 @@ def main(
                 }
             )
         )
+        raise
 
     try:
         watershed_geom = s3_geometry_reader(session, watershed_uri)
@@ -105,6 +107,7 @@ def main(
                 }
             )
         )
+        raise
 
     # read AORC data into xarray (time series)
     # this will be used later to write to dss
@@ -144,6 +147,7 @@ def main(
                 }
             )
         )
+        raise
 
     # read AORC data into xarray (aggregate)
     # this will be used for clustering/identifying storms
@@ -184,6 +188,7 @@ def main(
                 }
             )
         )
+        raise
 
     # get atlas 14 data for normalizing (ADD CHECK THAT ATLAS14 DATA COVERS DOMAIN)
     try:
@@ -226,6 +231,7 @@ def main(
                 }
             )
         )
+        raise
 
     norm_arr = None  # temporary for upper green processing
 
@@ -268,6 +274,7 @@ def main(
                 }
             )
         )
+        raise
 
     # get translation with greatest mean (max used as tie breaker)
     # if still tied after max (arbitrarily select the 1st one)
@@ -307,6 +314,7 @@ def main(
                 }
             )
         )
+        raise
 
     # get max ranks
     metric = "max"
@@ -342,6 +350,7 @@ def main(
                 }
             )
         )
+        raise
 
     # select best translate
 
@@ -392,6 +401,7 @@ def main(
                 }
             )
         )
+        raise
 
     # get translate geom
     try:
@@ -402,7 +412,7 @@ def main(
                     "event_date": start.strftime("%Y-%m-%d"),
                     "job": transposer.transpose_geom.__name__,
                     "status": "success",
-                    "params": {"transpose": "best_translate"},
+                    "params": {"transpose": best_translate.to_dict()},
                 }
             )
         )
@@ -413,11 +423,12 @@ def main(
                     "event_date": start.strftime("%Y-%m-%d"),
                     "job": transposer.transpose_geom.__name__,
                     "status": "failed",
-                    "params": {"transpose": "best_translate"},
+                    "params": {"transpose": best_translate.to_dict()},
                     "error": str(e),
                 }
             )
         )
+        raise
 
     # store cluster data (png, nosql)
     # pngs - add mm to inch conversion
@@ -476,6 +487,7 @@ def main(
                 }
             )
         )
+        raise
 
     # write grid to dss
     dss_path = os.path.join(dss_dir, f"{start_as_str}.dss")
@@ -532,10 +544,86 @@ def main(
                 }
             )
         )
+        raise
 
-    return ms.tranpose_to_doc(
-        start, duration, watershed_name, domain_version, watershed_uri, domain_uri, best_translate
-    )
+    try:
+        doc = ms.tranpose_to_doc(
+            start, duration, watershed_name, domain_version, watershed_uri, domain_uri, best_translate
+        )
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": ms.tranpose_to_doc.__name__,
+                    "status": "success",
+                    "params": {
+                        "event_start": start,
+                        "duration": duration,
+                        "watershed_name": watershed_name,
+                        "domain_version": domain_version,
+                        "watershed_uri": watershed_uri,
+                        "domain_uri": domain_uri,
+                        "transpose": best_translate.to_dict(),
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": ms.tranpose_to_doc.__name__,
+                    "status": "failed",
+                    "params": {
+                        "event_start": start,
+                        "duration": duration,
+                        "watershed_name": watershed_name,
+                        "domain_version": domain_version,
+                        "watershed_uri": watershed_uri,
+                        "domain_uri": domain_uri,
+                        "transpose": best_translate.to_dict(),
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+        raise
+
+    try:
+        ms.upload_doc(ms_client, index_name, doc)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": ms.upload_doc.__name__,
+                    "status": "success",
+                    "params": {
+                        "client": "ms_client",
+                        "index": index_name,
+                        "doc": doc.to_dict(),
+                    },
+                }
+            )
+        )
+
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": ms.upload_doc.__name__,
+                    "status": "failed",
+                    "params": {
+                        "client": "ms_client",
+                        "index": index_name,
+                        "doc": doc.to_dict(),
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+        raise
 
 
 if __name__ == "__main__":
@@ -569,17 +657,19 @@ if __name__ == "__main__":
                     "start": start,
                     "duration": duration,
                     "watershed_name": watershed_name,
+                    "domain_version": domain_version,
                     "domain_uri": domain_uri,
                     "watershed_uri": watershed_uri,
                     "dss_dir": dss_dir,
                     "png_dir": png_dir,
                     "scale_max": scale_max,
+                    "index_name": index_name,
                 },
             }
         )
     )
     try:
-        doc = main(
+        main(
             start,
             duration,
             watershed_name,
@@ -589,6 +679,7 @@ if __name__ == "__main__":
             dss_dir,
             png_dir,
             scale_max,
+            index_name,
         )
         logging.info(
             json.dumps(
@@ -600,16 +691,17 @@ if __name__ == "__main__":
                         "start": start,
                         "duration": duration,
                         "watershed_name": watershed_name,
+                        "domain_version": domain_version,
                         "domain_uri": domain_uri,
                         "watershed_uri": watershed_uri,
                         "dss_dir": dss_dir,
                         "png_dir": png_dir,
                         "scale_max": scale_max,
+                        "index_name": index_name,
                     },
                 }
             )
         )
-        ms.upload_docs(ms_client, index_name, [doc])
     except Exception as e:
         logging.error(
             json.dumps(
@@ -621,11 +713,13 @@ if __name__ == "__main__":
                         "start": start,
                         "duration": duration,
                         "watershed_name": watershed_name,
+                        "domain_version": domain_version,
                         "domain_uri": domain_uri,
                         "watershed_uri": watershed_uri,
                         "dss_dir": dss_dir,
                         "png_dir": png_dir,
                         "scale_max": scale_max,
+                        "index_name": index_name,
                     },
                     "error": str(e),
                 }

@@ -25,6 +25,7 @@ def main(
     start: str,
     duration: int,
     watershed_name: str,
+    domain_version: str,
     domain_uri: str,
     watershed_uri: str,
     dss_dir: str,
@@ -532,7 +533,9 @@ def main(
             )
         )
 
-    return ms.tranpose_to_doc(start, duration, watershed_name, watershed_uri, domain_uri, best_translate)
+    return ms.tranpose_to_doc(
+        start, duration, watershed_name, domain_version, watershed_uri, domain_uri, best_translate
+    )
 
 
 if __name__ == "__main__":
@@ -548,13 +551,14 @@ if __name__ == "__main__":
     start = args[1]
     duration = args[2]
     watershed_name = args[3]
-    domain_uri = args[4]
-    watershed_uri = args[5]
-    minimum_threshold = args[6]
-    dss_dir = args[7]
-    png_dir = args[8]
-    scale_max = args[9]
-    index_name = args[10]
+    domain_version = args[4]
+    domain_uri = args[5]
+    watershed_uri = args[6]
+    minimum_threshold = args[7]
+    dss_dir = args[8]
+    png_dir = args[9]
+    scale_max = args[10]
+    index_name = args[11]
 
     logging.info(
         json.dumps(
@@ -580,6 +584,7 @@ if __name__ == "__main__":
             start,
             duration,
             watershed_name,
+            domain_version,
             domain_uri,
             watershed_uri,
             dss_dir,

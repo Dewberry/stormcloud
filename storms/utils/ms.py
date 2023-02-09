@@ -51,6 +51,7 @@ class _StormDocumentGeom:
 class _StormDocumentMetaData:
     source: str
     watershed_name: str
+    transposition_domain_version: str
     watershed_source: str
     transposition_domain_source: str
     # files: List[str]
@@ -182,7 +183,13 @@ def _format_datetime(event_start: datetime) -> _StormDocumentDateTime:
 
 
 def tranpose_to_doc(
-    event_start: datetime, duration: int, watershed_name: str, watershed_uri: str, domain_uri: str, transpose: Transpose
+    event_start: datetime,
+    duration: int,
+    watershed_name: str,
+    domain_version: str,
+    watershed_uri: str,
+    domain_uri: str,
+    transpose: Transpose,
 ):
     """
     Converts a transposer and transpose to a meilisearch document
@@ -210,6 +217,7 @@ def tranpose_to_doc(
     storm_metadata = _StormDocumentMetaData(
         source="AORC",
         watershed_name=watershed_name,
+        transposition_domain_version=domain_version,
         watershed_source=watershed_uri,
         transposition_domain_source=domain_uri,
         create_time=str(datetime.now()),

@@ -554,11 +554,10 @@ if __name__ == "__main__":
     domain_version = args[4]
     domain_uri = args[5]
     watershed_uri = args[6]
-    minimum_threshold = args[7]
-    dss_dir = args[8]
-    png_dir = args[9]
-    scale_max = args[10]
-    index_name = args[11]
+    dss_dir = args[7]
+    png_dir = args[8]
+    scale_max = args[9]
+    index_name = args[10]
 
     logging.info(
         json.dumps(

@@ -105,10 +105,28 @@ def upload_docs(client: Client, index: str, docs: List[StormDocument]):
         index name
     primary_key: str
         name of index's primary key (default "uid")
-    docs: List[dict]
+    docs: List[StormDocument]
         list of documents to add to index
     """
     client.index(index).add_documents([doc.to_dict() for doc in docs])
+
+
+def upload_doc(client: Client, index: str, doc: StormDocument):
+    """
+    Uploads a single document to a meilisearch index.
+
+    Parameters
+    ----------
+    client: meilisearch.Client
+        meilisearch Client
+    index: str
+        index name
+    primary_key: str
+        name of index's primary key (default "uid")
+    docs: StormDocument
+        document to add to index
+    """
+    client.index(index).add_documents([doc.to_dict()])
 
 
 def build_index(

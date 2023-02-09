@@ -95,7 +95,7 @@ class Transposer:
                                 y_delta=y_diff,
                                 count=len(data_slice),
                                 mean=float(data_slice.mean()),
-                                sum=float(data_slice.mean()),
+                                sum=float(data_slice.sum()),
                                 max=float(data_slice.max()),
                                 min=float(data_slice.min()),
                                 normalized_mean=norm_mean,

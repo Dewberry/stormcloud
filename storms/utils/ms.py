@@ -191,7 +191,7 @@ def tranpose_to_doc(
     storm_datetime = _format_datetime(event_start)
 
     storm_stats = _StormDocumentStats(
-        count=len(transpose.data),
+        count=transpose.count,
         mean=transpose.mean,
         max=transpose.max,
         min=transpose.min,
@@ -201,11 +201,10 @@ def tranpose_to_doc(
 
     storm_center = transpose.center
     storm_geom = _StormDocumentGeom(
-        # indexes=[[int(ind[0]), int(ind[1])] for ind in transpose.indexes.tolist()],
         x_delta=transpose.x_delta,
         y_delta=transpose.y_delta,
-        center_x=float(storm_center[0]),
-        center_y=float(storm_center[1]),
+        center_x=storm_center[0],
+        center_y=storm_center[1],
     )
 
     storm_metadata = _StormDocumentMetaData(

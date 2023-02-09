@@ -1,11 +1,11 @@
 from boto3 import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv, find_dotenv
 import json
 from logger import set_up_logger, log_to_json
 import logging
 import os
-from storms.utils import plotter
+from storms.utils import plotter, ms
 import sys
 from storms.cluster import (
     get_xr_dataset,
@@ -18,12 +18,13 @@ from storms.transpose import Transposer
 load_dotenv(find_dotenv())
 
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+ms_client = ms.Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
 
 
 def main(
     start: str,
     duration: int,
-    domain_name: str,
+    watershed_name: str,
     domain_uri: str,
     watershed_uri: str,
     dss_dir: str,
@@ -370,7 +371,6 @@ def main(
                 )
 
         best_translate = translates[0]
-        translate_geom = best_translate.geom
         logging.info(
             json.dumps(
                 {
@@ -392,8 +392,33 @@ def main(
             )
         )
 
-    # store cluster data (png, nosql)
+    # get translate geom
+    try:
+        translate_geom = transposer.transpose_geom(best_translate)
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.transpose_geom.__name__,
+                    "status": "success",
+                    "params": {"transpose": "best_translate"},
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start.strftime("%Y-%m-%d"),
+                    "job": transposer.transpose_geom.__name__,
+                    "status": "failed",
+                    "params": {"transpose": "best_translate"},
+                    "error": str(e),
+                }
+            )
+        )
 
+    # store cluster data (png, nosql)
     # pngs - add mm to inch conversion
     png_path = os.path.join(png_dir, f"{start_as_str}.png")
     scale_label = "Accumulation (MM)"
@@ -454,7 +479,7 @@ def main(
     # write grid to dss
     dss_path = os.path.join(dss_dir, f"{start_as_str}.dss")
     path_a = "SHG4K"
-    path_b = domain_name.upper()
+    path_b = watershed_name.upper()
     path_c = "PRECIPITATION"
     path_f = "AORC"
     resolution = 4000
@@ -507,6 +532,8 @@ def main(
             )
         )
 
+    return ms.tranpose_to_doc(start, duration, watershed_name, watershed_uri, domain_uri, best_translate)
+
 
 if __name__ == "__main__":
 
@@ -514,20 +541,20 @@ if __name__ == "__main__":
     logfile = f"outputs/logs/extract-storms-{execution_time}.log"
 
     logger = set_up_logger(filename=logfile)
-    # logger = set_up_logger()
     logger.setLevel(logging.INFO)
 
     args = sys.argv
 
     start = args[1]
     duration = args[2]
-    domain_name = args[3]
+    watershed_name = args[3]
     domain_uri = args[4]
     watershed_uri = args[5]
     minimum_threshold = args[6]
     dss_dir = args[7]
     png_dir = args[8]
     scale_max = args[9]
+    index_name = args[10]
 
     logging.info(
         json.dumps(
@@ -538,7 +565,7 @@ if __name__ == "__main__":
                 "params": {
                     "start": start,
                     "duration": duration,
-                    "domain_name": domain_name,
+                    "watershed_name": watershed_name,
                     "domain_uri": domain_uri,
                     "watershed_uri": watershed_uri,
                     "dss_dir": dss_dir,
@@ -549,10 +576,10 @@ if __name__ == "__main__":
         )
     )
     try:
-        main(
+        doc = main(
             start,
             duration,
-            domain_name,
+            watershed_name,
             domain_uri,
             watershed_uri,
             dss_dir,
@@ -568,7 +595,7 @@ if __name__ == "__main__":
                     "params": {
                         "start": start,
                         "duration": duration,
-                        "domain_name": domain_name,
+                        "watershed_name": watershed_name,
                         "domain_uri": domain_uri,
                         "watershed_uri": watershed_uri,
                         "dss_dir": dss_dir,
@@ -578,6 +605,7 @@ if __name__ == "__main__":
                 }
             )
         )
+        ms.upload_docs(ms_client, index_name, [doc])
     except Exception as e:
         logging.error(
             json.dumps(
@@ -588,7 +616,7 @@ if __name__ == "__main__":
                     "params": {
                         "start": start,
                         "duration": duration,
-                        "domain_name": domain_name,
+                        "watershed_name": watershed_name,
                         "domain_uri": domain_uri,
                         "watershed_uri": watershed_uri,
                         "dss_dir": dss_dir,

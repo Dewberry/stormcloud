@@ -557,7 +557,7 @@ def main(
                     "job": ms.tranpose_to_doc.__name__,
                     "status": "success",
                     "params": {
-                        "event_start": start,
+                        "event_start": str(start),
                         "duration": duration,
                         "watershed_name": watershed_name,
                         "domain_version": domain_version,
@@ -576,7 +576,7 @@ def main(
                     "job": ms.tranpose_to_doc.__name__,
                     "status": "failed",
                     "params": {
-                        "event_start": start,
+                        "event_start": str(start),
                         "duration": duration,
                         "watershed_name": watershed_name,
                         "domain_version": domain_version,

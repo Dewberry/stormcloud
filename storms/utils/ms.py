@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from datetime import datetime, date
+from json import dumps
 from meilisearch import Client
 from typing import List
 from storms.transpose import Transpose
@@ -51,7 +52,7 @@ class _StormDocumentGeom:
 class _StormDocumentMetaData:
     source: str
     watershed_name: str
-    transposition_domain_version: str
+    transposition_domain_name: str
     watershed_source: str
     transposition_domain_source: str
     # files: List[str]
@@ -75,6 +76,10 @@ class StormDocument:
     metadata: _StormDocumentMetaData
     geom: _StormDocumentGeom
     # ranks: _StormDocumentRanks
+
+    def write_to(self, file_path: str):
+        with open(file_path, "w") as f:
+            f.write(dumps(self.to_dict()))
 
 
 def list_indexs(client: Client) -> List[str]:
@@ -204,7 +209,7 @@ def tranpose_to_doc(
     event_start: datetime,
     duration: int,
     watershed_name: str,
-    domain_version: str,
+    domain_name: str,
     watershed_uri: str,
     domain_uri: str,
     transpose: Transpose,
@@ -235,7 +240,7 @@ def tranpose_to_doc(
     storm_metadata = _StormDocumentMetaData(
         source="AORC",
         watershed_name=watershed_name,
-        transposition_domain_version=domain_version,
+        transposition_domain_name=domain_name,
         watershed_source=watershed_uri,
         transposition_domain_source=domain_uri,
         create_time=str(datetime.now()),

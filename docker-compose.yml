@@ -1,18 +1,9 @@
 version: '3.8'
 services:
-  meilisearch:
-    container_name: meilisearch
-    image: getmeili/meilisearch:v0.28.0
-    restart: always
-    volumes:
-      - ./meili_data:/meili_data
-    networks:
-      - hec-net
-    ports:
-      - 7700:7700
+  stormcloud:
+    container_name: stormcloud
+    build:
+      context: .
     env_file:
       - ./.env
-
-networks:
-  hec-net:
-    driver: bridge
+  # entrypoint: 

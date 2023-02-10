@@ -18,20 +18,21 @@ from storms.transpose import Transposer
 load_dotenv(find_dotenv())
 
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-ms_client = ms.Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+s3_client = session.client("s3")
 
 
 def main(
     start: str,
     duration: int,
     watershed_name: str,
-    domain_version: str,
+    domain_name: str,
     domain_uri: str,
     watershed_uri: str,
-    dss_dir: str,
-    png_dir: str,
-    scale_max: int,
-    index_name: str,
+    atlas14_uri: str = None,
+    dss_dir: str = "./",
+    png_dir: str = "./",
+    doc_dir: str = "./",
+    scale_max: float = 300,
 ):
 
     data_type = "precipitation"
@@ -190,50 +191,43 @@ def main(
         )
         raise
 
-    # get atlas 14 data for normalizing (ADD CHECK THAT ATLAS14 DATA COVERS DOMAIN)
-    try:
-        if duration <= 24:
-            atlas_14_uri = f"s3://tempest/transforms/atlas14/2yr{duration:02d}ha/2yr{duration:02d}ha.vrt"
-        else:
-            # add check here that duration divisible by 24
-            atlas_14_uri = (
-                f"s3://tempest/transforms/atlas14/2yr{int(duration/24):02d}da/2yr{int(duration/24):02d}da.vrt"
-            )
+    # get atlas 14 data for normalizing (ignore if uri is None)
+    if atlas14_uri is None:
+        norm_arr = None
+    else:
+        try:
+            xnorm = get_atlas14(atlas14_uri, xsum.APCP_surface)
+            norm_arr = xnorm.to_numpy() * 25.4  # convert to mm
 
-        # xnorm = get_atlas14(atlas_14_uri, xsum.APCP_surface)
-        # norm_arr = xnorm.to_numpy() * 25.4  # convert to mm
-
-        logging.info(
-            json.dumps(
-                {
-                    "event_date": start.strftime("%Y-%m-%d"),
-                    "job": get_atlas14.__name__,
-                    "status": "success",
-                    "params": {
-                        "s3_uri": atlas_14_uri,
-                        "interpolate_to": "xsum",
-                    },
-                }
+            logging.info(
+                json.dumps(
+                    {
+                        "event_date": start.strftime("%Y-%m-%d"),
+                        "job": get_atlas14.__name__,
+                        "status": "success",
+                        "params": {
+                            "s3_uri": atlas14_uri,
+                            "interpolate_to": "xsum",
+                        },
+                    }
+                )
             )
-        )
-    except Exception as e:
-        logging.error(
-            json.dumps(
-                {
-                    "event_date": start.strftime("%Y-%m-%d"),
-                    "job": get_atlas14.__name__,
-                    "status": "failed",
-                    "params": {
-                        "s3_uri": atlas_14_uri,
-                        "interpolate_to": "xsum",
-                    },
-                    "error": str(e),
-                }
+        except Exception as e:
+            logging.error(
+                json.dumps(
+                    {
+                        "event_date": start.strftime("%Y-%m-%d"),
+                        "job": get_atlas14.__name__,
+                        "status": "failed",
+                        "params": {
+                            "s3_uri": atlas14_uri,
+                            "interpolate_to": "xsum",
+                        },
+                        "error": str(e),
+                    }
+                )
             )
-        )
-        raise
-
-    norm_arr = None  # temporary for upper green processing
+            raise
 
     # transpose watershed around transposition domain
     try:
@@ -250,7 +244,7 @@ def main(
                         "data_var": "APCP_surface",
                         "x_var": "longitude",
                         "y_var": "latitude",
-                        "normalized_data": None,  # temporary for upper green processing
+                        "normalized_data": atlas14_uri,
                     },
                 }
             )
@@ -268,7 +262,7 @@ def main(
                         "data_var": "APCP_surface",
                         "x_var": "longitude",
                         "y_var": "latitude",
-                        "normalized_data": None,  # temporary for upper green processing
+                        "normalized_data": atlas14_uri,
                     },
                     "error": str(e),
                 }
@@ -278,7 +272,6 @@ def main(
 
     # get translation with greatest mean (max used as tie breaker)
     # if still tied after max (arbitrarily select the 1st one)
-
     # get mean ranks
     rank_method = "min"
     metric = "mean"
@@ -548,7 +541,7 @@ def main(
 
     try:
         doc = ms.tranpose_to_doc(
-            start, duration, watershed_name, domain_version, watershed_uri, domain_uri, best_translate
+            start, duration, watershed_name, domain_name, watershed_uri, domain_uri, best_translate
         )
         logging.info(
             json.dumps(
@@ -560,7 +553,7 @@ def main(
                         "event_start": str(start),
                         "duration": duration,
                         "watershed_name": watershed_name,
-                        "domain_version": domain_version,
+                        "domain_name": domain_name,
                         "watershed_uri": watershed_uri,
                         "domain_uri": domain_uri,
                         "transpose": best_translate.to_dict(),
@@ -579,7 +572,7 @@ def main(
                         "event_start": str(start),
                         "duration": duration,
                         "watershed_name": watershed_name,
-                        "domain_version": domain_version,
+                        "domain_name": domain_name,
                         "watershed_uri": watershed_uri,
                         "domain_uri": domain_uri,
                         "transpose": best_translate.to_dict(),
@@ -590,19 +583,17 @@ def main(
         )
         raise
 
+    # write document to json
+    doc_path = os.path.join(doc_dir, f"{start_as_str}.json")
     try:
-        ms.upload_doc(ms_client, index_name, doc)
+        doc.write_to(doc_path)
         logging.info(
             json.dumps(
                 {
                     "event_date": start.strftime("%Y-%m-%d"),
-                    "job": ms.upload_doc.__name__,
+                    "job": doc.write_to.__name__,
                     "status": "success",
-                    "params": {
-                        "client": "ms_client",
-                        "index": index_name,
-                        "doc": doc.to_dict(),
-                    },
+                    "params": {"file_path": doc_path},
                 }
             )
         )
@@ -612,40 +603,50 @@ def main(
             json.dumps(
                 {
                     "event_date": start.strftime("%Y-%m-%d"),
-                    "job": ms.upload_doc.__name__,
+                    "job": doc.write_to.__name__,
                     "status": "failed",
-                    "params": {
-                        "client": "ms_client",
-                        "index": index_name,
-                        "doc": doc.to_dict(),
-                    },
+                    "params": {"file_path": doc_path},
                     "error": str(e),
                 }
             )
         )
         raise
+
+    return png_path, dss_path, doc_path
 
 
 if __name__ == "__main__":
 
-    execution_time = datetime.now().strftime("%Y%m%d_%H%M")
-    logfile = f"outputs/logs/extract-storms-{execution_time}.log"
-
-    logger = set_up_logger(filename=logfile)
+    logger = set_up_logger()
     logger.setLevel(logging.INFO)
 
     args = sys.argv
 
+    # required args
     start = args[1]
-    duration = args[2]
-    watershed_name = args[3]
-    domain_version = args[4]
-    domain_uri = args[5]
-    watershed_uri = args[6]
-    dss_dir = args[7]
-    png_dir = args[8]
-    scale_max = args[9]
-    index_name = args[10]
+    kwargs = {
+        "start": args[1],
+        "duration": int(args[2]),
+        "watershed_name": args[3],
+        "domain_name": args[4],
+        "domain_uri": args[5],
+        "watershed_uri": args[6],
+    }
+    s3_bucket = args[7]
+    s3_key_prefix = args[8]
+
+    # optional args
+    # atlas14_uri = args[9] if len(args) > 9 else None
+    if len(args) > 9:
+        kwargs["atlas14_uri"] = args[9]
+    if len(args) > 10:
+        kwargs["dss_dir"] = args[10]
+    if len(args) > 11:
+        kwargs["png_dir"] = args[11]
+    if len(args) > 12:
+        kwargs["doc_dir"] = args[12]
+    if len(args) > 13:
+        kwargs["scale_max"] = args[13]
 
     logging.info(
         json.dumps(
@@ -653,52 +654,20 @@ if __name__ == "__main__":
                 "event_date": start,
                 "job": "main",
                 "status": "start",
-                "params": {
-                    "start": start,
-                    "duration": duration,
-                    "watershed_name": watershed_name,
-                    "domain_version": domain_version,
-                    "domain_uri": domain_uri,
-                    "watershed_uri": watershed_uri,
-                    "dss_dir": dss_dir,
-                    "png_dir": png_dir,
-                    "scale_max": scale_max,
-                    "index_name": index_name,
-                },
+                "params": kwargs,
             }
         )
     )
     try:
-        main(
-            start,
-            duration,
-            watershed_name,
-            domain_version,
-            domain_uri,
-            watershed_uri,
-            dss_dir,
-            png_dir,
-            scale_max,
-            index_name,
-        )
+        # get 3 files: dss, png, json
+        png_path, dss_path, doc_path = main(**kwargs)
         logging.info(
             json.dumps(
                 {
                     "event_date": start,
                     "job": "main",
                     "status": "success",
-                    "params": {
-                        "start": start,
-                        "duration": duration,
-                        "watershed_name": watershed_name,
-                        "domain_version": domain_version,
-                        "domain_uri": domain_uri,
-                        "watershed_uri": watershed_uri,
-                        "dss_dir": dss_dir,
-                        "png_dir": png_dir,
-                        "scale_max": scale_max,
-                        "index_name": index_name,
-                    },
+                    "params": kwargs,
                 }
             )
         )
@@ -709,21 +678,117 @@ if __name__ == "__main__":
                     "event_date": start,
                     "job": "main",
                     "status": "failed",
+                    "params": kwargs,
+                    "error": str(e),
+                }
+            )
+        )
+        raise
+
+    # write png to s3
+    try:
+        png_key = os.path.join(s3_key_prefix, "pngs", os.path.basename(png_path))
+        s3_client.upload_file(png_path, s3_bucket, png_key)
+
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "success",
                     "params": {
-                        "start": start,
-                        "duration": duration,
-                        "watershed_name": watershed_name,
-                        "domain_version": domain_version,
-                        "domain_uri": domain_uri,
-                        "watershed_uri": watershed_uri,
-                        "dss_dir": dss_dir,
-                        "png_dir": png_dir,
-                        "scale_max": scale_max,
-                        "index_name": index_name,
+                        "file_name": png_path,
+                        "bucket": s3_bucket,
+                        "object_name": png_key,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "failed",
+                    "params": {
+                        "file_name": png_path,
+                        "bucket": s3_bucket,
+                        "object_name": png_key,
                     },
                     "error": str(e),
                 }
             )
         )
 
-    log_to_json(logfile)
+    # write dss to s3
+    try:
+        dss_key = os.path.join(s3_key_prefix, "dss", os.path.basename(dss_path))
+        s3_client.upload_file(dss_path, s3_bucket, dss_key)
+
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "success",
+                    "params": {
+                        "file_name": dss_path,
+                        "bucket": s3_bucket,
+                        "object_name": dss_key,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "failed",
+                    "params": {
+                        "file_name": dss_path,
+                        "bucket": s3_bucket,
+                        "object_name": dss_key,
+                    },
+                    "error": str(e),
+                }
+            )
+        )
+
+    # write doc to s3
+    try:
+        doc_key = os.path.join(s3_key_prefix, "docs", os.path.basename(doc_path))
+        s3_client.upload_file(doc_path, s3_bucket, doc_key)
+
+        logging.info(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "success",
+                    "params": {
+                        "file_name": doc_path,
+                        "bucket": s3_bucket,
+                        "object_name": doc_key,
+                    },
+                }
+            )
+        )
+    except Exception as e:
+        logging.error(
+            json.dumps(
+                {
+                    "event_date": start,
+                    "job": s3_client.upload_file.__name__,
+                    "status": "failed",
+                    "params": {
+                        "file_name": doc_path,
+                        "bucket": s3_bucket,
+                        "object_name": doc_key,
+                    },
+                    "error": str(e),
+                }
+            )
+        )

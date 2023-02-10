@@ -27,6 +27,4 @@ RUN ( cd pydsstools && python3 -m pip install . )
 
 COPY extract_storms_v2.py /app/extract_storms_v2.py
 
-COPY test.sh /app/test.sh
-
 COPY logger.py /app/logger.py

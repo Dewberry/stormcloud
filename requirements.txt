@@ -1,0 +1,22 @@
+xarray[io]==2022.3.0
+rioxarray==0.11.1
+geopandas==0.10.2
+Rtree==1.0.0
+boto3==1.22.2
+python-dotenv==0.20.0
+dask==2022.4.1
+matplotlib==3.5.1
+# awscli
+# flask
+dataclasses_json
+# meilisearch
+# psycopg2-binary
+scikit-learn
+# h5netcdf==1.0.1
+# netCDF4==1.6.0
+h5netcdf==1.0.0
+netCDF4==1.5.8
+rasterstats
+# gitpython
+s3fs
+# xxhash

@@ -15,8 +15,8 @@ scikit-learn
 # h5netcdf==1.0.1
 # netCDF4==1.6.0
 h5netcdf==1.0.0
-# netCDF4==1.5.8
+netCDF4==1.5.8
 rasterstats
 # gitpython
-# s3fs
+s3fs
 # xxhash

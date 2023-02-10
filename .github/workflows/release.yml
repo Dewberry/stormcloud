@@ -1,0 +1,42 @@
+name: stormcloud-ci
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  build-container:
+    name: Build Docker Container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set date env
+        run: echo "DATETAG=v$(date +'%Y.%m.%d')" >> $GITHUB_ENV
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER }}:role/${{ secrets.ECR_ROLE_NAME }}
+          role-session-name: updateimage
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push docker image to Amazon ECR
+        run: ./docker-push-ecr.sh ${{ env.DATETAG }} ${{ secrets.AWS_REGION }} ${{ secrets.AWS_ACCOUNT_NUMBER }}
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          name: ${{ env.DATETAG }}
+          tag_name: ${{ env.DATETAG }}

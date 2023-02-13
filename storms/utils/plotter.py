@@ -17,6 +17,8 @@ def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: i
         GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
     GeoSeries(cluster_geometry, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="black", lw=1)
     ax.set(title=None, xlabel=None, ylabel=None)
+    ax.set_xticks(ax.get_xticks())
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 
     if png is None:
         plt.show()

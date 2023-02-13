@@ -6,7 +6,7 @@ from fiona.session import AWSSession
 import logging
 import numpy as np
 from pydsstools.heclib.dss.HecDss import Open
-from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform
+from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform, dss_logging
 from scipy.ndimage import measurements
 from scipy.stats import rankdata
 from shapely.geometry import box, Polygon, shape
@@ -19,6 +19,12 @@ warnings.filterwarnings("ignore")
 
 import rioxarray as rxr
 import xarray as xr
+
+# quietly set dss_logging to level ERROR
+# without setting the root logger to ERROR will write warning when changing dss_logging level
+logging.root.setLevel(logging.ERROR)
+dss_logging.config(level="Error")
+logging.root.setLevel(logging.INFO)
 
 
 class Clusterer:

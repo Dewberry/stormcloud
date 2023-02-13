@@ -26,6 +26,9 @@ os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_nam
 session = boto3.session.Session()
 s3_client = session.client("s3")
 
+# get rid of dss logger
+logging.getLogger("pydsstools").setLevel(logging.ERROR)
+
 
 def main(
     start: str,

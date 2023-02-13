@@ -2,6 +2,9 @@ from geopandas import GeoSeries
 from matplotlib import pyplot as plt
 from matplotlib.cm import Spectral_r
 import os
+import logging
+
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 
 def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: int = 1, geom=None, png=None):

@@ -5,6 +5,7 @@ import fiona
 from fiona.session import AWSSession
 import logging
 import numpy as np
+import os
 from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import gridInfo, SHG_WKT, lower_left_xy_from_transform, dss_logging
 from scipy.ndimage import measurements
@@ -12,6 +13,7 @@ from scipy.stats import rankdata
 from shapely.geometry import box, Polygon, shape
 from shapely.ops import unary_union
 from sklearn.cluster import DBSCAN
+import sys
 from typing import List, Tuple
 import warnings
 
@@ -21,7 +23,7 @@ import rioxarray as rxr
 import xarray as xr
 
 # quietly set dss_logging to level ERROR
-# without setting the root logger to ERROR will write warning when changing dss_logging level
+# without setting the root logger to ERROR will write warning when changing
 logging.root.setLevel(logging.ERROR)
 dss_logging.config(level="Error")
 logging.root.setLevel(logging.INFO)
@@ -523,7 +525,10 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
     affine_transform = Affine(resolution, 0.0, x_coord, 0.0, resolution, y_coord)
     wkt = xdata.rio.crs.wkt
 
+    sys.stdout = open(os.devnull, "w")  # prevent prints to stdout
+
     with Open(dss_path) as fid:
+
         for i, dt64 in enumerate(xdata.time.to_numpy()):
             end_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
 
@@ -573,6 +578,8 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
             )
 
             fid.put_grid(path, data, grid_info)
+
+    sys.stdout = sys.__stdout__  # reenable prints to stdout
 
 
 def adjust_cluster_size(cluster: Cluster, target_n_cells: int):

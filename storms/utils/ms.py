@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from datetime import datetime, date
 from json import dumps
-from meilisearch import Client
+
+# from meilisearch import Client
 from typing import List
 from storms.transpose import Transpose
 
@@ -82,94 +83,94 @@ class StormDocument:
             f.write(dumps(self.to_dict()))
 
 
-def list_indexs(client: Client) -> List[str]:
-    """
-    Lists name of all indexes on the client
+# def list_indexs(client: Client) -> List[str]:
+#     """
+#     Lists name of all indexes on the client
 
-    Parameters
-    ----------
-    client: meilisearch.Client
-        meilisearch Client
+#     Parameters
+#     ----------
+#     client: meilisearch.Client
+#         meilisearch Client
 
-    Return
-    ------
-    List[str]
-    """
-    return [r.get("uid") for r in client.get_raw_indexes().get("results")]
-
-
-def upload_docs(client: Client, index: str, docs: List[StormDocument]):
-    """
-    Uploads a list of documents to a meilisearch index.
-
-    Parameters
-    ----------
-    client: meilisearch.Client
-        meilisearch Client
-    index: str
-        index name
-    primary_key: str
-        name of index's primary key (default "uid")
-    docs: List[StormDocument]
-        list of documents to add to index
-    """
-    client.index(index).add_documents([doc.to_dict() for doc in docs])
+#     Return
+#     ------
+#     List[str]
+#     """
+#     return [r.get("uid") for r in client.get_raw_indexes().get("results")]
 
 
-def upload_doc(client: Client, index: str, doc: StormDocument):
-    """
-    Uploads a single document to a meilisearch index.
+# def upload_docs(client: Client, index: str, docs: List[StormDocument]):
+#     """
+#     Uploads a list of documents to a meilisearch index.
 
-    Parameters
-    ----------
-    client: meilisearch.Client
-        meilisearch Client
-    index: str
-        index name
-    primary_key: str
-        name of index's primary key (default "uid")
-    docs: StormDocument
-        document to add to index
-    """
-    client.index(index).add_documents([doc.to_dict()])
+#     Parameters
+#     ----------
+#     client: meilisearch.Client
+#         meilisearch Client
+#     index: str
+#         index name
+#     primary_key: str
+#         name of index's primary key (default "uid")
+#     docs: List[StormDocument]
+#         list of documents to add to index
+#     """
+#     client.index(index).add_documents([doc.to_dict() for doc in docs])
 
 
-def build_index(
-    client: Client,
-    index: str,
-    primary_key: str = "uid",
-    filterable_attributes: List[str] = None,
-    sortable_attributes: List[str] = None,
-):
-    """
-    Builds a meilisearch index if not already existing.
+# def upload_doc(client: Client, index: str, doc: StormDocument):
+#     """
+#     Uploads a single document to a meilisearch index.
 
-    Parameters
-    ----------
-    client: meilisearch.Client
-        meilisearch Client
-    index: str
-        index name
-    primary_key: str
-        name of index's primary key (default "uid")
-    filterable_attributes: List[str]
-        names of filterable attributes
-    sortable_attributes: List[str]
-        names of sortable attributes
-    """
-    if not [r.get("uid") for r in client.get_raw_indexes().get("results") if r.get("uid") == index]:
-        client.create_index(index, {"primaryKey": primary_key})
+#     Parameters
+#     ----------
+#     client: meilisearch.Client
+#         meilisearch Client
+#     index: str
+#         index name
+#     primary_key: str
+#         name of index's primary key (default "uid")
+#     docs: StormDocument
+#         document to add to index
+#     """
+#     client.index(index).add_documents([doc.to_dict()])
 
-        if filterable_attributes:
-            if filterable_attributes:
-                client.index(index).update_filterable_attributes(filterable_attributes)
 
-        if sortable_attributes:
-            if sortable_attributes:
-                client.index(index).update_sortable_attributes(sortable_attributes)
+# def build_index(
+#     client: Client,
+#     index: str,
+#     primary_key: str = "uid",
+#     filterable_attributes: List[str] = None,
+#     sortable_attributes: List[str] = None,
+# ):
+#     """
+#     Builds a meilisearch index if not already existing.
 
-        # LOOK INTO DISTINCT ATTRIBUTE
-        # LOOK INTO RANKING RULES
+#     Parameters
+#     ----------
+#     client: meilisearch.Client
+#         meilisearch Client
+#     index: str
+#         index name
+#     primary_key: str
+#         name of index's primary key (default "uid")
+#     filterable_attributes: List[str]
+#         names of filterable attributes
+#     sortable_attributes: List[str]
+#         names of sortable attributes
+#     """
+#     if not [r.get("uid") for r in client.get_raw_indexes().get("results") if r.get("uid") == index]:
+#         client.create_index(index, {"primaryKey": primary_key})
+
+#         if filterable_attributes:
+#             if filterable_attributes:
+#                 client.index(index).update_filterable_attributes(filterable_attributes)
+
+#         if sortable_attributes:
+#             if sortable_attributes:
+#                 client.index(index).update_sortable_attributes(sortable_attributes)
+
+#         # LOOK INTO DISTINCT ATTRIBUTE
+#         # LOOK INTO RANKING RULES
 
 
 def _format_datetime(event_start: datetime) -> _StormDocumentDateTime:

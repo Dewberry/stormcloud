@@ -22,7 +22,7 @@ from storms.transpose import Transposer
 
 # for batch production
 logging.getLogger("botocore").setLevel(logging.WARNING)
-os.environ.update(batch.get_secrets(secret="stormcloud-secrets", region_name="us-east-1"))
+os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
 session = boto3.session.Session()
 s3_client = session.client("s3")
 

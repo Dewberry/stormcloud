@@ -1,11 +1,11 @@
-from boto3 import Session
+import boto3
 from datetime import datetime, timedelta
 from dotenv import load_dotenv, find_dotenv
 import json
 from logger import set_up_logger, log_to_json
 import logging
 import os
-from storms.utils import plotter, ms
+from storms.utils import plotter, ms, batch
 import sys
 from storms.cluster import (
     get_xr_dataset,
@@ -15,9 +15,15 @@ from storms.cluster import (
 )
 from storms.transpose import Transposer
 
-load_dotenv(find_dotenv())
+# for local testing
+# load_dotenv(find_dotenv())
+# session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+# s3_client = session.client("s3")
 
-session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+# for batch production
+logging.getLogger("botocore").setLevel(logging.WARNING)
+os.environ.update(batch.get_secrets(secret="stormcloud-secrets", region_name="us-east-1"))
+session = boto3.session.Session()
 s3_client = session.client("s3")
 
 

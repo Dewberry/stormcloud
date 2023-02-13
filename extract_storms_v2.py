@@ -26,9 +26,6 @@ os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_nam
 session = boto3.session.Session()
 s3_client = session.client("s3")
 
-# get rid of dss logger
-logging.getLogger("pydsstools").setLevel(logging.ERROR)
-
 
 def main(
     start: str,
@@ -41,10 +38,11 @@ def main(
     dss_dir: str = "./",
     png_dir: str = "./",
     doc_dir: str = "./",
-    scale_max: float = 300,
+    scale_max: float = 12,
 ):
 
     data_type = "precipitation"
+    mm_to_in = 1.0 / 25.4
 
     # convert str to datetime
     start = datetime.strptime(start, "%Y-%m-%d")
@@ -206,7 +204,7 @@ def main(
     else:
         try:
             xnorm = get_atlas14(atlas14_uri, xsum.APCP_surface)
-            norm_arr = xnorm.to_numpy() * 25.4  # convert to mm
+            norm_arr = xnorm.to_numpy()
 
             logging.info(
                 json.dumps(
@@ -240,7 +238,7 @@ def main(
 
     # transpose watershed around transposition domain
     try:
-        transposer = Transposer(xsum, watershed_geom, normalized_data=norm_arr)
+        transposer = Transposer(xsum, watershed_geom, normalized_data=norm_arr, multiplier=mm_to_in)
         logging.info(
             json.dumps(
                 {
@@ -254,6 +252,7 @@ def main(
                         "x_var": "longitude",
                         "y_var": "latitude",
                         "normalized_data": atlas14_uri,
+                        "multiplier": mm_to_in,
                     },
                 }
             )
@@ -272,6 +271,7 @@ def main(
                         "x_var": "longitude",
                         "y_var": "latitude",
                         "normalized_data": atlas14_uri,
+                        "multiplier": mm_to_in,
                     },
                     "error": str(e),
                 }
@@ -435,7 +435,7 @@ def main(
     # store cluster data (png, nosql)
     # pngs - add mm to inch conversion
     png_path = os.path.join(png_dir, f"{start_as_str}.png")
-    scale_label = "Accumulation (MM)"
+    scale_label = "Accumulation (Inches)"
     scale_min = 0
     try:
         plotter.cluster_plot(
@@ -444,6 +444,7 @@ def main(
             scale_min,
             scale_max,
             scale_label,
+            multiplier=mm_to_in,
             geom=[watershed_geom, transposer.valid_space_geom()],
             png=png_path,
         )
@@ -460,7 +461,7 @@ def main(
                         "vmin": scale_min,
                         "vmax": scale_max,
                         "scale_label": scale_label,
-                        "multiplier": 1,
+                        "multiplier": mm_to_in,
                         "geom": ["watershed_geom", "transposer.valid_space_geom"],
                         "png": png_path,
                     },
@@ -481,7 +482,7 @@ def main(
                         "vmin": scale_min,
                         "vmax": scale_max,
                         "scale_label": scale_label,
-                        "multiplier": 1,
+                        "multiplier": mm_to_in,
                         "geom": ["watershed_geom", "transposer.valid_space_geom"],
                         "png": png_path,
                     },

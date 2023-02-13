@@ -31,9 +31,10 @@ class Transposer:
         x_var: str = "longitude",
         y_var: str = "latitude",
         normalized_data: np.ndarray = None,
+        multiplier: float = 1,
     ):
         self.xsum = xsum
-        self.data = xsum[data_var].to_numpy()
+        self.data = xsum[data_var].to_numpy() * multiplier
         self.x_coords = xsum[x_var].to_numpy()
         self.y_coords = xsum[y_var].to_numpy()
 

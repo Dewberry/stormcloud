@@ -20,6 +20,9 @@ def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: i
     if geom is not None:
         GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
     GeoSeries(cluster_geometry, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="black", lw=1)
+
+    fig.tight_layout()
+
     ax.set(title=None, xlabel=None, ylabel=None)
 
     xticks = ax.get_xticks()
@@ -35,7 +38,7 @@ def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: i
     if png is None:
         plt.show()
     else:
-        fig.savefig(os.path.join(png))
+        fig.savefig(os.path.join(png), bbox_inches="tight")
 
     fig.clf()
     plt.close(fig)

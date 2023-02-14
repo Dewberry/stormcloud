@@ -20,14 +20,25 @@ def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: i
     if geom is not None:
         GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
     GeoSeries(cluster_geometry, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="black", lw=1)
+
+    fig.tight_layout()
+
     ax.set(title=None, xlabel=None, ylabel=None)
-    ax.set_xticks(ax.get_xticks())
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+
+    xticks = ax.get_xticks()
+    xticks_mask = (xticks >= xdata.longitude.to_numpy().min()) & (xticks <= xdata.longitude.to_numpy().max())
+    xtick_labels = [f"{xt:.1f}" for xt in xticks[xticks_mask]]
+    ax.set_xticks(xticks[xticks_mask], xtick_labels, rotation=45, ha="center")
+
+    yticks = ax.get_yticks()
+    yticks_mask = (yticks >= xdata.latitude.to_numpy().min()) & (yticks <= xdata.latitude.to_numpy().max())
+    ytick_labels = [f"{yt:.1f}" for yt in yticks[yticks_mask]]
+    ax.set_yticks(yticks[yticks_mask], ytick_labels, va="center")
 
     if png is None:
         plt.show()
     else:
-        fig.savefig(os.path.join(png))
+        fig.savefig(os.path.join(png), bbox_inches="tight")
 
     fig.clf()
     plt.close(fig)

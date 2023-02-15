@@ -730,6 +730,7 @@ if __name__ == "__main__":
                 }
             )
         )
+        raise
 
     # write dss to s3
     try:
@@ -766,6 +767,7 @@ if __name__ == "__main__":
                 }
             )
         )
+        raise
 
     # write doc to s3
     try:
@@ -802,3 +804,4 @@ if __name__ == "__main__":
                 }
             )
         )
+        raise

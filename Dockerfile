@@ -12,7 +12,7 @@ RUN apt-get install -y build-essential
 RUN apt-get install -y gfortran
 RUN apt-get install -y git
 RUN apt-get install -y unzip
-RUN git clone https://github.com/gyanz/pydsstools.git
+RUN git clone https://github.com/Dewberry/pydsstools.git
 # download good heclib files
 RUN mkdir heclib && curl https://www.hec.usace.army.mil/nexus/repository/maven-public/mil/army/usace/hec/heclib/7-IP-10-linux-x86_64/heclib-7-IP-10-linux-x86_64.zip --output heclib/heclib-7-IP-10-linux-x86_64.zip
 RUN ( cd heclib && unzip heclib-7-IP-10-linux-x86_64.zip )
@@ -28,3 +28,5 @@ RUN ( cd pydsstools && python3 -m pip install . )
 COPY extract_storms_v2.py /app/extract_storms_v2.py
 
 COPY logger.py /app/logger.py
+
+COPY batch/batch-logs.py /app/batch-logs.py

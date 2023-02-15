@@ -6,13 +6,14 @@ import os
 import sys
 
 
-# for local testing
+# # for local testing
 # from dotenv import load_dotenv, find_dotenv
+
 # load_dotenv(find_dotenv())
 # session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 # s3_client = session.client("s3")
-# logs_client = boto3.client("logs")
-# batch_client = boto3.client("batch")
+# logs_client = session.client("logs")
+# batch_client = session.client("batch")
 
 # for batch production
 from storms.utils import batch
@@ -21,8 +22,8 @@ logging.getLogger("botocore").setLevel(logging.WARNING)
 os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
 session = boto3.session.Session()
 s3_client = session.client("s3")
-logs_client = boto3.client("logs")
-batch_client = boto3.client("batch")
+logs_client = session.client("logs")
+batch_client = session.client("batch")
 
 
 def get_batch_job_ids(
@@ -168,7 +169,6 @@ if __name__ == "__main__":
     log_group_name = args[4]
     s3_bucket = args[5]
     s3_key = args[6]
-
 
     created_after_timestamp = int(datetime.strptime(created_after, "%Y-%m-%d %H:%M").timestamp() * 1000)
     job_ids = get_batch_job_ids(job_queue, job_name_like, created_after_timestamp)

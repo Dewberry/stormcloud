@@ -3,37 +3,82 @@ import logging
 logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 
 from geopandas import GeoSeries
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt, patches
 from matplotlib.cm import Spectral_r
+from numpy import column_stack
 import os
 
+# from mpl_toolkits.axes_grid1 import Divider, Size
 
-def cluster_plot(xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: int = 1, geom=None, png=None):
 
-    fig, ax = plt.subplots()
+def geom_to_patches(geom, lw, facecolor, edgecolor):
+    patches_list = []
+    if isinstance(geom, list) or isinstance(geom, tuple):
+        for _geom in geom:
+            if _geom.geom_type == "MultiPolygon":
+                for g in _geom.geoms:
+                    patches_list.append(
+                        patches.Polygon(
+                            column_stack(g.exterior.coords.xy),
+                            lw=lw,
+                            facecolor=facecolor,
+                            edgecolor=edgecolor,
+                        )
+                    )
+            else:
+                patches_list.append(
+                    patches.Polygon(
+                        column_stack(_geom.exterior.coords.xy),
+                        lw=lw,
+                        facecolor=facecolor,
+                        edgecolor=edgecolor,
+                    )
+                )
+    else:
+        if geom.geom_type == "MultiPolygon":
+            for g in geom.geoms:
+                patches_list.append(
+                    patches.Polygon(
+                        column_stack(g.exterior.coords.xy),
+                        lw=lw,
+                        facecolor=facecolor,
+                        edgecolor=edgecolor,
+                    )
+                )
+        else:
+            patches_list.append(
+                patches.Polygon(
+                    column_stack(geom.exterior.coords.xy),
+                    lw=lw,
+                    facecolor=facecolor,
+                    edgecolor=edgecolor,
+                )
+            )
+
+    return patches_list
+
+
+def cluster_plot(
+    xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: int = 1, geom=None, png=None, figsize: tuple = (5, 5)
+):
+
+    fig, ax = plt.subplots(figsize=figsize)
 
     fig.set_facecolor("w")
+
     colormap = Spectral_r
     (xdata["APCP_surface"] * multiplier).plot(
         ax=ax, cmap=colormap, cbar_kwargs={"label": scale_label}, vmin=vmin, vmax=vmax
     )
-    if geom is not None:
-        GeoSeries(geom, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="gray", lw=0.7)
-    GeoSeries(cluster_geometry, crs="EPSG:4326").plot(ax=ax, facecolor="none", edgecolor="black", lw=1)
 
-    fig.tight_layout()
+    if geom is not None:
+        for patch in geom_to_patches(geom, 0.7, "none", "gray"):
+            ax.add_patch(patch)
+
+    for patch in geom_to_patches(cluster_geometry, 1, "none", "black"):
+        ax.add_patch(patch)
 
     ax.set(title=None, xlabel=None, ylabel=None)
-
-    xticks = ax.get_xticks()
-    xticks_mask = (xticks >= xdata.longitude.to_numpy().min()) & (xticks <= xdata.longitude.to_numpy().max())
-    xtick_labels = [f"{xt:.1f}" for xt in xticks[xticks_mask]]
-    ax.set_xticks(xticks[xticks_mask], xtick_labels, rotation=45, ha="center")
-
-    yticks = ax.get_yticks()
-    yticks_mask = (yticks >= xdata.latitude.to_numpy().min()) & (yticks <= xdata.latitude.to_numpy().max())
-    ytick_labels = [f"{yt:.1f}" for yt in yticks[yticks_mask]]
-    ax.set_yticks(yticks[yticks_mask], ytick_labels, va="center")
 
     if png is None:
         plt.show()

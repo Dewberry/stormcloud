@@ -1,29 +1,29 @@
 import boto3
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
 import os
 import sys
 
 
-# # for local testing
-# from dotenv import load_dotenv, find_dotenv
+# for local testing
+from dotenv import load_dotenv, find_dotenv
 
-# load_dotenv(find_dotenv())
-# session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-# s3_client = session.client("s3")
-# logs_client = session.client("logs")
-# batch_client = session.client("batch")
-
-# for batch production
-from storms.utils import batch
-
-logging.getLogger("botocore").setLevel(logging.WARNING)
-os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
-session = boto3.session.Session()
+load_dotenv(find_dotenv())
+session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 s3_client = session.client("s3")
 logs_client = session.client("logs")
 batch_client = session.client("batch")
+
+# for batch production
+# from storms.utils import batch
+
+# logging.getLogger("botocore").setLevel(logging.WARNING)
+# os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
+# session = boto3.session.Session()
+# s3_client = session.client("s3")
+# logs_client = session.client("logs", region_name="us-east-1")
+# batch_client = session.client("batch")
 
 
 def get_batch_job_ids(
@@ -61,6 +61,46 @@ def get_batch_job_ids(
         )
         batch_jobs.extend(
             [job["jobId"] for job in batch_jobs_response["jobSummaryList"] if job["createdAt"] >= after_created_filter]
+        )
+
+    return batch_jobs
+
+
+def get_batch_job_statuses(
+    batch_jobs_queue: str,
+    job_name_filter: str,
+    after_created_filter: int,
+) -> list:
+    """Get all jobs from the job queue using the specified filters and extract the job ID."""
+    batch_jobs_response = batch_client.list_jobs(
+        jobQueue=batch_jobs_queue,
+        filters=[
+            {
+                "name": "JOB_NAME",
+                "values": [
+                    job_name_filter,
+                ],
+            },
+        ],
+    )
+    batch_jobs = [
+        job["status"] for job in batch_jobs_response["jobSummaryList"] if job["createdAt"] >= after_created_filter
+    ]
+    while "nextToken" in batch_jobs_response.keys():
+        batch_jobs_response = batch_client.list_jobs(
+            jobQueue=batch_jobs_queue,
+            filters=[
+                {
+                    "name": "JOB_NAME",
+                    "values": [
+                        job_name_filter,
+                    ],
+                },
+            ],
+            nextToken=batch_jobs_response["nextToken"],
+        )
+        batch_jobs.extend(
+            [job["status"] for job in batch_jobs_response["jobSummaryList"] if job["createdAt"] >= after_created_filter]
         )
 
     return batch_jobs
@@ -169,6 +209,17 @@ if __name__ == "__main__":
     log_group_name = args[4]
     s3_bucket = args[5]
     s3_key = args[6]
+
+    # EXAMPLE ARGS
+    # created_after = "2023-02-23 18:00"
+    # created_after_dt = datetime.strptime(created_after, "%Y-%m-%d %H:%M")
+    # job_name_like = "IndianCreek-v01-72h-*"
+    # job_queue = "stormcloud-ec2-spot"
+    # log_group_name = "/aws/batch/job"
+    # s3_bucket = "tempest"
+    # s3_key = (
+    #     f"watersheds/indian-creek/indian-creek-transpo-area-v01/72h/logs/{created_after_dt.strftime('%Y%m%d%H%M')}.json"
+    # )
 
     created_after_timestamp = int(datetime.strptime(created_after, "%Y-%m-%d %H:%M").timestamp() * 1000)
     job_ids = get_batch_job_ids(job_queue, job_name_like, created_after_timestamp)

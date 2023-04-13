@@ -138,25 +138,25 @@ for year in year_range:
     ms_client.index(index_name).add_documents(ranked_docs)
 
 
-# filterable attributes
-ms_client.index(index_name).update_filterable_attributes(
-    [
-        "start.calendar_year",
-        "start.water_year",
-        "start.season",
-        "duration",
-        "metadata.source",
-        "metadata.watershed_name",
-        "metadata.transposition_domain_name",
-        "ranks.true_rank",
-        "ranks.declustered_rank",
-        "categories.lv10",
-        "categories.lv11",
-        "stats.mean",
-    ]
-)
+# # filterable attributes
+# ms_client.index(index_name).update_filterable_attributes(
+#     [
+#         "start.calendar_year",
+#         "start.water_year",
+#         "start.season",
+#         "duration",
+#         "metadata.source",
+#         "metadata.watershed_name",
+#         "metadata.transposition_domain_name",
+#         "ranks.true_rank",
+#         "ranks.declustered_rank",
+#         "categories.lv10",
+#         "categories.lv11",
+#         "stats.mean",
+#     ]
+# )
 
-# sortable attributes
-ms_client.index(index_name).update_sortable_attributes(
-    ["start.timestamp", "stats.mean", "stats.max", "stats.norm_mean", "stats.sum"]
-)
+# # sortable attributes
+# ms_client.index(index_name).update_sortable_attributes(
+#     ["start.timestamp", "stats.mean", "stats.max", "stats.norm_mean", "stats.sum"]
+# )

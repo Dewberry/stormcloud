@@ -105,6 +105,24 @@ def update_documents(inputs: MeilisearchInputs) -> None:
     means = np.array([d["stats"]["mean"] for d in docs])
     mean_ranks = rankdata(means * -1, method="ordinal")
 
+    maxes = np.array([d["stats"]["max"] for d in docs])
+    maxes = np.where(maxes > 20, maxes, 0)
+    maxes = maxes[np.nonzero(maxes)]
+    print(maxes)
+    exit()
+    with open("test.json", "w") as f:
+        json.dump(
+            {
+                "min": np.min(maxes),
+                "max": np.max(maxes),
+                "mean": np.mean(maxes),
+                "std_dev": np.std(maxes),
+                "count": len(maxes),
+            },
+            f,
+        )
+    exit()
+
     # date decluster
     for i in range(1, len(mean_ranks) + 1):
         idx = np.where(mean_ranks == i)

@@ -1,36 +1,51 @@
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import logging
 import os
 import sys
+import enum
+from typing import Any
 
 
-# for local testing
-from dotenv import load_dotenv, find_dotenv
-
-load_dotenv(find_dotenv())
-session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-s3_client = session.client("s3")
-logs_client = session.client("logs")
-batch_client = session.client("batch")
-
-# for batch production
-# from storms.utils import batch
-
-# logging.getLogger("botocore").setLevel(logging.WARNING)
-# os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
-# session = boto3.session.Session()
-# s3_client = session.client("s3")
-# logs_client = session.client("logs", region_name="us-east-1")
-# batch_client = session.client("batch")
+class RunSetting(enum.Enum):
+    LOCAL = enum.auto()
+    BATCH = enum.auto()
 
 
-def get_batch_job_ids(
-    batch_jobs_queue: str,
-    job_name_filter: str,
-    after_created_filter: int,
-) -> list:
+def get_clients(run_setting: RunSetting) -> tuple[Any, Any, Any]:
+    """Creates clients for interacting with AWS, depending on run environment setting
+
+    Args:
+        run_setting (RunSetting): Either LOCAL for local testing or BATCH for batch deployment
+
+    Returns:
+        tuple[Any, Any, Any]: Tuple containing s3 client, logs client, and batch client (in that order)
+    """
+    if run_setting == RunSetting.LOCAL:
+        from dotenv import load_dotenv, find_dotenv
+
+        # for local testing
+        load_dotenv(find_dotenv())
+        session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+        s3_client = session.client("s3")
+        logs_client = session.client("logs")
+        batch_client = session.client("batch")
+
+    else:
+        # for batch production
+        from storms.utils import batch
+
+        logging.getLogger("botocore").setLevel(logging.WARNING)
+        os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
+        session = boto3.session.Session()
+        s3_client = session.client("s3")
+        logs_client = session.client("logs", region_name="us-east-1")
+        batch_client = session.client("batch")
+    return s3_client, logs_client, batch_client
+
+
+def get_batch_job_ids(batch_jobs_queue: str, job_name_filter: str, after_created_filter: int, batch_client) -> list:
     """Get all jobs from the job queue using the specified filters and extract the job ID."""
     batch_jobs_response = batch_client.list_jobs(
         jobQueue=batch_jobs_queue,
@@ -67,9 +82,7 @@ def get_batch_job_ids(
 
 
 def get_batch_job_statuses(
-    batch_jobs_queue: str,
-    job_name_filter: str,
-    after_created_filter: int,
+    batch_jobs_queue: str, job_name_filter: str, after_created_filter: int, batch_client
 ) -> list:
     """Get all jobs from the job queue using the specified filters and extract the job ID."""
     batch_jobs_response = batch_client.list_jobs(
@@ -106,8 +119,7 @@ def get_batch_job_statuses(
     return batch_jobs
 
 
-def describe_batch_jobs(job_ids):
-
+def describe_batch_jobs(job_ids: list, batch_client):
     if len(job_ids) <= 100:
         jobs = batch_client.describe_jobs(jobs=job_ids)["jobs"]
 
@@ -119,15 +131,13 @@ def describe_batch_jobs(job_ids):
             to_index = index + step
             if to_index > len(job_ids):
                 to_index = len(job_ids)
-
             jobs.extend(batch_client.describe_jobs(jobs=job_ids[index:to_index])["jobs"])
-
             index = to_index
 
     return jobs
 
 
-def get_logs(group_name, stream_name):
+def get_logs(group_name: str, stream_name: str, logs_client):
     log_events_response = logs_client.get_log_events(
         logGroupName=group_name, logStreamName=stream_name, startFromHead=True
     )
@@ -147,12 +157,12 @@ def get_logs(group_name, stream_name):
             if log_dict["level"] == "ERROR":
                 log_data.append(log_dict)
         except:
-            pass
+            continue
 
     return log_data
 
 
-def extract_job_logs(jobs, log_group_name="/aws/batch/jobs"):
+def extract_job_logs(jobs: list, logs_client, log_group_name="/aws/batch/jobs"):
     n_successes = 0
     n_fails = 0
     n_other = 0
@@ -167,7 +177,7 @@ def extract_job_logs(jobs, log_group_name="/aws/batch/jobs"):
             attempts = []
             for attempt in job["attempts"]:
                 log_stream = attempt["container"]["logStreamName"]
-                log_data = get_logs(log_group_name, log_stream)
+                log_data = get_logs(log_group_name, log_stream, logs_client)
                 attempts.append(
                     {
                         "status_reason": attempt["statusReason"],
@@ -203,29 +213,28 @@ def extract_job_logs(jobs, log_group_name="/aws/batch/jobs"):
 if __name__ == "__main__":
     args = sys.argv
 
-    created_after = args[1]
-    job_name_like = args[2]
-    job_queue = args[3]
-    log_group_name = args[4]
-    s3_bucket = args[5]
-    s3_key = args[6]
+    # Submission example
+    # python batch/send-job.py local '2023-05-09 12:00' Duwamish* stormcloud-ec2-spot /aws/batch/job tempest watersheds/duwamish/duwamish-transpo-area-v01/72h/logs/202305091200.json
 
-    # EXAMPLE ARGS
-    # created_after = "2023-02-23 18:00"
-    # created_after_dt = datetime.strptime(created_after, "%Y-%m-%d %H:%M")
-    # job_name_like = "IndianCreek-v01-72h-*"
-    # job_queue = "stormcloud-ec2-spot"
-    # log_group_name = "/aws/batch/job"
-    # s3_bucket = "tempest"
-    # s3_key = (
-    #     f"watersheds/indian-creek/indian-creek-transpo-area-v01/72h/logs/{created_after_dt.strftime('%Y%m%d%H%M')}.json"
-    # )
+    run_setting = args[1]
+    created_after = args[2]
+    job_name_like = args[3]
+    job_queue = args[4]
+    log_group_name = args[5]
+    s3_bucket = args[6]
+    s3_key = args[7]
+
+    if run_setting == "local":
+        s3_client, logs_client, batch_client = get_clients(RunSetting.LOCAL)
+    elif run_setting == "batch":
+        s3_client, logs_client, batch_client = get_clients(RunSetting.BATCH)
+    else:
+        logging.info(
+            f"Unexpected run setting given: {run_setting}\nPlease input either 'local' or 'batch' and resubmit"
+        )
 
     created_after_timestamp = int(datetime.strptime(created_after, "%Y-%m-%d %H:%M").timestamp() * 1000)
-    job_ids = get_batch_job_ids(job_queue, job_name_like, created_after_timestamp)
-
-    jobs = describe_batch_jobs(job_ids)
-
-    job_logs = extract_job_logs(jobs, log_group_name)
-
+    job_ids = get_batch_job_ids(job_queue, job_name_like, created_after_timestamp, batch_client)
+    jobs = describe_batch_jobs(job_ids, batch_client)
+    job_logs = extract_job_logs(jobs, logs_client, log_group_name)
     s3_client.put_object(Bucket=s3_bucket, Key=s3_key, Body=json.dumps(job_logs))

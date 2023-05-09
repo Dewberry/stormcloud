@@ -53,50 +53,44 @@ def update_documents(inputs: MeilisearchInputs) -> None:
 
     year_range = range(inputs.start_year, inputs.end_year + 1)
 
-    # docs = []
-    # for year in year_range:
-    #     logging.info(f"Gathering docs for {year}")
-    #     s3_prefix = f"watersheds/{inputs.full_name}/72h/docs/{year}"
+    docs = []
+    for year in year_range:
+        logging.info(f"Gathering docs for {year}")
+        s3_prefix = f"watersheds/{inputs.full_name}/72h/docs/{year}"
 
-    #     # get all s3 keys for year
-    #     results = s3_client.list_objects_v2(Bucket=inputs.s3_bucket, Prefix=s3_prefix)
-    #     s3_keys = [content["Key"] for content in results["Contents"]]
+        # get all s3 keys for year
+        results = s3_client.list_objects_v2(Bucket=inputs.s3_bucket, Prefix=s3_prefix)
+        s3_keys = [content["Key"] for content in results["Contents"]]
 
-    #     while "NextContinuationToken" in results.keys():
-    #         results = s3_client.list_objects_v2(
-    #             Bucket=inputs.s3_bucket, Prefix=s3_prefix, ContinuationToken=results["NextContinuationToken"]
-    #         )
-    #         s3_keys.extend([content["Key"] for content in results["Contents"]])
+        while "NextContinuationToken" in results.keys():
+            results = s3_client.list_objects_v2(
+                Bucket=inputs.s3_bucket, Prefix=s3_prefix, ContinuationToken=results["NextContinuationToken"]
+            )
+            s3_keys.extend([content["Key"] for content in results["Contents"]])
 
-    #     # read in json files for year
-    #     for key in s3_keys:
-    #         result = s3_client.get_object(Bucket=inputs.s3_bucket, Key=key)
-    #         doc = json.loads(result["Body"].read().decode())
+        # read in json files for year
+        for key in s3_keys:
+            result = s3_client.get_object(Bucket=inputs.s3_bucket, Key=key)
+            doc = json.loads(result["Body"].read().decode())
 
-    #         # add png url
-    #         doc_meta = doc["metadata"]
-    #         doc_meta[
-    #             "png"
-    #         ] = f"https://tempest.s3.amazonaws.com/watersheds/{inputs.full_name}/72h/pngs/{doc['start']['datetime'].split(' ')[0].replace('-', '')}.png"
-    #         doc["metadata"] = doc_meta
-    #         doc_cats = {
-    #             "lv10": doc_meta["watershed_name"],
-    #             "lv11": f"{doc_meta['watershed_name']} > {doc_meta['transposition_domain_name']}",
-    #         }
-    #         doc["categories"] = doc_cats
+            # add png url
+            doc_meta = doc["metadata"]
+            doc_meta[
+                "png"
+            ] = f"https://tempest.s3.amazonaws.com/watersheds/{inputs.full_name}/72h/pngs/{doc['start']['datetime'].split(' ')[0].replace('-', '')}.png"
+            doc["metadata"] = doc_meta
+            doc_cats = {
+                "lv10": doc_meta["watershed_name"],
+                "lv11": f"{doc_meta['watershed_name']} > {doc_meta['transposition_domain_name']}",
+            }
+            doc["categories"] = doc_cats
 
-    #         # add id
-    #         doc[
-    #             "id"
-    #         ] = f'{doc["metadata"]["watershed_name"].lower().replace(" ","-")}_{doc["metadata"]["transposition_domain_name"].lower()}_{doc["duration"]}h_{doc["start"]["datetime"].split(" ")[0].replace("-", "")}'
+            # add id
+            doc[
+                "id"
+            ] = f'{doc["metadata"]["watershed_name"].lower().replace(" ","-")}_{doc["metadata"]["transposition_domain_name"].lower()}_{doc["duration"]}h_{doc["start"]["datetime"].split(" ")[0].replace("-", "")}'
 
-    #         docs.append(doc)
-
-    # with open("pickle.p", "wb") as f:
-    #     pickle.dump(docs, f)
-
-    with open("pickle.p", "rb") as f:
-        docs = pickle.load(f)
+            docs.append(doc)
 
     logging.info("Start ranking")
     # rank docs by year
@@ -104,24 +98,6 @@ def update_documents(inputs: MeilisearchInputs) -> None:
     starts = np.array([datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
     means = np.array([d["stats"]["mean"] for d in docs])
     mean_ranks = rankdata(means * -1, method="ordinal")
-
-    maxes = np.array([d["stats"]["max"] for d in docs])
-    maxes = np.where(maxes > 20, maxes, 0)
-    maxes = maxes[np.nonzero(maxes)]
-    print(maxes)
-    exit()
-    with open("test.json", "w") as f:
-        json.dump(
-            {
-                "min": np.min(maxes),
-                "max": np.max(maxes),
-                "mean": np.mean(maxes),
-                "std_dev": np.std(maxes),
-                "count": len(maxes),
-            },
-            f,
-        )
-    exit()
 
     # date decluster
     for i in range(1, len(mean_ranks) + 1):

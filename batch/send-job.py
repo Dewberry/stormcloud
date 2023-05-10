@@ -47,8 +47,10 @@ class JobInput:
 def load_inputs(json_path: str) -> JobInput:
     with open(json_path, "r") as f:
         data = json.load(f)
-        data["por_start"] = datetime.strptime(data["por_start"], "%Y-%m-%d %H:%M")
-        data["por_end"] = datetime.strptime(data["por_end"], "%Y-%m-%d %H:%M")
+        if "por_start" in data.keys():
+            data["por_start"] = datetime.strptime(data["por_start"], "%Y-%m-%d %H:%M")
+        if "por_end" in data.keys():
+            data["por_end"] = datetime.strptime(data["por_end"], "%Y-%m-%d %H:%M")
     return JobInput(**data)
 
 
@@ -59,7 +61,7 @@ def check_exists(keys: list[str], bucket: str, client) -> None:
         client.head_object(Bucket=bucket, Key=key)
 
 
-def main(inputs: JobInput) -> None:
+def send(inputs: JobInput) -> None:
     # Create batch client
     batch_client = boto3.client(
         service_name="batch",
@@ -122,4 +124,4 @@ if __name__ == "__main__":
     )
 
     send_inputs = load_inputs("records/duwamish.json")
-    main(send_inputs)
+    send(send_inputs)

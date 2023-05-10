@@ -228,14 +228,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Batch Log Collector",
         description="Collects and stores logs from AWS associated with SST model runs for a specific watershed",
-        epilog="Example usage: python batch/batch-logs -c '2023-05-09 12:00' -p Duwamish -s local ",
+        epilog="Example usage: python batch/batch-logs -c '2023-05-09 12:00' -w Duwamish -v V01 -s local ",
     )
 
     parser.add_argument(
         "-c",
         "--created_after",
         type=str,
-        help="The datetime used to filter jobs searched for by the collector. Will only parse logs created after specified date. Date string expected in format like '2023-05-09 12:00'",
+        help="The datetime used to filter jobs searched for by the collector. Will only parse logs created after specified date. Date string expected in format YYYY-mm-dd HH:MM, like 2023-05-10 14:26",
         required=True,
     )
     parser.add_argument(

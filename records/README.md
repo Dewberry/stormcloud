@@ -19,6 +19,7 @@ Optionally, the json can be extended with the following attributes:
     "s3_bucket": "<Bucket in which watershed and domain geojson files are stored. Also the bucket used to store model output. Defaults to 'tempest'>",
     "por_start": "<Datetime of start of period of interest. Should be in %Y-%m-%d %H:%M format. Defaults to '1979-02-01 00:00'>",
     "por_end": "<Datetime of end of period of interest. Should be in %Y-%m-%d %H:%M format. Defaults to '2022-12-31 23:00'>"
+    "scale": <float inches to use as max precip in scale used for PNG image generation. Defaults to 12.0>
 }
 ```
 

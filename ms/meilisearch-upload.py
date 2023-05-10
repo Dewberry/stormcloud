@@ -9,7 +9,7 @@ from meilisearch import Client
 from scipy.stats import rankdata
 from dataclasses import dataclass
 from constants import INDEX
-import pickle
+from collections.abc import Generator
 
 
 @dataclass
@@ -46,55 +46,79 @@ def load_inputs(json_path: str) -> MeilisearchInputs:
     return inputs
 
 
-def update_documents(inputs: MeilisearchInputs) -> None:
-    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-    s3_client = session.client("s3")
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+def get_keys(client, bucket: str, prefix: str) -> Generator[str, None, None]:
+    """Gets keys from a bucket
 
-    year_range = range(inputs.start_year, inputs.end_year + 1)
+    Args:
+        client: s3 client
+        bucket (str): s3 bucket
+        prefix (str): prefix to use in filtering keys
 
-    docs = []
-    for year in year_range:
-        logging.info(f"Gathering docs for {year}")
-        s3_prefix = f"watersheds/{inputs.full_name}/72h/docs/{year}"
+    Yields:
+        Generator[str, None, None]: Yields keys
+    """
+    paginator = client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        contents = page.get("Contents", [])
+        for content in contents:
+            key = content.get("Key")
+            yield key
 
-        # get all s3 keys for year
-        results = s3_client.list_objects_v2(Bucket=inputs.s3_bucket, Prefix=s3_prefix)
-        s3_keys = [content["Key"] for content in results["Contents"]]
 
-        while "NextContinuationToken" in results.keys():
-            results = s3_client.list_objects_v2(
-                Bucket=inputs.s3_bucket, Prefix=s3_prefix, ContinuationToken=results["NextContinuationToken"]
-            )
-            s3_keys.extend([content["Key"] for content in results["Contents"]])
+def structure_document(input_data: dict) -> dict:
+    """Structures document for upload / update functions
 
-        # read in json files for year
-        for key in s3_keys:
-            result = s3_client.get_object(Bucket=inputs.s3_bucket, Key=key)
-            doc = json.loads(result["Body"].read().decode())
+    Args:
+        input_data (dict): Data parsed from s3 SST docs
 
-            # add png url
-            doc_meta = doc["metadata"]
-            doc_meta[
-                "png"
-            ] = f"https://tempest.s3.amazonaws.com/watersheds/{inputs.full_name}/72h/pngs/{doc['start']['datetime'].split(' ')[0].replace('-', '')}.png"
-            doc["metadata"] = doc_meta
-            doc_cats = {
-                "lv10": doc_meta["watershed_name"],
-                "lv11": f"{doc_meta['watershed_name']} > {doc_meta['transposition_domain_name']}",
-            }
-            doc["categories"] = doc_cats
+    Returns:
+        dict: Data with additional attributes "id", "png", and "categories"
+    """
+    # Get and format watershed and transposition region names
+    meta = input_data.get("metadata")
+    watershed_name = meta.get("watershed_name")
+    domain_name = meta.get("transposition_domain_name")
+    watershed_name_formatted = watershed_name.lower().replace(" ", "-")
+    domain_name_formatted = domain_name.lower()
 
-            # add id
-            doc[
-                "id"
-            ] = f'{doc["metadata"]["watershed_name"].lower().replace(" ","-")}_{doc["metadata"]["transposition_domain_name"].lower()}_{doc["duration"]}h_{doc["start"]["datetime"].split(" ")[0].replace("-", "")}'
+    # Add png url to metadata
+    data_datetime = input_data.get("start").get("datetime").split()[0]
+    data_datetime_formatted = data_datetime.replace("-", "")
+    meta[
+        "png"
+    ] = f"https://tempest.s3.amazonaws.com/watersheds/{watershed_name_formatted}/{watershed_name_formatted}-transpo-area-{domain_name_formatted}/72h/pngs/{data_datetime_formatted}"
+    input_data["metadata"] = meta
 
-            docs.append(doc)
+    # Add categories
+    watershed_name = meta.get("watershed_name")
+    domain_name = meta.get("transposition_domain_name")
+    categories = {
+        "lv10": watershed_name,
+        "lv11": f"{watershed_name} > {domain_name}",
+    }
+    input_data["categories"] = categories
 
+    # Add id to serve as primary key
+    data_id = (
+        f"{watershed_name_formatted}_{domain_name_formatted}_{input_data.get('duration')}h_{data_datetime_formatted}"
+    )
+    input_data["id"] = data_id
+    return input_data
+
+
+def rank_documents(data: list[dict], year_range: range) -> list[dict]:
+    """Ranks documents based on mean precipitation values creates separate rank which eliminates values within 71 hour window of high means using mask
+
+    Args:
+        data (list[dict]): Unranked data dictionaries containing mean data and start times
+        year_range (range): Range of years to use in partitioning data
+
+    Returns:
+        list[dict]: Ranked data dictionaries
+    """
     logging.info("Start ranking")
     # rank docs by year
-    docs = np.array(docs)
+    docs = np.array(data)
     starts = np.array([datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
     means = np.array([d["stats"]["mean"] for d in docs])
     mean_ranks = rankdata(means * -1, method="ordinal")
@@ -109,17 +133,12 @@ def update_documents(inputs: MeilisearchInputs) -> None:
         else:
             min_dt = dt - timedelta(hours=71)
             max_dt = dt + timedelta(hours=71)
-
             if np.any((starts_by_mean[decluster_mask] >= min_dt) & (starts_by_mean[decluster_mask] <= max_dt)):
                 decluster = False
             else:
                 decluster = True
-
             decluster_mask = np.append(decluster_mask, decluster)
             starts_by_mean = np.append(starts_by_mean, dt)
-
-    # is there a way I can give rank for everything and then have a decluster dates check box
-    # essentially use two different ranks values
     years = np.array([dt.year for dt in starts])
     years_by_mean = np.array([dt.year for dt in starts_by_mean])
 
@@ -129,7 +148,6 @@ def update_documents(inputs: MeilisearchInputs) -> None:
         yr_starts_by_mean = starts_by_mean[years_by_mean == year]
         yr_starts = starts[years == year]
         yr_docs = docs[years == year]
-
         ranked_docs = []
         for doc, start in zip(yr_docs, yr_starts):
             idx = np.where(yr_starts_by_mean == start)[0][0]
@@ -142,19 +160,64 @@ def update_documents(inputs: MeilisearchInputs) -> None:
                 "true_rank": int(true_rank),
                 "declustered_rank": int(decluster_rank),
             }
-            # Reassign norm mean to None if np.nan value
-            if doc["stats"]["norm_mean"]:
-                if np.isnan(doc["stats"]["norm_mean"]):
-                    doc["stats"]["norm_mean"] = None
             ranked_docs.append(doc)
-        ms_client.index(INDEX).add_documents(ranked_docs)
+    return ranked_docs
+
+
+def upload(inputs: MeilisearchInputs) -> None:
+    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+    s3_client = session.client("s3")
+    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+    year_range = range(inputs.start_year, inputs.end_year + 1)
+    docs = []
+    for year in year_range:
+        logging.info(f"Gathering docs for {year}")
+        s3_prefix = f"watersheds/{inputs.full_name}/72h/docs/{year}"
+
+        # read in json files for year
+        for key in get_keys(s3_client, inputs.s3_bucket, s3_prefix):
+            result = s3_client.get_object(Bucket=inputs.s3_bucket, Key=key)
+            doc = json.load(result.get("Body"))
+            restructured = structure_document(doc)
+            docs.append(restructured)
+
+    # rank documents
+    ranked_docs = rank_documents(docs, year_range)
+    # ms_client.index(INDEX).add_documents(ranked_docs)
+
+
+def update(inputs: MeilisearchInputs, update_attribute: str):
+    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+    s3_client = session.client("s3")
+    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+    year_range = range(inputs.start_year, inputs.end_year + 1)
+    docs = []
+    for year in year_range:
+        logging.info(f"Gathering docs for {year}")
+        s3_prefix = f"watersheds/{inputs.full_name}/72h/docs/{year}"
+
+        # read in json files for year
+        for key in get_keys(s3_client, inputs.s3_bucket, s3_prefix):
+            result = s3_client.get_object(Bucket=inputs.s3_bucket, Key=key)
+            doc = json.load(result.get("Body"))
+            restructured = structure_document(doc)
+            if update_attribute not in restructured.keys():
+                raise ValueError(
+                    f"Expected one of the following attributes: {restructured.keys()}; got {update_attribute}"
+                )
+            if ms_client.index(INDEX).get_document(restructured["id"]):
+                docs.append({"id": restructured["id"], update_attribute: restructured[update_attribute]})
+            else:
+                raise ValueError(
+                    f"Document id parsed for update does not exist in the database. ID searched: {restructured['id']}"
+                )
+    ms_client.index(INDEX).update_documents(docs)
 
 
 def build_index():
     # build meilisearch index
     ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
     ms_client.index(INDEX).delete()
-    ms_client.create_index(INDEX, {"primaryKey": "start.timestamp"})
     ms_client.create_index(INDEX, {"primaryKey": "id"})
 
 
@@ -195,4 +258,5 @@ if __name__ == "__main__":
 
     load_dotenv(find_dotenv())
     ms_inputs = load_inputs("records/duwamish.json")
-    update_documents(ms_inputs)
+    upload(ms_inputs)
+    # update(ms_inputs, "metadata")

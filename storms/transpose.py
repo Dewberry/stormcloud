@@ -64,7 +64,6 @@ class Transposer:
 
         for x in self.xs:
             for y in self.ys:
-
                 x_diff = int(x - mask_minx)
                 y_diff = int(y - mask_miny)
 
@@ -74,12 +73,10 @@ class Transposer:
                     and mask_miny + y_diff >= 0
                     and mask_maxy + y_diff <= max_y
                 ):
-
                     transl_indexes = np.column_stack((mask_idxs[:, 0] + x_diff, mask_idxs[:, 1] + y_diff))
                     data_slice = self.data[transl_indexes[:, 1], transl_indexes[:, 0]]
 
                     if np.all(np.isfinite(data_slice)):
-
                         coords = np.column_stack(
                             (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
                         )
@@ -87,6 +84,9 @@ class Transposer:
                             norm_mean = float(
                                 (data_slice / self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]).mean()
                             )
+                            # Recode NaN values to None
+                            if np.isnan(norm_mean):
+                                norm_mean = None
                         else:
                             norm_mean = None
 

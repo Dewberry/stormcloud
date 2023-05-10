@@ -9,7 +9,10 @@ def set_up_logger(filename: str = None):
     logging.getLogger("aiobotocore").setLevel(logging.WARNING)
 
     logger = logging.getLogger()
-    logger.removeHandler(logger.handlers[0])
+    try:
+        logger.removeHandler(logger.handlers[0])
+    except IndexError:
+        pass
 
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')

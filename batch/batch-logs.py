@@ -3,7 +3,6 @@ from datetime import datetime
 import json
 import logging
 import os
-import sys
 import enum
 from typing import Any
 
@@ -209,32 +208,114 @@ def extract_job_logs(jobs: list, logs_client, log_group_name="/aws/batch/jobs"):
     }
 
 
+def format_name(name: str) -> str:
+    cleaned = name.strip()
+    lower = cleaned.lower()
+    replaced = lower.replace(" ", "-")
+    return replaced
+
+
 # main function
 if __name__ == "__main__":
-    args = sys.argv
+    import argparse
 
-    # Submission example
-    # python batch/send-job.py local '2023-05-09 12:00' Duwamish* stormcloud-ec2-spot /aws/batch/job tempest watersheds/duwamish/duwamish-transpo-area-v01/72h/logs/202305091200.json
+    logging.basicConfig(
+        level=logging.INFO,
+        format='{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}',
+        handlers=[logging.StreamHandler()],
+    )
 
-    run_setting = args[1]
-    created_after = args[2]
-    job_name_like = args[3]
-    job_queue = args[4]
-    log_group_name = args[5]
-    s3_bucket = args[6]
-    s3_key = args[7]
+    parser = argparse.ArgumentParser(
+        prog="Batch Log Collector",
+        description="Collects and stores logs from AWS associated with SST model runs for a specific watershed",
+        epilog="Example usage: python batch/batch-logs -c '2023-05-09 12:00' -p Duwamish -s local ",
+    )
 
-    if run_setting == "local":
+    parser.add_argument(
+        "-c",
+        "--created_after",
+        type=str,
+        help="The datetime used to filter jobs searched for by the collector. Will only parse logs created after specified date. Date string expected in format like '2023-05-09 12:00'",
+        required=True,
+    )
+    parser.add_argument(
+        "-w",
+        "--watershed",
+        type=str,
+        help="Prefix used in filtering logs collected. In practice, watershed name for SST model of interest is used as filter",
+        required=True,
+    )
+    parser.add_argument(
+        "-v", "--domain_name", type=str, help="Domain name for transposition region used in SST model", required=True
+    )
+    parser.add_argument(
+        "-d",
+        "--hours_duration",
+        default=72,
+        type=int,
+        help="Duration in hours used in SST model of interest",
+        required=False,
+    )
+    parser.add_argument(
+        "-s",
+        "--setting",
+        default="batch",
+        type=str,
+        choices=["batch", "local"],
+        help="Specifies if script is being run in local development or in batch. Defaults to 'batch'",
+        required=False,
+    )
+    parser.add_argument(
+        "-q",
+        "--job_queue",
+        default="stormcloud-ec2-spot",
+        type=str,
+        help="aws job queue associated with logs. Defaults to 'stormcloud-ec2-spot'",
+        required=False,
+    )
+    parser.add_argument(
+        "-g",
+        "--log_group",
+        default="/aws/batch/job",
+        type=str,
+        help="aws log group associated with logs. Defaults to '/aws/batch/job'",
+        required=False,
+    )
+    parser.add_argument(
+        "-b",
+        "--s3_bucket",
+        default="tempest",
+        type=str,
+        help="s3 bucket in which parsed report on logs should be saved. Defaults to 'tempest'",
+        required=False,
+    )
+
+    args = parser.parse_args()
+
+    if args.setting == "local":
         s3_client, logs_client, batch_client = get_clients(RunSetting.LOCAL)
-    elif run_setting == "batch":
-        s3_client, logs_client, batch_client = get_clients(RunSetting.BATCH)
     else:
-        logging.info(
-            f"Unexpected run setting given: {run_setting}\nPlease input either 'local' or 'batch' and resubmit"
-        )
+        s3_client, logs_client, batch_client = get_clients(RunSetting.BATCH)
 
-    created_after_timestamp = int(datetime.strptime(created_after, "%Y-%m-%d %H:%M").timestamp() * 1000)
-    job_ids = get_batch_job_ids(job_queue, job_name_like, created_after_timestamp, batch_client)
+    # Create job name filter using watershed name
+    job_name_like = args.watershed + "*"
+
+    # Convert created after filter to timestamp
+    created_after_dt = datetime.strptime(args.created_after, "%Y-%m-%d %H:%M")
+    created_after_timestamp = int(created_after_dt.timestamp() * 1000)
+
+    # Format watershed and domain names
+    watershed_name_formatted = format_name(args.watershed)
+    domain_name_formatted = format_name(args.domain_name)
+
+    # Create s3 key
+    s3_key = f"watersheds/{watershed_name_formatted}/{watershed_name_formatted}-transpo-area-{domain_name_formatted}/{args.hours_duration}h/logs/{created_after_dt.strftime('%Y%m%d%H%M')}.json"
+
+    logging.info(f"Getting logs created after {args.created_after} that correspond to jobs like {job_name_like}")
+
+    job_ids = get_batch_job_ids(args.job_queue, job_name_like, created_after_timestamp, batch_client)
     jobs = describe_batch_jobs(job_ids, batch_client)
-    job_logs = extract_job_logs(jobs, logs_client, log_group_name)
-    s3_client.put_object(Bucket=s3_bucket, Key=s3_key, Body=json.dumps(job_logs))
+    job_logs = extract_job_logs(jobs, logs_client, args.log_group)
+    s3_client.put_object(Bucket=args.s3_bucket, Key=s3_key, Body=json.dumps(job_logs))
+
+    logging.info(f"Log report saved to s3://{args.s3_bucket}/{s3_key}")

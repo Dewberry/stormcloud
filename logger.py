@@ -1,6 +1,5 @@
-import logging
 import json
-import sys
+import logging
 
 
 def set_up_logger(filename: str = None):

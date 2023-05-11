@@ -1,9 +1,10 @@
-import os
-import boto3
-from meilisearch import Client
-from datetime import datetime
 import json
+import os
+from datetime import datetime
+
+import boto3
 import pyproj
+from meilisearch import Client
 from pydsstools.heclib.dss import HecDss
 from pydsstools.heclib.utils import SHG_WKT
 from shapely.geometry import Point
@@ -45,7 +46,6 @@ with open(grid_file, "w") as gridf:
     gridf.write("End:\n\n")
 
     for i, doc in enumerate(docs):
-
         s3_uri = os.path.join(
             doc["metadata"]["transposition_domain_source"].replace(".geojson", ""),
             f"{doc['duration']}h",

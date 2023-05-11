@@ -1,15 +1,16 @@
-import numpy as np
-import os
-import boto3
 import json
 import logging
+import os
+from collections.abc import Generator
+from dataclasses import dataclass
 from datetime import datetime, timedelta
-from dotenv import load_dotenv, find_dotenv
+
+import boto3
+import numpy as np
+from constants import INDEX
+from dotenv import find_dotenv, load_dotenv
 from meilisearch import Client
 from scipy.stats import rankdata
-from dataclasses import dataclass
-from constants import INDEX
-from collections.abc import Generator
 
 
 @dataclass

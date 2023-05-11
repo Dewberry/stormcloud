@@ -1,9 +1,10 @@
-import boto3
-import os
-import logging
 import json
-from datetime import datetime, timedelta
+import logging
+import os
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+
+import boto3
 
 
 @dataclass
@@ -131,7 +132,7 @@ def send(job_input: JobInput) -> None:
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv, find_dotenv
+    from dotenv import find_dotenv, load_dotenv
 
     load_dotenv(find_dotenv())
 

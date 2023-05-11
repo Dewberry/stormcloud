@@ -1,20 +1,17 @@
-import boto3
-import sys
-import json
-import os
-import logging
 import enum
+import json
+import logging
+import os
+
 from datetime import datetime
 from typing import Any
-from dotenv import load_dotenv, find_dotenv
-from storms.utils import plotter, ms, batch
+
+import boto3
+from dotenv import find_dotenv, load_dotenv
+
+from storms.cluster import get_atlas14, get_xr_dataset, s3_geometry_reader, write_dss
 from storms.transpose import Transposer
-from storms.cluster import (
-    get_xr_dataset,
-    write_dss,
-    s3_geometry_reader,
-    get_atlas14,
-)
+from storms.utils import batch, ms, plotter
 
 # Set constants
 STORM_DATA_TYPE = "precipitation"
@@ -664,8 +661,9 @@ def main(
 
 
 if __name__ == "__main__":
-    import logging
     import argparse
+    import logging
+
     from logger import set_up_logger
 
     logger = set_up_logger()

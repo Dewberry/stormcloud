@@ -1,10 +1,11 @@
-import boto3
-from datetime import datetime
+import enum
 import json
 import logging
 import os
-import enum
+from datetime import datetime
 from typing import Any
+
+import boto3
 
 
 class RunSetting(enum.Enum):
@@ -22,7 +23,7 @@ def get_clients(run_setting: RunSetting) -> tuple[Any, Any, Any]:
         tuple[Any, Any, Any]: Tuple containing s3 client, logs client, and batch client (in that order)
     """
     if run_setting == RunSetting.LOCAL:
-        from dotenv import load_dotenv, find_dotenv
+        from dotenv import find_dotenv, load_dotenv
 
         # for local testing
         load_dotenv(find_dotenv())

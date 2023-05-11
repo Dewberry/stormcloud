@@ -183,7 +183,7 @@ def upload(inputs: MeilisearchInputs) -> None:
 
     # rank documents
     ranked_docs = rank_documents(docs, year_range)
-    # ms_client.index(INDEX).add_documents(ranked_docs)
+    ms_client.index(INDEX).add_documents(ranked_docs)
 
 
 def update(inputs: MeilisearchInputs, update_attribute: str):
@@ -258,5 +258,8 @@ if __name__ == "__main__":
 
     load_dotenv(find_dotenv())
     ms_inputs = load_inputs("records/duwamish.json")
+    logging.info(f"Proceeding with upload based on inputs: {ms_inputs}")
     upload(ms_inputs)
-    # update(ms_inputs, "metadata")
+    # update_attribute = "metadata"
+    # logging.info(f"Updating attribute {update_attribute} based on inputs: {ms_inputs}")
+    # update(ms_inputs, update_attribute)

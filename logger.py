@@ -1,6 +1,5 @@
-import logging
 import json
-import sys
+import logging
 
 
 def set_up_logger(filename: str = None):
@@ -9,7 +8,8 @@ def set_up_logger(filename: str = None):
     logging.getLogger("aiobotocore").setLevel(logging.WARNING)
 
     logger = logging.getLogger()
-    logger.removeHandler(logger.handlers[0])
+    if len(logger.handlers) > 0:
+        logger.removeHandler(logger.handlers[0])
 
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')

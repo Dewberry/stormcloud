@@ -119,16 +119,14 @@ def send(job_input: JobInput) -> None:
             logging.info(f"Starting processing for year {dt.year}")
             yr = dt.year
         cmd_list = construct_command(job_input, dt)
-        print(" ".join(cmd_list))
         batch_client.submit_job(
             jobDefinition=job_input.job_def,
             jobName=job_input.get_job_name(dt),
             jobQueue=job_input.job_queue,
             containerOverrides={"command": cmd_list},
         )
-        exit()
-
         dt = dt + timedelta(hours=24)
+
     logging.info("Submission finished")
 
 

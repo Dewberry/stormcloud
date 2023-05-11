@@ -1,3 +1,4 @@
+""" Script used after batch jobs submitted for SST modeling have completed to gather failure and success statistics into a report which is uploaded to s3 """
 import enum
 import json
 import logging
@@ -229,7 +230,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Batch Log Collector",
         description="Collects and stores logs from AWS associated with SST model runs for a specific watershed",
-        epilog="Example usage: python batch/batch-logs -c '2023-05-09 12:00' -w Duwamish -v V01 -s local ",
+        usage="Example usage: python batch/batch-logs -c '2023-05-09 12:00' -w Duwamish -v V01 -s local ",
     )
 
     parser.add_argument(

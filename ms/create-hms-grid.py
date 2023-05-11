@@ -1,4 +1,4 @@
-import json
+""" Uses documents on meilisearch and DSS file on s3 to create a grid file in desired format """
 import os
 from datetime import datetime
 

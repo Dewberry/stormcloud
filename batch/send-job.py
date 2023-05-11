@@ -1,3 +1,4 @@
+""" Takes JSON file input and submits batch jobs for SST processing based on input data """
 import json
 import logging
 import os
@@ -49,6 +50,14 @@ class JobInput:
 
 
 def load_inputs(json_path: str) -> JobInput:
+    """Create JobInput class instance from JSON file input
+
+    Args:
+        json_path (str): Path to JSON file
+
+    Returns:
+        JobInput: Cleaned JSON data
+    """
     with open(json_path, "r") as f:
         data = json.load(f)
         if "por_start" in data.keys():
@@ -59,13 +68,28 @@ def load_inputs(json_path: str) -> JobInput:
 
 
 def check_exists(keys: list[str], bucket: str, client) -> None:
+    """Check if keys exist
+
+    Args:
+        keys (list[str]): List of s3 keys
+        bucket (str): Bucket holding keys
+        client: s3 client
+    """
     for key in keys:
-        print(f"Checking {key}")
         logging.info(f"Checking {key}")
         client.head_object(Bucket=bucket, Key=key)
 
 
 def construct_command(job_input: JobInput, current_dt: datetime) -> list[str]:
+    """Constructs list of commands from job input for submission to batch. Commands should be valid for extract_storms_v2.py
+
+    Args:
+        job_input (JobInput): Job inputs
+        current_dt (datetime): Datetime of interest for batch job
+
+    Returns:
+        list[str]: list of commands
+    """
     cmd_list = [
         "python3",
         "extract_storms_v2.py",

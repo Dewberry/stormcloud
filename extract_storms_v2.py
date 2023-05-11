@@ -1,3 +1,10 @@
+"""
+Main script of repo. Uses s3 resources for watershed and transposition region to define
+valid transpositions of a watershed, then calculates accumulation statistics for all valid
+tranpositions. Selects the maximum accumulation period found and saves to DSS file along
+with PNG and summary statistics
+"""
+
 import enum
 import json
 import logging
@@ -672,7 +679,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Storm Extractor (V2)",
         description="Calculates valid transposition of a watershed within a transposition region which has greatest accumulated precipitation over a specified period",
-        epilog="Example usage: python extract_storms_v2.py -s '1985-05-10' -hr 72 -w Duwamish -wu s3://tempest/watersheds/duwamish/duwamish.geojson -d V01 -du s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson -b tempest -p watersheds/duwamish/duwamish-transpo-area-v01/72h",
+        usage="Example usage: python extract_storms_v2.py -s '1985-05-10' -hr 72 -w Duwamish -wu s3://tempest/watersheds/duwamish/duwamish.geojson -d V01 -du s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson -b tempest -p watersheds/duwamish/duwamish-transpo-area-v01/72h",
     )
 
     parser.add_argument(
@@ -772,6 +779,7 @@ if __name__ == "__main__":
         default="BATCH",
         type=str,
         required=False,
+        choices=["BATCH", "LOCAL"],
         help="Environment of script. Either LOCAL or BATCH. Defaults to BATCH",
     )
 

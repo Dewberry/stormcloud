@@ -1,3 +1,4 @@
+""" Script to update meilisearch index with new documents or edit existing document attributes """
 import json
 import logging
 import os
@@ -215,41 +216,36 @@ def update(inputs: MeilisearchInputs, update_attribute: str):
     ms_client.index(INDEX).update_documents(docs)
 
 
-def build_index():
-    # build meilisearch index
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
-    ms_client.index(INDEX).delete()
-    ms_client.create_index(INDEX, {"primaryKey": "id"})
-
-
-def assign_attributes():
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
-    # filterable attributes
-    ms_client.index(INDEX).update_filterable_attributes(
-        [
-            "start.calendar_year",
-            "start.water_year",
-            "start.season",
-            "duration",
-            "metadata.source",
-            "metadata.watershed_name",
-            "metadata.transposition_domain_name",
-            "ranks.true_rank",
-            "ranks.declustered_rank",
-            "categories.lv10",
-            "categories.lv11",
-            "stats.mean",
-        ]
-    )
-
-    # sortable attributes
-    ms_client.index(INDEX).update_sortable_attributes(
-        ["start.timestamp", "stats.mean", "stats.max", "stats.norm_mean", "stats.sum"]
-    )
-
-
 if __name__ == "__main__":
+    import argparse
+
     from dotenv import find_dotenv, load_dotenv
+
+    parser = argparse.ArgumentParser(
+        prog="Meilisearch Updater",
+        description="Script to upload new documents or edit existing documents for SST models based on model output documentation on s3",
+        usage="python ms/meilisearch-upload.py update -a metadata",
+    )
+
+    parser.add_argument("filepath", type=str, required=True, help="JSON document which defines watershed of interest")
+
+    parser.add_argument(
+        "option",
+        type=str,
+        required=True,
+        choices=["upload", "update"],
+        help="If upload, uploads docs parsed from s3. If update, should be accompanied with attribute to update and will update specified attribute of parsed docs.",
+    )
+    parser.add_argument(
+        "-a",
+        "--attribute",
+        default=None,
+        type=str,
+        required=False,
+        help="Attribute of parsed document to use in meilisearch update",
+    )
+
+    args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
@@ -258,9 +254,17 @@ if __name__ == "__main__":
     )
 
     load_dotenv(find_dotenv())
-    ms_inputs = load_inputs("records/duwamish.json")
-    logging.info(f"Proceeding with upload based on inputs: {ms_inputs}")
-    upload(ms_inputs)
-    # update_attribute = "metadata"
-    # logging.info(f"Updating attribute {update_attribute} based on inputs: {ms_inputs}")
-    # update(ms_inputs, update_attribute)
+
+    if not os.path.exists(args.filepath):
+        raise FileExistsError(f"No JSON document exists at {args.filepath}")
+    ms_inputs = load_inputs(args.filepath)
+
+    if args.option == "upload":
+        logging.info(f"Proceeding with upload based on inputs: {ms_inputs}")
+        upload(ms_inputs)
+
+    if args.option == "update":
+        if not args.attribute:
+            raise ValueError("Update option given but no attribute to update provided")
+        logging.info(f"Updating attribute {args.attribute} based on inputs: {ms_inputs}")
+        update(ms_inputs, args.attribute)

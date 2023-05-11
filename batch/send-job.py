@@ -170,10 +170,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Batch Job Submitter",
         description="Submits batch jobs based on environment variables and input JSON document",
-        usage="Example: python batch/send-job.py records/duwamish.json",
+        usage="Example: python batch/send-job.py -f records/duwamish.json",
     )
     parser.add_argument(
-        "filepath", type=str, required=True, help="Path to JSON file. See records/README.md for expected format."
+        "-f",
+        "--filepath",
+        type=str,
+        required=True,
+        help="Path to JSON file. See records/README.md for expected format.",
     )
 
     args = parser.parse_args()
@@ -188,4 +192,5 @@ if __name__ == "__main__":
         raise FileExistsError(f"Input JSON file does not exist: {args.filepath}")
 
     send_inputs = load_inputs(args.filepath)
+    logging.info(f"Starting send process with inputs: {send_inputs}")
     send(send_inputs)

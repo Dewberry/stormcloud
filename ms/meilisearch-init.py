@@ -79,7 +79,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "option",
+        "-o",
+        "--option",
         type=str,
         required=True,
         choices=["build", "delete"],
@@ -100,7 +101,7 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
 
-    args = parser.parse_args
+    args = parser.parse_args()
 
     client = get_client()
 

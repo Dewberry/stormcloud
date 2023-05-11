@@ -20,7 +20,7 @@ class MeilisearchInputs:
     domain_name: str
     s3_bucket: str = "tempest"
     start_year: int = 1979
-    end_year: int = 2023
+    end_year: int = 2022
 
     @staticmethod
     def __format_name(name: str) -> str:
@@ -224,13 +224,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Meilisearch Updater",
         description="Script to upload new documents or edit existing documents for SST models based on model output documentation on s3",
-        usage="python ms/meilisearch-upload.py update -a metadata",
+        usage="python ms/meilisearch-upload.py -f records/duwamish.json -o update -a metadata",
     )
 
-    parser.add_argument("filepath", type=str, required=True, help="JSON document which defines watershed of interest")
+    parser.add_argument(
+        "-f", "--filepath", type=str, required=True, help="JSON document which defines watershed of interest"
+    )
 
     parser.add_argument(
-        "option",
+        "-o",
+        "--option",
         type=str,
         required=True,
         choices=["upload", "update"],

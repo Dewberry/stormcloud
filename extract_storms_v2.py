@@ -674,7 +674,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="Storm Extractor (V2)",
         description="Calculates valid transposition of a watershed within a transposition region which has greatest accumulated precipitation over a specified period",
-        epilog="Example usage: python extract_storms_v2.py -s '2023-05-10' -hr 72 -w Duwamish -wu s3://tempest/watersheds/duwamish/duwamish.geojson -d V01 -du s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson -b tempest -p watersheds/duwamish/duwamish-transpo-area-v01/72h",
+        epilog="Example usage: python extract_storms_v2.py -s '1985-05-10' -hr 72 -w Duwamish -wu s3://tempest/watersheds/duwamish/duwamish.geojson -d V01 -du s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson -b tempest -p watersheds/duwamish/duwamish-transpo-area-v01/72h",
     )
 
     parser.add_argument(

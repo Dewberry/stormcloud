@@ -118,6 +118,11 @@ def construct_command(job_input: JobInput, current_dt: datetime) -> list[str]:
 
 
 def send(job_input: JobInput) -> None:
+    """Sends jobs over period of record for watershed and transposition region specified in input
+
+    Args:
+        job_input (JobInput): _description_
+    """
     # Create batch client
     batch_client = boto3.client(
         service_name="batch",
@@ -156,9 +161,22 @@ def send(job_input: JobInput) -> None:
 
 
 if __name__ == "__main__":
+    import argparse
+
     from dotenv import find_dotenv, load_dotenv
 
     load_dotenv(find_dotenv())
+
+    parser = argparse.ArgumentParser(
+        prog="Batch Job Submitter",
+        description="Submits batch jobs based on environment variables and input JSON document",
+        usage="Example: python batch/send-job.py records/duwamish.json",
+    )
+    parser.add_argument(
+        "filepath", type=str, required=True, help="Path to JSON file. See records/README.md for expected format."
+    )
+
+    args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO,
@@ -166,6 +184,8 @@ if __name__ == "__main__":
         handlers=[logging.StreamHandler()],
     )
 
-    send_inputs = load_inputs("records/duwamish.json")
-    print(send_inputs)
+    if not os.path.exists(args.filepath):
+        raise FileExistsError(f"Input JSON file does not exist: {args.filepath}")
+
+    send_inputs = load_inputs(args.filepath)
     send(send_inputs)

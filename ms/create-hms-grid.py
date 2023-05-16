@@ -45,14 +45,68 @@ def create_grid_name(data_directory: str, transpose_name: str) -> str:
     return os.path.join(data_directory, grid_basenme)
 
 
+def query_ms(
+    ms_client: Client,
+    watershed_name: str,
+    domain_name: str,
+    mean_filter: float,
+    limit: int,
+    declustered: bool = True,
+    top_by_year: Union[int, None] = None,
+) -> list:
+    """Queries meilisearch database for storm metadata
+
+    Args:
+        ms_client (Client): Meilisearch client
+        watershed_name (str): Watershed name. Should be one that exists in meilisearch database attribute metadata.watershed_name
+        domain_name (str): Domain name. Should be one that exists in meilisearch database attribute metadata.transposition_domain_name
+        mean_filter (float): Minimum mean precipitation amount to use as filter when retrieving storms
+        limit (int, optional): Limit for total DSS files fetched
+        declustered (bool, optional): If true, use declustered rank to determine top storms by precipitation. If false, use true rank. Defaults to True.
+        top_by_year (Union[int, None], optional): If integer is provided, will get that many storms per year, selecting them by highest precipitation. If none is provided, will fetch overall highest storms without stratifying by year. Defaults to None.
+
+    Returns:
+        list: Documents retrieved from meilisearch database
+    """
+    filter_list = [
+        f"stats.mean >= {mean_filter}",
+        f'metadata.watershed_name = "{watershed_name}"',
+        f'metadata.transposition_domain_name = "{domain_name}"',
+    ]
+    if declustered:
+        filter_list.append("ranks.declustered_rank > 0")
+    if top_by_year != None:
+        filter_list.append(f"ranks.declustered_rank <= {top_by_year}")
+    query_params = {
+        "filter": filter_list,
+        "limit": limit,
+        "sort": ["stats.mean:desc", "start.timestamp:asc"],
+    }
+    results = ms_client.index(INDEX).search("", query_params)
+    hits = results.get("hits")
+    return hits
+
+
 def main(
     watershed_name: str,
     domain_name: str,
     transpose_name: str,
     data_directory: Union[str, None] = None,
     mean_filter: float = 0,
-    limit: int = 10,
+    top_by_year: int = 10,
+    limit: int = 1000,
 ):
+    """Function which uses documents in meilisearch database to fetch DSS files for storms which have top mean precipitation from s3 and package into a .grid file format
+
+    Args:
+        watershed_name (str): Watershed name. Should be one that exists in meilisearch database attribute metadata.watershed_name
+        domain_name (str): Domain name. Should be one that exists in meilisearch database attribute metadata.transposition_domain_name
+        transpose_name (str): Name used in grid file 'Grid Manager' parameter and used to name grid file
+        data_directory (Union[str, None], optional): Directory to which DSS file and grid files are saved. If none provided, will be created using watershed name. Defaults to None.
+        mean_filter (float, optional): Minimum mean precipitation amount to use as filter when retrieving storms. Defaults to 0.
+        top_by_year (int, optional): How many storms per year to be retrieved, selected by highest precipitation. Defaults to 10.
+        limit (int, optional): Limit for total DSS files fetched. Defaults to 1000.
+    """
     # Create s3 and meilisearch clients from environment variables
     session = boto3.session.Session()
     bucket_name = os.environ["S3_BUCKET_NAME"]
@@ -75,16 +129,7 @@ def main(
     project = pyproj.Transformer.from_crs(wgs84, SHG_WKT, always_xy=True).transform
 
     # Search meilisearch database for top storms by mean precipitation
-    docs = ms_client.index(INDEX).search(
-        "",
-        {
-            "filter": [
-                f'stats.mean >= {mean_filter} AND ranks.declustered_rank >= 1 AND metadata.watershed_name = "{watershed_name}" AND metadata.transposition_domain_name = "{domain_name}"'
-            ],
-            "limit": limit,
-            "sort": ["stats.mean:desc", "start.timestamp:asc"],
-        },
-    )["hits"]
+    docs = query_ms(ms_client, watershed_name, domain_name, mean_filter, limit, top_by_year=10)
 
     # Make grid file
     with open(grid_file, "w") as gridf:
@@ -196,10 +241,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "-l",
         "--limit",
-        default=10,
+        default=1000,
         type=int,
         required=False,
         help="Maximum number of storms to retrieve from the meilisearch database",
+    )
+    parser.add_argument(
+        "-t", "--top_by_year", default=10, type=int, required=False, help="How many storms to select per year of record"
     )
 
     args = parser.parse_args()

@@ -76,7 +76,10 @@ def query_ms(
     if declustered:
         filter_list.append("ranks.declustered_rank > 0")
     if top_by_year != None:
-        filter_list.append(f"ranks.declustered_rank <= {top_by_year}")
+        if declustered:
+            filter_list.append(f"ranks.declustered_rank <= {top_by_year}")
+        else:
+            filter_list.append(f"rank.true_rank <= {top_by_year}")
     query_params = {
         "filter": filter_list,
         "limit": limit,

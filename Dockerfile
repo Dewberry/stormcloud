@@ -29,6 +29,6 @@ COPY extract_storms_v2.py /app/extract_storms_v2.py
 
 COPY logger.py /app/logger.py
 
-COPY ms/ /app/ms/
+COPY ms/. /app/ms/.
 
 COPY batch/batch-logs.py /app/batch-logs.py

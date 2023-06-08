@@ -132,7 +132,7 @@ def main(
     project = pyproj.Transformer.from_crs(wgs84, SHG_WKT, always_xy=True).transform
 
     # Search meilisearch database for top storms by mean precipitation
-    docs = query_ms(ms_client, watershed_name, domain_name, mean_filter, limit, top_by_year=10)
+    docs = query_ms(ms_client, watershed_name, domain_name, mean_filter, limit, top_by_year=top_by_year)
 
     # Make grid file
     with open(grid_file, "w") as gridf:

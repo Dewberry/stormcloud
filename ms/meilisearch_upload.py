@@ -5,13 +5,13 @@ import os
 from collections.abc import Generator
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import List
 
-import boto3
 import numpy as np
 from constants import INDEX
 from dotenv import find_dotenv, load_dotenv
-from meilisearch import Client
 from scipy.stats import rankdata
+from ms.client_utils import create_meilisearch_client, create_s3_client
 
 
 @dataclass
@@ -48,7 +48,7 @@ def load_inputs(json_path: str) -> MeilisearchInputs:
     return inputs
 
 
-def get_keys(client, bucket: str, prefix: str) -> Generator[str, None, None]:
+def get_keys(client: object, bucket: str, prefix: str) -> Generator[str, None, None]:
     """Gets keys from a bucket
 
     Args:
@@ -108,7 +108,7 @@ def structure_document(input_data: dict) -> dict:
     return input_data
 
 
-def rank_documents(data: list[dict], year_range: range) -> list[dict]:
+def rank_documents(data: List[dict], year_range: range) -> List[dict]:
     """Ranks documents based on mean precipitation values creates separate rank which eliminates values within 71 hour window of high means using mask
 
     Args:
@@ -166,10 +166,11 @@ def rank_documents(data: list[dict], year_range: range) -> list[dict]:
     return ranked_docs
 
 
-def upload(inputs: MeilisearchInputs) -> None:
-    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-    s3_client = session.client("s3")
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+def upload(
+    inputs: MeilisearchInputs, access_key_id: str, secret_access_key: str, ms_host: str, ms_api_key: str
+) -> None:
+    s3_client = create_s3_client(access_key_id, secret_access_key)
+    ms_client = create_meilisearch_client(ms_host, ms_api_key)
     year_range = range(inputs.start_year, inputs.end_year + 1)
     docs = []
     for year in year_range:
@@ -188,10 +189,16 @@ def upload(inputs: MeilisearchInputs) -> None:
     ms_client.index(INDEX).add_documents(ranked_docs)
 
 
-def update(inputs: MeilisearchInputs, update_attribute: str):
-    session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
-    s3_client = session.client("s3")
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
+def update(
+    inputs: MeilisearchInputs,
+    update_attribute: str,
+    access_key_id: str,
+    secret_access_key: str,
+    ms_host: str,
+    ms_api_key: str,
+):
+    s3_client = create_s3_client(access_key_id, secret_access_key)
+    ms_client = create_meilisearch_client(ms_host, ms_api_key)
     year_range = range(inputs.start_year, inputs.end_year + 1)
     docs = []
     for year in year_range:
@@ -258,16 +265,21 @@ if __name__ == "__main__":
 
     load_dotenv(find_dotenv())
 
+    access_key_id = os.environ["AWS_ACCESS_KEY_ID"]
+    secret_access_key = os.environ["AWS_SECRET_ACCESS_KEY"]
+    ms_host = os.environ["REACT_APP_MEILI_HOST"]
+    ms_api_key = os.environ["REACT_APP_MEILI_MASTER_KEY"]
+
     if not os.path.exists(args.filepath):
         raise FileExistsError(f"No JSON document exists at {args.filepath}")
     ms_inputs = load_inputs(args.filepath)
 
     if args.option == "upload":
         logging.info(f"Proceeding with upload based on inputs: {ms_inputs}")
-        upload(ms_inputs)
+        upload(ms_inputs, access_key_id, secret_access_key, ms_host, ms_api_key)
 
     if args.option == "update":
         if not args.attribute:
             raise ValueError("Update option given but no attribute to update provided")
         logging.info(f"Updating attribute {args.attribute} based on inputs: {ms_inputs}")
-        update(ms_inputs, args.attribute)
+        update(ms_inputs, args.attribute, access_key_id, secret_access_key, ms_host, ms_api_key)

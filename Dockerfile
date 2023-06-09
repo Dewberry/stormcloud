@@ -2,9 +2,9 @@ FROM osgeo/gdal:ubuntu-small-3.5.1 as base
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
-ADD storms /app/storms/
-COPY requirements.txt /app/requirements.txt
 WORKDIR /app
+ADD storms .
+COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # install pydsstools from source
@@ -22,13 +22,14 @@ RUN rm pydsstools/pydsstools/src/external/dss/linux64/heclib.a
 RUN cp -a heclib/headers pydsstools/pydsstools/src/external/dss/headers
 RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.a
 # install
-# RUN ( cd pydsstools && python3 -m pip wheel . )
 RUN ( cd pydsstools && python3 -m pip install . )
 
-COPY extract_storms_v2.py /app/extract_storms_v2.py
+COPY extract_storms_v2.py .
 
-COPY logger.py /app/logger.py
+COPY temperature_transfer.py .
 
-COPY ms/. /app/ms/.
+COPY logger.py .
 
-COPY batch/batch-logs.py /app/batch-logs.py
+COPY ms/. ms/.
+
+COPY batch/batch-logs.py .

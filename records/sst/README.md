@@ -1,6 +1,6 @@
-### Records
+### SST Records
 
-This folder contains json documentation of past jobs submitted in the following format
+This folder contains json documentation of past SST jobs submitted in the following format
 
 ```
 {

@@ -1,6 +1,7 @@
 import datetime
 import os
 import pathlib
+import re
 import shutil
 from typing import Generator, List, Tuple
 
@@ -33,6 +34,13 @@ MONTH_LIST = ["JAN", "FEB", "MAR", "APR", "JUN", "JUL", "AUG", "SEP", "OCT", "NO
 def copy_dir(source_dir: str, copy_dest: str):
     print(f"Copying directory from {source_dir} to {copy_dest} prior to modification")
     return shutil.copytree(source_dir, copy_dest, dirs_exist_ok=True)
+
+
+def find_grid_file(source_dir: str) -> str:
+    pattern = re.compile(r".*\.grid")
+    for f in os.listdir(source_dir):
+        if re.match(pattern, f):
+            return f
 
 
 def proper_case_month(datetime_string: str) -> str:
@@ -72,53 +80,63 @@ def get_precip_pathnames(precip_dss_dir: str) -> List[Tuple[str, str]]:
         with Open(precip_dss_fn) as f:
             for pathname in f.getPathnameList("/*/*/*/*/*/*/", sort=1):
                 fn_pathname_list.append((precip_dss_fn, pathname))
-    print(f"Total pathnames found: {len(fn_pathname_list)}")
-    return fn_pathname_list
+    if len(fn_pathname_list) > 0:
+        print(f"Total pathnames found: {len(fn_pathname_list)}")
+        return fn_pathname_list
+    else:
+        raise FileNotFoundError(
+            f"No dss files found in subdirectories of {precip_dss_dir} using wildcard pattern */*.dss"
+        )
 
 
-def insert_temperature_grid(
-    temperature_dss_fn: str, precip_fn_pathname_list: List[Tuple[str, str]], dry: bool = False
-) -> Generator[Tuple[str, str], None, None]:
-    unique_dss_fns = []
-    print(f"Opening source temperature DSS file {temperature_dss_fn}")
-    with Open(temperature_dss_fn) as source_dss:
-        for dest_dss_fn, pathname in precip_fn_pathname_list:
-            # Format pathname to how it will be in the temperature DSS file
-            pathname_parts = pathname.split("/")
-            pathname_parts[1] = "SHG2K"
-            pathname_parts[3] = "TEMPERATURE"
-            begin_window = pathname_parts[4]
-            begin_window_proper = proper_case_month(begin_window)
-            begin_window_dt = datetime.datetime.strptime(begin_window_proper, "%d%b%Y:%H%M")
-            if begin_window_dt.hour == 0:
-                altered_window_dt = begin_window_dt - datetime.timedelta(hours=1)
-                altered_window = upper_case_month(altered_window_dt.strftime("%d%b%Y:24%M"))
-                pathname_parts[4] = altered_window
-            pathname_parts[5] = ""
-            temperature_pathname = "/".join(pathname_parts)
-            source_dataset = source_dss.read_grid(temperature_pathname)
-            with Open(dest_dss_fn) as dest_dss:
-                # Format pathname to how we want it recorded (with hours from formatted and begin and end window indicated)
-                pathname_parts[4] = begin_window
-                end_window_dt = begin_window_dt + datetime.timedelta(hours=1)
-                if end_window_dt.hour == 0:
-                    end_window_dt -= datetime.timedelta(hours=1)
-                    end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:24%M"))
-                else:
-                    end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:%H%M"))
-                pathname_parts[5] = end_window
+class TemperatureInserter:
+    def __init__(self) -> None:
+        self.failed_inserts = []
+
+    def insert_grid(
+        self, temperature_dss_fn: str, precip_fn_pathname_list: List[Tuple[str, str]], dry: bool = False
+    ) -> Generator[Tuple[str, str], None, None]:
+        unique_dss_fns = []
+        print(f"Opening source temperature DSS file {temperature_dss_fn}")
+        with Open(temperature_dss_fn) as source_dss:
+            for dest_dss_fn, pathname in precip_fn_pathname_list:
+                # Format pathname to how it will be in the temperature DSS file
+                pathname_parts = pathname.split("/")
+                pathname_parts[1] = "SHG2K"
+                pathname_parts[3] = "TEMPERATURE"
+                begin_window = pathname_parts[4]
+                begin_window_proper = proper_case_month(begin_window)
+                begin_window_dt = datetime.datetime.strptime(begin_window_proper, "%d%b%Y:%H%M")
+                if begin_window_dt.hour == 0:
+                    altered_window_dt = begin_window_dt - datetime.timedelta(hours=1)
+                    altered_window = upper_case_month(altered_window_dt.strftime("%d%b%Y:24%M"))
+                    pathname_parts[4] = altered_window
+                pathname_parts[5] = ""
                 temperature_pathname = "/".join(pathname_parts)
-                try:
-                    print(f"Inserting dataset at {temperature_pathname} in DSS file {dest_dss_fn}")
-                    if not dry:
-                        dest_dss.put_grid(temperature_pathname, source_dataset)
-                    if dest_dss_fn not in unique_dss_fns:
-                        yield temperature_pathname, dest_dss_fn
-                        unique_dss_fns.append(dest_dss_fn)
-                except AttributeError:
-                    print(
-                        f"Insert for {temperature_pathname} in DSS file {dest_dss_fn} failed. Datetime of failed insert: {begin_window_dt.isoformat()}"
-                    )
+                source_dataset = source_dss.read_grid(temperature_pathname)
+                with Open(dest_dss_fn) as dest_dss:
+                    # Format pathname to how we want it recorded (with hours from formatted and begin and end window indicated)
+                    pathname_parts[4] = begin_window
+                    end_window_dt = begin_window_dt + datetime.timedelta(hours=1)
+                    if end_window_dt.hour == 0:
+                        end_window_dt -= datetime.timedelta(hours=1)
+                        end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:24%M"))
+                    else:
+                        end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:%H%M"))
+                    pathname_parts[5] = end_window
+                    temperature_pathname = "/".join(pathname_parts)
+                    try:
+                        print(f"Inserting dataset at {temperature_pathname} in DSS file {dest_dss_fn}")
+                        if not dry:
+                            dest_dss.put_grid(temperature_pathname, source_dataset)
+                        if dest_dss_fn not in unique_dss_fns:
+                            yield temperature_pathname, dest_dss_fn
+                            unique_dss_fns.append(dest_dss_fn)
+                    except AttributeError:
+                        print(
+                            f"Insert for {temperature_pathname} in DSS file {dest_dss_fn} failed. Datetime of failed insert: {begin_window_dt.isoformat()}"
+                        )
+                        self.failed_inserts.append(temperature_pathname)
 
 
 def append_grid_record(
@@ -146,21 +164,43 @@ def append_grid_record(
 
 
 if __name__ == "__main__":
+    import argparse
+
     from dotenv import load_dotenv
 
     from pydsstools.heclib.utils import dss_logging
 
-    dss_logging.config(level="None")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_directory", type=str, help="Path to directory with DSS and GRID data")
+    parser.add_argument(
+        "temperature_dss",
+        type=str,
+        help="Path to DSS file used as source dataset from which temperature data is extracted",
+    )
+    parser.add_argument("destination_directory", type=str, help="Directory to store modified DSS and GRID data")
+    parser.add_argument(
+        "dss_bucket", type=str, help="s3 bucket holding resource which contains temperature DSS resource"
+    )
+    parser.add_argument("dss_key", type=str, help="s3 key for temperature DSS resource")
+    args = parser.parse_args()
 
     load_dotenv()
-
-    copy_dir("Kanawha-v01", "data-copy")
 
     s3 = create_session(
         os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], os.environ["AWS_DEFAULT_REGION"]
     )
 
-    temperature_last_modification = get_last_modification(s3, "tempest", "deliverables/kanawha-dss-cy.zip")
-    precip_fn_pathnames = get_precip_pathnames("data-copy")
-    for pathname, fn in insert_temperature_grid("kanwha-temp.dss", precip_fn_pathnames, dry=False):
-        append_grid_record("data-copy/K_Transpose.grid", pathname, fn, temperature_last_modification, dry=False)
+    # Disable pydsstools logging
+    dss_logging.config(level="None")
+
+    copy_dir(args.data_directory, args.destination_directory)
+    grid_file = find_grid_file(args.data_directory)
+    temperature_last_modification = get_last_modification(s3, args.dss_bucket, args.dss_key)
+    precip_fn_pathnames = get_precip_pathnames(args.destination_directory)
+    temperature_inserter = TemperatureInserter()
+    for pathname, fn in temperature_inserter.insert_grid(args.temperature_dss, precip_fn_pathnames):
+        append_grid_record(
+            os.path.join(args.destination_directory, grid_file), pathname, fn, temperature_last_modification
+        )
+    print(f"Failed inserts: {', '.join(temperature_inserter.failed_inserts)}")
+    print(f"Number of failures: {len(temperature_inserter.failed_inserts)}")

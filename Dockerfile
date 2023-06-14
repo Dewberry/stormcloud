@@ -3,7 +3,7 @@ RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /app
-ADD storms .
+ADD storms storms/
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
@@ -33,3 +33,7 @@ COPY logger.py .
 COPY ms/. ms/.
 
 COPY batch/batch-logs.py .
+
+COPY extract_zarr_to_dss.py .
+
+COPY records/. records/.

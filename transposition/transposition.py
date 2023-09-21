@@ -1,7 +1,7 @@
 import rasterio
 from rasterio import features
 from rasterio import Affine
-from shapely import Polygon, box
+from shapely.geometry import Polygon, box
 import numpy as np
 import geopandas as gpd
 from pydsstools.heclib.dss import HecDss

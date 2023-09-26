@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  transposition:
+    container_name: transposition
+    build:
+      context: .
+      dockerfile: transposition.Dockerfile
+    volumes:
+      - ./test/transposed:/app/test/transposed
+    command: python3 transposition.py ./test ./test/watershed.shp.zip 1

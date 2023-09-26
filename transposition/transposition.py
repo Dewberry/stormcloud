@@ -7,7 +7,6 @@ import geopandas as gpd
 from pydsstools.heclib.dss import HecDss
 from pydsstools.core import PairedDataContainer
 from pydsstools.heclib.utils import gridInfo, lower_left_xy_from_transform
-from IPython.display import display
 import sys
 import os
 
@@ -268,13 +267,9 @@ def main(dss_directory: str, watershed_shp: str, number_of_tranpositions: int = 
                 transposition.valid_transposition_region_polygon_bbox()
                 transposition.valid_transposition_region_centroid_bbox()
 
-                transposition.t_bbox_centroid.to_file(
-                    rf"C:\Users\mdeshotel\Downloads\dss\{file_name}_t_bbox_centroid.shp"
-                )
-                transposition.t_bbox_polygon.to_file(
-                    rf"C:\Users\mdeshotel\Downloads\dss\{file_name}_t_bbox_polygon.shp"
-                )
-                transposition.t_region.to_file(rf"C:\Users\mdeshotel\Downloads\dss\{file_name}_t_region.shp")
+                # transposition.t_bbox_centroid.to_file(f"{file_name}_t_bbox_centroid.shp")
+                # transposition.t_bbox_polygon.to_file(f"test/{file_name}_t_bbox_polygon.shp")
+                transposition.t_region.to_file(f"test/transposed/{file_name}_t_region.shp")
                 transpositions = []
                 while len(transpositions) < number_of_tranpositions:
                     transposition.sample_xy()
@@ -283,14 +278,14 @@ def main(dss_directory: str, watershed_shp: str, number_of_tranpositions: int = 
                     if transposition.valid:
                         print("valid", file_name)
                         transposition.transposed_t_region.to_file(
-                            os.path.join(dss_directory, f"{file_name}_{len(transpositions)}_valid.shp")
+                            os.path.join(dss_directory, f"transposed/{file_name}_{len(transpositions)}_valid.shp")
                         )
                         transposition.grids_2_array()
                         transposition.transpose_transform()
                         transposition.transpose_dss_grid()
                         transposition.arr_2_tif(
                             transposition.arr.sum(axis=2),
-                            os.path.join(dss_directory, f"{file_name}_{len(transpositions)}_valid.tif"),
+                            os.path.join(dss_directory, f"transposed/{file_name}_{len(transpositions)}_valid.tif"),
                         )
                         transpositions.append(transposition)
                         transposition.valid = False

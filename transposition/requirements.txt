@@ -1,0 +1,9 @@
+geopandas
+h5py
+numpy
+pandas
+pyproj
+rasterio
+scikit-learn
+scipy
+ipython

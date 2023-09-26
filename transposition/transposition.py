@@ -1,7 +1,7 @@
 import rasterio
 from rasterio import features
 from rasterio import Affine
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box, Point
 import numpy as np
 import geopandas as gpd
 from pydsstools.heclib.dss import HecDss
@@ -17,8 +17,8 @@ class Transposition:
         name, extension = os.path.splitext(os.path.basename(dss_file))
         if extension != ".dss":
             raise ValueError(f"invalid extension for dss_file: {dss_file}")
-        if not watershed_shapefile.endswith(".shp"):
-            raise ValueError(f"invalid extension for watershed_shapefile: {dss_file}")
+        if ".shp" not in watershed_shapefile:
+            raise ValueError(f"invalid extension for watershed_shapefile: {watershed_shapefile}")
         self.name = name
         self.dss_file = dss_file
         self.directory = os.path.dirname(self.dss_file)
@@ -192,6 +192,9 @@ class Transposition:
         ) as src:
             arr[np.isnan(arr)] = -9999
             src.write(arr, 1)
+
+    def tranpose_storm_center(self, point: Point) -> Point:
+        return Point(point.x + self.x_offset, point.y + self.y_offset)
 
 
 def xy_pd_dss(dss_file: str, transpositions):

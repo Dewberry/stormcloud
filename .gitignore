@@ -130,3 +130,6 @@ dmypy.json
 
 # vscode settings
 .vscode/
+
+#testdata
+/transposition/test/transposed

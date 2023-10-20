@@ -6,4 +6,3 @@ services:
       context: .
     env_file:
       - ./.env
-  # entrypoint: 

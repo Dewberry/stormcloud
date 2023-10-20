@@ -1,0 +1,56 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": ".zarr Inputs",
+    "type": "object",
+    "description": "Schema to validate inputs for .zarr data extraction process",
+    "properties": {
+        "watershed_name": {
+            "type": "string",
+            "description": "Name of watershed to use in searching for storms; should correspond to entries in meilisearch database"
+        },
+        "domain_name": {
+            "type": "string",
+            "description": "Name of transposition region version, or 'domain', to use in searching for storms; should correspond to entries in meilisearch database"
+        },
+        "year": {
+            "type": "integer",
+            "description": "Year to use in searching for storms; should correspond to time periods for entries in meilisearch database"
+        },
+        "n_storms": {
+            "type": "integer",
+            "description": "Number of top storms to select, ranked in descending order by mean precipitation"
+        },
+        "declustered": {
+            "type": "boolean",
+            "description": "If true, applies filter to ranked storms to mask out storms which cover the same time period as higher ranked storms. If false, uses unfiltered, or 'true', ranking"
+        },
+        "data_variables": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "APCP_surface",
+                    "DLWRF_surface",
+                    "DSWRF_surface",
+                    "PRES_surface",
+                    "SPFH_2maboveground",
+                    "TMP_2maboveground",
+                    "UGRD_10maboveground",
+                    "VGRD_10maboveground"
+                ],
+                "minItems": 1,
+                "uniqueItems": false
+            }
+        },
+        "zarr_s3_path": {
+            "type": "string",
+            "pattern": "^s3:\\/\\/([a-zA-Z0-9_\\-]+)\\/([a-zA-Z0-9_\\-\\/\\.]*)$",
+            "description": "s3 URI for zarr data to extract"
+        },
+        "geojson_s3_path": {
+            "type": "string",
+            "pattern": "^s3:\\/\\/([a-zA-Z0-9_\\-]+)\\/([a-zA-Z0-9_\\-\\/\\.]*)\\.geojson$",
+            "description": "s3 URI for geojson determining spatial extent of extraction area"
+        }
+    }
+}

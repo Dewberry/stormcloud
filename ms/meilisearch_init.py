@@ -1,38 +1,28 @@
 """ Creates index used to store documents relating to SST processing """
 import logging
-import os
 
 from constants import INDEX
 from meilisearch import Client
 
 
-def get_client():
-    ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
-    return ms_client
-
-
-def build_index(clean: bool = False, client: Client | None = None):
+def build_index(client: Client, clean: bool = False):
     """Builds index
 
     Args:
         clean (bool, optional):If True, tries to delete index with name specified in constants before creating. Defaults to False.
-        client (Client | None, optional): Meilisearch client. Defaults to None.
+        client (Client): Meilisearch client
     """
-    if not client:
-        client = get_client()
     if clean:
         delete_index(client)
     client.create_index(INDEX, {"primaryKey": "id"})
 
 
-def assign_attributes(client: Client | None = None):
+def assign_attributes(client: Client):
     """Assigns filterable and rankable attributes to built index
 
     Args:
-        client (Client | None, optional): Meilisearch client. Defaults to None.
+        client (Client): Meilisearch client
     """
-    if not client:
-        client = get_client()
     # filterable attributes
     client.index(INDEX).update_filterable_attributes(
         [
@@ -61,16 +51,18 @@ def delete_index(client: Client):
     """Deletes index
 
     Args:
-        client (Client): Meilisearch client. Defaults to None.
+        client (Client): Meilisearch client
     """
-    if not client:
-        ms_client = get_client()
     logging.warning(f"Deleting index {INDEX}")
-    ms_client.index(INDEX).delete()
+    client.index(INDEX).delete()
 
 
 if __name__ == "__main__":
     import argparse
+    import os
+
+    from dotenv import load_dotenv
+    from ms.client_utils import create_meilisearch_client
 
     parser = argparse.ArgumentParser(
         prog="Meilisearch Init",
@@ -103,9 +95,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    client = get_client()
+    load_dotenv()
+
+    ms_host = os.environ["REACT_APP_MEILI_HOST"]
+    ms_api_key = os.environ["REACT_APP_MEILI_MASTER_KEY"]
+
+    client = create_meilisearch_client(ms_host, ms_api_key)
 
     if args.option == "build":
-        build_index(args.clean, client)
+        build_index(client, args.clean)
     if args.option == "delete":
         delete_index(client)

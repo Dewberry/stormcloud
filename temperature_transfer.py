@@ -1,3 +1,4 @@
+""" Script to modify a precipitation DSS file resulting from SST modeling to include temperature data from a DSS file """
 import datetime
 import os
 import pathlib

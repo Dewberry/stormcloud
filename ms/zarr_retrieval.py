@@ -16,6 +16,8 @@ from .storm_query import query_ms
 
 
 class NOAADataVariable(enum.Enum):
+    """Class of potential NOAA data variables to extract zarr data for"""
+
     APCP = "APCP_surface"
     DLWRF = "DLWRF_surface"
     DSWRF = "DSWRF_surface"
@@ -37,6 +39,19 @@ class NOAADataVariable(enum.Enum):
 def get_time_windows(
     year: int, watershed_name: str, domain_name: str, n: int, declustered: bool, ms_client: Client
 ) -> Generator[Tuple[datetime.datetime, datetime.datetime, int], None, None]:
+    """Generates start and end time windows for storms identified in meilisearch database as in the top storms when ranked by mean precipitation
+
+    Args:
+        year (int): Year of interest
+        watershed_name (str): Watershed of interest
+        domain_name (str): Transposition domain of interest
+        n (int): Number of top storms from which time windows should be pulled
+        declustered (bool): If true, use declustered rank which ensures that the duration of SST models do not overlap when ranking by mean precipitation. If false, use unfiltered rank by mean precipitation.
+        ms_client (Client): Client used to query meilisearch database for SST model run information
+
+    Yields:
+        Generator[Tuple[datetime.datetime, datetime.datetime, int], None, None]: Yields tuple of start time, end time pulled from storm, and storm mean precipitation rank, respectively
+    """
     if declustered:
         search_method_name = "declustered"
     else:
@@ -62,6 +77,18 @@ def load_zarr(
     secret_access_key: str,
     data_variables: Union[List[str], None] = None,
 ) -> xr.Dataset:
+    """Load zarr data from s3
+
+    Args:
+        s3_bucket (str): s3 bucket from which data should be pulled
+        s3_key (str): s3 key for zarr data to pull
+        access_key_id (str): Access key ID for AWS credentials
+        secret_access_key (str): Secret access key for AWS credentials
+        data_variables (Union[List[str], None], optional): List of data variables to pull from zarr data. Defaults to None, meaining data will not be subselected.
+
+    Returns:
+        xr.Dataset: zarr dataset loaded to xarray dataset
+    """
     logging.info(f"Loading .zarr dataset from s3://{s3_bucket}/{s3_key}")
     s3 = s3fs.S3FileSystem(key=access_key_id, secret=secret_access_key)
     ds = xr.open_zarr(s3fs.S3Map(f"{s3_bucket}/{s3_key}", s3=s3))
@@ -74,6 +101,17 @@ def load_zarr(
 def trim_dataset(
     ds: xr.Dataset, start: datetime.datetime, end: datetime.datetime, mask: Union[Polygon, MultiPolygon]
 ) -> xr.Dataset:
+    """Trims dataset to time window and geometry of interest
+
+    Args:
+        ds (xr.Dataset): Dataset to trim
+        start (datetime.datetime): Start time of window of interest
+        end (datetime.datetime): End time of window of interest
+        mask (Union[Polygon, MultiPolygon]): Masking geometry for which data should be pulled
+
+    Returns:
+        xr.Dataset: Spatiotemporally trimmed dataset
+    """
     logging.info(
         f"Trimming dataset to time window from {start} to {end} and using mask geometry with type {mask.geom_type}"
     )
@@ -86,6 +124,20 @@ def trim_dataset(
 def load_watershed(
     s3_bucket: str, s3_key: str, access_key_id: str, secret_access_key: str
 ) -> Union[Polygon, MultiPolygon]:
+    """Loads watershed geometry from s3 resource
+
+    Args:
+        s3_bucket (str): Bucket holding watershed
+        s3_key (str): Key of watershed
+        access_key_id (str): AWS access key ID
+        secret_access_key (str): AWS secret access key
+
+    Raises:
+        err: Value error raised if watershed geojson is not a single feature as expected
+
+    Returns:
+        Union[Polygon, MultiPolygon]: shapely geometry pulled from watershed s3 geojson
+    """
     logging.info(f"Loading watershed transposition region geometry from geojson s3://{s3_bucket}/{s3_key}")
     s3_client = create_s3_client(access_key_id, secret_access_key)
     response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
@@ -117,6 +169,27 @@ def extract_zarr_for_watershed_storms(
     ms_host: str,
     ms_api_key: str,
 ) -> Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]:
+    """Extracts zarr data from for a specified watershed in a specified year with a specified transposition region, coordinating which storms to select using data on meilisearch
+
+    Args:
+        watershed_name (str): Watershed name
+        domain_name (str): Transposition domain name
+        year (int): Year of interest
+        n_storms (int): Number of storms to pull for year, watershed, and transposition region, selecting n top storms ranked by mean precipitation
+        declustered (bool): If True, use declustered ranking for ranking storms, meaning storms within the same duration of modeling will not appear together in ranking. If False, no filter is used when ranking by mean precipitation.
+        data_variables (List[str]): Variables to which zarr dataset will be subset
+        zarr_bucket (str): Bucket holding zarr data to pull
+        zarr_key (str): Key of zarr data to pull
+        geojson_bucket (str): Bucket of watershed data
+        geojson_key (str): Key of watershed geojson
+        access_key_id (str): AWS access key ID
+        secret_access_key (str): AWS secret access key
+        ms_host (str): Meilisearch host
+        ms_api_key (str): Meilisearch API key used to access meilisearch
+
+    Yields:
+        Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]: Yields a tuple containing a trimmed zarr dataset, the start time of the window of interest for that storm, the end time of the window of interest for that storm, and storm rank
+    """
     logging.info("Starting extraction process")
     ms_client = create_meilisearch_client(ms_host, ms_api_key)
     zarr_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables)

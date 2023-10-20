@@ -121,7 +121,7 @@ def send(job_input: JobInput) -> None:
     """Sends jobs over period of record for watershed and transposition region specified in input
 
     Args:
-        job_input (JobInput): _description_
+        job_input (JobInput): Batch job parameters
     """
     # Create batch client
     batch_client = boto3.client(
@@ -169,7 +169,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         prog="Batch Job Submitter",
-        description="Submits batch jobs based on environment variables and input JSON document",
+        description="Submits SST batch jobs based on environment variables and input JSON document",
         usage="Example: python batch/send-job.py -f records/duwamish.json",
     )
     parser.add_argument(
@@ -177,7 +177,7 @@ if __name__ == "__main__":
         "--filepath",
         type=str,
         required=True,
-        help="Path to JSON file. See records/README.md for expected format.",
+        help="Path to JSON file with SST job parameters. See records/README.md for expected format.",
     )
 
     args = parser.parse_args()

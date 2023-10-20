@@ -195,7 +195,7 @@ def main(
 
 if __name__ == "__main__":
     import logging
-    import sys
+    import argparse
 
     from dotenv import load_dotenv
 
@@ -206,9 +206,17 @@ if __name__ == "__main__":
     ms_host = os.environ["REACT_APP_MEILI_HOST"]
     ms_api_key = os.environ["REACT_APP_MEILI_MASTER_KEY"]
 
-    input_json_path, out_zip = sys.argv[1], sys.argv[2]
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "json_path",
+        type=str,
+        help="JSON path for DSS extraction; should follow format of records/zarr/zarr_input_schema.json",
+    )
+    parser.add_argument("output_zip", type=str, help="path to which output DSS file will be zipped and saved")
+
+    args = parser.parse_args()
 
     botocore_logger = logging.getLogger("botocore")
     botocore_logger.setLevel(level=logging.ERROR)
 
-    main(input_json_path, out_zip, access_key_id, secret_access_key, ms_host, ms_api_key)
+    main(args.json_path, args.output_zip, access_key_id, secret_access_key, ms_host, ms_api_key)

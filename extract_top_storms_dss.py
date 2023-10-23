@@ -1,7 +1,6 @@
-""" Script to extract NOAA data from .zarr datasets which align to top storms in a specified year """
+""" Script to extract NOAA data from .zarr datasets which align to top storms in a specified year from meilisearch data """
 import json
 import os
-import re
 from dataclasses import dataclass, field
 from tempfile import TemporaryDirectory
 from typing import Generator, List, Tuple
@@ -9,13 +8,15 @@ from zipfile import ZipFile
 
 from jsonschema import validate
 
-from ms.zarr_retrieval import NOAADataVariable, extract_zarr_for_watershed_storms
+from ms.zarr_retrieval import NOAADataVariable, extract_zarr_top_storms
+from ms.client_utils import split_s3_path
 from storms.cluster import write_multivariate_dss
 
 
 @dataclass
-class ZarrInput:
-    """Class which cleans validated JSON input for pulling storm data from 1-km resolution NOAA .zarr data stored on s3
+class ZarrMeilisearchInput:
+    """Class which cleans validated JSON input for pulling storm data from 1-km resolution NOAA .zarr data
+    stored on s3 according to year and top storm filters applied from meilisearch ranked ata
 
     Raises:
         ValueError: Error raised if data variable supplied is not of an expected type
@@ -75,7 +76,9 @@ class ZarrInput:
         self.noaa_variables = self.__transform_data_variable_list()
 
 
-def validate_input(input_json_path: str, schema_path: str = "records/zarr/zarr_input_schema.json") -> ZarrInput:
+def validate_input(
+    input_json_path: str, schema_path: str = "records/zarr/zarr_input_schema.json"
+) -> ZarrMeilisearchInput:
     """Validates JSON document using schema
 
     Args:
@@ -90,28 +93,11 @@ def validate_input(input_json_path: str, schema_path: str = "records/zarr/zarr_i
     with open(schema_path, "r") as schema_f:
         schema_data = json.load(schema_f)
     validate(input_data, schema=schema_data)
-    return ZarrInput(**input_data)
+    return ZarrMeilisearchInput(**input_data)
 
 
-def split_s3_path(s3_path: str) -> Tuple[str, str]:
-    """Takes an s3 path and splits it into a bucket and key
-
-    Args:
-        s3_path (str): s3 path (ex: s3://bucket/key.txt)
-
-    Returns:
-        Tuple[str, str]: Tuple with bucket and key (ex: ("bucket", "key.txt"))
-    """
-    s3_pattern = r"^s3:\/\/([a-zA-Z0-9_\-]+)\/([a-zA-Z0-9_\-\/\.]*)$"
-    re_pattern = re.compile(s3_pattern)
-    matches = re.search(re_pattern, s3_path)
-    bucket = matches.group(1)
-    key = matches.group(2)
-    return bucket, key
-
-
-def extract_and_write_zarr(
-    zarr_input: ZarrInput,
+def extract_and_write_zarr_ms(
+    zarr_input: ZarrMeilisearchInput,
     out_dir: str,
     access_key_id: str,
     secret_access_key: str,
@@ -131,7 +117,7 @@ def extract_and_write_zarr(
     Yields:
         Generator[Tuple[str, str], None, None]: Generates full paths to DSS files written and their associated basenames
     """
-    for ds, start_dt, end_dt, rank in extract_zarr_for_watershed_storms(
+    for ds, start_dt, end_dt, rank in extract_zarr_top_storms(
         zarr_input.watershed_name,
         zarr_input.domain_name,
         zarr_input.year,
@@ -171,7 +157,7 @@ def main(
     """Extracts storms determined by input parameters from NOAA .zarr data to DSS files, then zips those files
 
     Args:
-        zarr_input (ZarrInput): Validated input
+        input_json_path (str): JSON file path to validate
         out_zip (str): Zip file to which compressed data is written
         access_key_id (str): Access key ID for s3
         secret_access_key (str): Secret access key for s3
@@ -185,7 +171,7 @@ def main(
     zarr_input = validate_input(input_json_path, **kwargs)
     with ZipFile(out_zip, "w") as zf:
         with TemporaryDirectory() as tmp_dir:
-            for dss_path, dss_basename in extract_and_write_zarr(
+            for dss_path, dss_basename in extract_and_write_zarr_ms(
                 zarr_input, tmp_dir, access_key_id, secret_access_key, ms_host, ms_api_key
             ):
                 zf.write(dss_path, dss_basename)

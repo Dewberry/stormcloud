@@ -1,6 +1,6 @@
 ### NOAA zarr Dataset Extraction Records
 
-This folder contains json documentation of past NOAA zarr extraction jobs submitted in the following format
+This folder contains json documentation of past NOAA zarr extraction jobs from meilisearch database submitted in the following format
 
 ```
 {

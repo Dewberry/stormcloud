@@ -11,6 +11,7 @@ import numpy as np
 from constants import INDEX
 from dotenv import find_dotenv, load_dotenv
 from scipy.stats import rankdata
+
 from ms.client_utils import create_meilisearch_client, create_s3_client
 
 
@@ -112,11 +113,11 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
     """Ranks documents based on mean precipitation values creates separate rank which eliminates values within 71 hour window of high means using mask
 
     Args:
-        data (list[dict]): Unranked data dictionaries containing mean data and start times
+        data (List[dict]): Unranked data dictionaries containing mean data and start times
         year_range (range): Range of years to use in partitioning data
 
     Returns:
-        list[dict]: Ranked data dictionaries
+        List[dict]: Ranked data dictionaries
     """
     logging.info("Start ranking")
     # rank docs by year

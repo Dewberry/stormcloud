@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import Any
+from typing import Any, Tuple
 
 import boto3
 
@@ -14,14 +14,14 @@ class RunSetting(enum.Enum):
     BATCH = enum.auto()
 
 
-def get_clients(run_setting: RunSetting) -> tuple[Any, Any, Any]:
+def get_clients(run_setting: RunSetting) -> Tuple[Any, Any, Any]:
     """Creates clients for interacting with AWS, depending on run environment setting
 
     Args:
         run_setting (RunSetting): Either LOCAL for local testing or BATCH for batch deployment
 
     Returns:
-        tuple[Any, Any, Any]: Tuple containing s3 client, logs client, and batch client (in that order)
+        Tuple[Any, Any, Any]: Tuple containing s3 client, logs client, and batch client (in that order)
     """
     if run_setting == RunSetting.LOCAL:
         from dotenv import find_dotenv, load_dotenv

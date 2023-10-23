@@ -11,7 +11,7 @@ import logging
 import os
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Tuple
 
 import boto3
 from dotenv import find_dotenv, load_dotenv
@@ -30,14 +30,14 @@ class RunSetting(enum.Enum):
     BATCH = enum.auto()
 
 
-def get_client_session(setting: RunSetting = RunSetting.BATCH) -> "tuple[Any, Any]":
+def get_client_session(setting: RunSetting = RunSetting.BATCH) -> "Tuple[Any, Any]":
     """Gets session and s3 client in a tuple, using different methods depending on if in batch or local development environment
 
     Args:
         setting (RunSetting, optional): Setting determining how to get session and client. Defaults to RunSetting.BATCH.
 
     Returns:
-        tuple[Any, Any]: Tuple of session and client, in that order
+        Tuple[Any, Any]: Tuple of session and client, in that order
     """
     if setting == RunSetting.LOCAL:
         # for local testing
@@ -66,7 +66,7 @@ def main(
     dss_dir: str = "./",
     png_dir: str = "./",
     doc_dir: str = "./",
-) -> "tuple[str, str, str]":
+) -> "Tuple[str, str, str]":
     """Identifies maximum precipitation accumulation for watershed transposition within transposition region
 
     Args:
@@ -84,7 +84,7 @@ def main(
         doc_dir (str, optional): Relative directory to use when saving json files documenting model statistics. Defaults to "./".
 
     Returns:
-        tuple[str, str, str]: Tuple of paths to resources in following order: [png, dss, json doc]
+        Tuple[str, str, str]: Tuple of paths to resources in following order: [png, dss, json doc]
     """
     # convert start to datetime
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")

@@ -5,13 +5,13 @@ from typing import Union
 
 import pyproj
 from constants import INDEX
+from pydsstools.heclib.dss import HecDss
+from pydsstools.heclib.utils import SHG_WKT
 from shapely.geometry import Point
 from shapely.ops import transform
 from storm_query import query_ms
-from ms.client_utils import create_meilisearch_client, create_s3_client
 
-from pydsstools.heclib.dss import HecDss
-from pydsstools.heclib.utils import SHG_WKT
+from ms.client_utils import create_meilisearch_client, create_s3_client
 
 
 def strip_all_whitespace(dirty_string: str) -> str:

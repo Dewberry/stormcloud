@@ -62,6 +62,7 @@ if __name__ == "__main__":
     import os
 
     from dotenv import load_dotenv
+
     from ms.client_utils import create_meilisearch_client
 
     parser = argparse.ArgumentParser(

@@ -1,7 +1,9 @@
 """ Utils script for creating s3 clients and meilisearch clients and handling s3 paths"""
+import re
+from typing import Tuple
+
 import boto3
 from meilisearch import Client
-import re
 
 
 def create_s3_client(access_key_id: str, secret_access_key: str) -> object:
@@ -15,7 +17,7 @@ def create_meilisearch_client(host: str, api_key: str) -> Client:
     return ms_client
 
 
-def split_s3_path(s3_path: str) -> tuple[str, str]:
+def split_s3_path(s3_path: str) -> Tuple[str, str]:
     """Takes an s3 path and splits it into a bucket and key
 
     Args:

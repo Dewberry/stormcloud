@@ -4,6 +4,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import List
 
 import boto3
 
@@ -67,11 +68,11 @@ def load_inputs(json_path: str) -> JobInput:
     return JobInput(**data)
 
 
-def check_exists(keys: list[str], bucket: str, client) -> None:
+def check_exists(keys: List[str], bucket: str, client) -> None:
     """Check if keys exist
 
     Args:
-        keys (list[str]): List of s3 keys
+        keys (List[str]): List of s3 keys
         bucket (str): Bucket holding keys
         client: s3 client
     """
@@ -80,7 +81,7 @@ def check_exists(keys: list[str], bucket: str, client) -> None:
         client.head_object(Bucket=bucket, Key=key)
 
 
-def construct_command(job_input: JobInput, current_dt: datetime) -> list[str]:
+def construct_command(job_input: JobInput, current_dt: datetime) -> List[str]:
     """Constructs list of commands from job input for submission to batch. Commands should be valid for extract_storms_v2.py
 
     Args:
@@ -88,7 +89,7 @@ def construct_command(job_input: JobInput, current_dt: datetime) -> list[str]:
         current_dt (datetime): Datetime of interest for batch job
 
     Returns:
-        list[str]: list of commands
+        List[str]: list of commands
     """
     cmd_list = [
         "python3",

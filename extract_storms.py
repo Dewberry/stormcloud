@@ -1,28 +1,30 @@
-from boto3 import Session
+import json
+import logging
+import os
+import sys
 from datetime import datetime
 from itertools import product
-import json
-from logger import set_up_logger, log_to_json
-import logging
 from multiprocessing import Pool
+
 import numpy as np
-import os
-from storms.utils import plotter
-import sys
+from boto3 import Session
+
+from logger import set_up_logger
 from storms.cluster import (
-    Clusterer,
     Cluster,
+    Clusterer,
+    adjust_cluster_size,
+    cells_to_geometry,
+    get_atlas14,
     get_xr_dataset,
     number_of_cells,
-    write_dss,
-    adjust_cluster_size,
     rank_by_max,
     rank_by_mean,
     rank_by_norm,
-    cells_to_geometry,
     s3_geometry_reader,
-    get_atlas14,
+    write_dss,
 )
+from storms.utils import plotter
 
 session = Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
 
@@ -265,7 +267,6 @@ def main(
 
 
 if __name__ == "__main__":
-
     execution_time = datetime.now().strftime("%Y%m%d_%H%M")
     logfile = f"extract-storms-{execution_time}.log"
 

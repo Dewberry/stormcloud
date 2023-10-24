@@ -1,0 +1,50 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "title": ".zarr Inputs",
+    "type": "object",
+    "description": "Schema to validate inputs for .zarr data extraction process",
+    "properties": {
+        "watershed_name": {
+            "type": "string",
+            "description": "Name of watershed to use in path when creating DSS file"
+        },
+        "data_variables": {
+            "type": "array",
+            "description": "Gridded dataset variables to extract from zarr datasets when pulling data",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "APCP_surface",
+                    "DLWRF_surface",
+                    "DSWRF_surface",
+                    "PRES_surface",
+                    "SPFH_2maboveground",
+                    "TMP_2maboveground",
+                    "UGRD_10maboveground",
+                    "VGRD_10maboveground"
+                ],
+                "minItems": 1,
+                "uniqueItems": true
+            }
+        },
+        "zarr_s3_bucket": {
+            "type": "string",
+            "description": "s3 URI for zarr data to extract"
+        },
+        "geojson_s3_path": {
+            "type": "string",
+            "pattern": "^s3:\\/\\/([a-zA-Z0-9_\\-]+)\\/([a-zA-Z0-9_\\-\\/\\.]*)\\.geojson$",
+            "description": "s3 URI for geojson determining spatial extent of extraction area"
+        },
+        "start_date": {
+            "type": "string",
+            "pattern": "\\d{4}-\\d{2}-\\d{2}",
+            "description": "start date for period of interest, in YYYY-mm-dd format"
+        },
+        "end_date": {
+            "type": "string",
+            "pattern": "\\d{4}-\\d{2}-\\d{2}",
+            "description": "end date for period of interest, in YYYY-mm-dd format"
+        }
+    }
+}

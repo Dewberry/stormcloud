@@ -3,8 +3,17 @@ RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /app
-ADD storms storms/
+# copy scripts and dependencies
 COPY requirements.txt .
+COPY extract_storms_v2.py .
+COPY temperature_transfer.py .
+COPY logger.py .
+COPY ms/. ms/.
+COPY batch/batch-logs.py .
+COPY extract_top_storms_dss.py .
+COPY write_zarr_to_dss.py .
+COPY records/. records/.
+COPY storms/. storms/.
 RUN pip3 install -r requirements.txt
 
 # install pydsstools from source
@@ -24,16 +33,3 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-COPY extract_storms_v2.py .
-
-COPY temperature_transfer.py .
-
-COPY logger.py .
-
-COPY ms/. ms/.
-
-COPY batch/batch-logs.py .
-
-COPY extract_zarr_to_dss.py .
-
-COPY records/. records/.

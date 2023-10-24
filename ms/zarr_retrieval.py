@@ -216,7 +216,7 @@ def extract_zarr_top_storms(
 def extract_period_zarr(
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
-    data_variables: List[str],
+    data_variables: List[NOAADataVariable],
     zarr_bucket: str,
     geojson_bucket: str,
     geojson_key: str,
@@ -230,7 +230,7 @@ def extract_period_zarr(
         domain_name (str): Transposition region
         start_dt (datetime.datetime): Start of period to extract
         end_dt (datetime.datetime): End of period to extract
-        data_variables (List[str]): List of data variables
+        data_variables (List[NOAADataVariable]): List of data variables
         zarr_bucket (str): s3 bucket holding zarr data
         geojson_bucket (str): s3 geojson bucket
         geojson_key (str): s3 geojson key
@@ -239,13 +239,22 @@ def extract_period_zarr(
     """
     watershed_ds_list = []
     current_dt = start_dt
+    watershed_shape = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
     while current_dt < end_dt:
-        zarr_key = os.path.join(zarr_bucket, f"{current_dt.year}/{current_dt.strftime('%Y%m%d')}")
-        watershed_shape = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
-        hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables)
-        hour_ds.rio.write_crs("epsg:4326", inplace=True)
-        watershed_hour_ds = hour_ds.rio.clip([watershed_shape], drop=True, all_touched=True)
-        watershed_ds_list.append(watershed_hour_ds)
+        for data_variable in data_variables:
+            if data_variable == NOAADataVariable.APCP:
+                zarr_key_prefix = "transforms/aorc/precipitation"
+            elif data_variable == NOAADataVariable.TMP:
+                zarr_key_prefix = "transforms/aorc/temperature"
+            else:
+                raise ValueError(
+                    f"Data variable within provided data variables ({data_variables}) does not have s3 data tracked by Dewberry: {data_variable}"
+                )
+            zarr_key = f"{zarr_key_prefix}/{current_dt.year}/{current_dt.strftime('%Y%m%d%H')}.zarr"
+            hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
+            hour_ds.rio.write_crs("epsg:4326", inplace=True)
+            watershed_hour_ds = hour_ds.rio.clip([watershed_shape], drop=True, all_touched=True)
+            watershed_ds_list.append(watershed_hour_ds)
         current_dt += datetime.timedelta(hours=1)
     watershed_merged_ds = xr.merge(watershed_ds_list)
     return watershed_merged_ds

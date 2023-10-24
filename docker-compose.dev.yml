@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  stormcloud:
+    container_name: stormcloud
+    build:
+      context: .
+    env_file:
+      - ./.env
+    tty: true
+    volumes:
+      - .:/app

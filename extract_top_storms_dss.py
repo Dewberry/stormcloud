@@ -8,8 +8,8 @@ from zipfile import ZipFile
 
 from jsonschema import validate
 
-from ms.zarr_retrieval import NOAADataVariable, extract_zarr_top_storms
 from ms.client_utils import split_s3_path
+from ms.zarr_retrieval import NOAADataVariable, extract_zarr_top_storms
 from storms.cluster import write_multivariate_dss
 
 
@@ -77,13 +77,13 @@ class ZarrMeilisearchInput:
 
 
 def validate_input(
-    input_json_path: str, schema_path: str = "records/zarr/zarr_input_schema.json"
+    input_json_path: str, schema_path: str = "records/zarr-dss/ms/zarr_input_schema.json"
 ) -> ZarrMeilisearchInput:
     """Validates JSON document using schema
 
     Args:
         input_json_path (str): Path to JSON document containing inputs used in .zarr extraction process
-        schema_path (str, optional): Path to JSON schema. Defaults to "records/zarr/zarr_input_schema.json".
+        schema_path (str, optional): Path to JSON schema. Defaults to "records/zarr/ms/zarr_input_schema.json".
 
     Returns:
         ZarrInput: Validated input data
@@ -180,8 +180,8 @@ def main(
 
 
 if __name__ == "__main__":
-    import logging
     import argparse
+    import logging
 
     from dotenv import load_dotenv
 
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "json_path",
         type=str,
-        help="JSON path for DSS extraction; should follow format of records/zarr/zarr_input_schema.json",
+        help="JSON path for DSS extraction; should follow format of records/zarr/ms/zarr_input_schema.json",
     )
     parser.add_argument("output_zip", type=str, help="path to which output DSS file will be zipped and saved")
 

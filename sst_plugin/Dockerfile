@@ -20,7 +20,6 @@ COPY sst_plugin/extract_storms_plugin_module.py .
 COPY sst_plugin/main.py .
 COPY sst_plugin/entrypoint.sh .
 COPY sst_plugin/git-metadata.json .
-COPY sst_plugin/build_and_run.sh
 # install python modules
 RUN pip3 install -r requirements.txt
 # install pydsstools from source

@@ -1,5 +1,5 @@
 """ Script for querying meilisearch database of SST model output """
-from typing import Union, List
+from typing import List, Union
 
 from meilisearch import Client
 
@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     from constants import INDEX
     from dotenv import load_dotenv
+
     from ms.client_utils import create_meilisearch_client
 
     load_dotenv()

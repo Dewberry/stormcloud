@@ -7,7 +7,6 @@ import shutil
 from typing import Generator, List, Tuple
 
 import boto3
-
 from pydsstools.heclib.dss.HecDss import Open
 
 GRID_RECORD_TEMPLATE = """Grid: AORC {top_date}
@@ -168,7 +167,6 @@ if __name__ == "__main__":
     import argparse
 
     from dotenv import load_dotenv
-
     from pydsstools.heclib.utils import dss_logging
 
     parser = argparse.ArgumentParser()

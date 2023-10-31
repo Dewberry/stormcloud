@@ -6,7 +6,7 @@ import sys
 
 from papipyplug import parse_input, plugin_logger, print_results
 
-from extract_storms_plugin_module import PLUGIN_PARAMS, main
+from temp_precip_plugin import PLUGIN_PARAMS, main
 
 if __name__ == "__main__":
     # Start plugin logger

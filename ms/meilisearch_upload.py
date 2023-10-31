@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import List
 
+import boto3
 import numpy as np
 from constants import INDEX
 from dotenv import find_dotenv, load_dotenv
+from meilisearch import Client
 from scipy.stats import rankdata
 
 from ms.client_utils import create_meilisearch_client, create_s3_client
@@ -170,8 +172,9 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
 def upload(
     inputs: MeilisearchInputs, access_key_id: str, secret_access_key: str, ms_host: str, ms_api_key: str
 ) -> None:
-    s3_client = create_s3_client(access_key_id, secret_access_key)
-    ms_client = create_meilisearch_client(ms_host, ms_api_key)
+    session = boto3.session.Session(access_key_id, secret_access_key)
+    s3_client = session.client("s3")
+    ms_client = Client(ms_host, ms_api_key)
     year_range = range(inputs.start_year, inputs.end_year + 1)
     docs = []
     for year in year_range:
@@ -198,8 +201,9 @@ def update(
     ms_host: str,
     ms_api_key: str,
 ):
-    s3_client = create_s3_client(access_key_id, secret_access_key)
-    ms_client = create_meilisearch_client(ms_host, ms_api_key)
+    session = boto3.session.Session(access_key_id, secret_access_key)
+    s3_client = session.client("s3")
+    ms_client = Client(ms_host, ms_api_key)
     year_range = range(inputs.start_year, inputs.end_year + 1)
     docs = []
     for year in year_range:

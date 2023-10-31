@@ -1,22 +1,28 @@
-# All-purpose dockerfile, supporting stormcloud SST modeling, meilisearch functionality, temperature and precipitation extraction, and temperature data addition to existing DSS files tracked by stormcloud viewer
-
+# All-purpose Dockerfile, supporting stormcloud SST modeling, meilisearch functionality, temperature and precipitation extraction, and temperature data addition to existing DSS files tracked by stormcloud viewer
 FROM osgeo/gdal:ubuntu-small-3.5.1 as base
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /app
-# copy scripts and dependencies
-COPY requirements.txt .
-COPY extract_storms_v2.py .
-COPY temperature_transfer.py .
+
+# copy records of inputs for running storm extraction and SST modeling
+COPY records/. records/.
+
+# copy scripts called by main scripts
+COPY storms/. storms/.
 COPY logger.py .
 COPY ms/. ms/.
 COPY batch/batch-logs.py .
-COPY extract_top_storms_dss.py .
-COPY write_zarr_to_dss.py .
-COPY records/. records/.
-COPY storms/. storms/.
+
+# install packages
+COPY requirements.txt .
 RUN pip3 install -r requirements.txt
+
+# copy main scripts
+COPY extract_top_storms_dss.py .
+COPY extract_storms_v2.py .
+COPY temperature_transfer.py .
+COPY write_zarr_to_dss.py .
 
 # install pydsstools from source
 RUN apt-get install -y build-essential

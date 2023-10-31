@@ -2,13 +2,12 @@ import logging
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
 
-from geopandas import GeoSeries
-from matplotlib import pyplot as plt, patches
-from matplotlib.cm import Spectral_r
-from numpy import column_stack
 import os
 
-# from mpl_toolkits.axes_grid1 import Divider, Size
+from matplotlib import patches
+from matplotlib import pyplot as plt
+from matplotlib.cm import Spectral_r
+from numpy import column_stack
 
 
 def geom_to_patches(geom, lw, facecolor, edgecolor):
@@ -61,7 +60,6 @@ def geom_to_patches(geom, lw, facecolor, edgecolor):
 def cluster_plot(
     xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: int = 1, geom=None, png=None, figsize: tuple = (5, 5)
 ):
-
     fig, ax = plt.subplots(figsize=figsize)
 
     fig.set_facecolor("w")

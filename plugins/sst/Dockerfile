@@ -1,24 +1,20 @@
+# Dockerfile supporting plugin for SST modeling runs
 FROM osgeo/gdal:ubuntu-small-3.5.1 as base
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
+WORKDIR /plugin
 
-RUN apt-get install git -y
-
-WORKDIR /plugin/sst_plugin
-
-# copy scripts and dependencies
-COPY extract_storms_v2.py .
+# copy scripts called by SST modeling script
+COPY storms/. storms/.
 COPY logger.py .
 COPY batch/batch-logs.py .
-COPY extract_top_storms_dss.py .
 
-COPY storms/. storms/.
-# copy sst_plugin scripts and dependencies
-COPY sst_plugin .
-
-# install python modules
-RUN pip3 install -r requirements.txt
+# copy main script and plugin scripts
+COPY extract_storms_v2.py .
+COPY plugins/sst/entrypoint.sh .
+COPY plugins/sst/main.py .
+COPY plugins/sst/sst_plugin.py .
 
 # install pydsstools from source
 RUN apt-get install -y build-essential
@@ -40,7 +36,10 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-# # test the plugin
-# RUN chmod +x /sst_plugin/entrypoint.sh
-# CMD ["./entrypoint.sh"]
+# install plugin packages
+COPY plugins/sst/requirements.txt .
+RUN pip3 install -r requirements.txt
 
+# run entrypoint
+RUN chmod +x /plugin/entrypoint.sh
+CMD [ "./entrypoint.sh" ]

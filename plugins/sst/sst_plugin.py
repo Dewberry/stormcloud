@@ -3,7 +3,6 @@ Invokes methods from extract_storms_v2 with support for process api
 """
 
 import os
-import logging
 
 from extract_storms_v2 import main as interior_main, get_client_session, RunSetting
 

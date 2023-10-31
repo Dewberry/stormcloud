@@ -1,14 +1,9 @@
 version: '3.8'
 services:
-  sst_plugin:
-    container_name: sst_plugin
+  temp_precip:
+    container_name: temp_precip
     build:
-      context: .
-      dockerfile: Dockerfile.sst_plugin
-    volumes:
-      - ./sst_plugin:/plugin
-      - ./storms:/plugin/storms
+      dockerfile: plugins/temp_precip/Dockerfile
     env_file:
       - ./.env
     entrypoint: sleep 1d
-    # entrypoint: ["python", "-m", "main", "{\"start_date\": \"2023-10-27\", \"hours_duration\": \"72\", \"watershed_name\": \"duwamish\", \"watershed_uri\": \"s3://tempest/watersheds/duwamish/duwamish.geojson\", \"domain_name\": \"v01\", \"domain_uri\": \"s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson\"}"]

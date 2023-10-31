@@ -1,4 +1,5 @@
 """ Script to extract NOAA data from .zarr datasets which align to top storms in a specified year from meilisearch data """
+import datetime
 import json
 import os
 from dataclasses import dataclass, field
@@ -6,11 +7,14 @@ from tempfile import TemporaryDirectory
 from typing import Generator, List, Tuple
 from zipfile import ZipFile
 
+import xarray as xr
 from jsonschema import validate
+from meilisearch import Client
 
-from ms.client_utils import split_s3_path
-from ms.zarr_retrieval import NOAADataVariable, extract_zarr_top_storms
-from storms.cluster import write_multivariate_dss
+from common.cloud import split_s3_path
+from common.zarr import NOAADataVariable, load_watershed, load_zarr, trim_dataset
+from common.dss import write_multivariate_dss
+from ms.identify import get_time_windows
 
 
 @dataclass
@@ -74,6 +78,65 @@ class ZarrMeilisearchInput:
         self.zarr_bucket, self.zarr_key = split_s3_path(self.zarr_s3_path)
         self.geojson_bucket, self.geojson_key = split_s3_path(self.geojson_s3_path)
         self.noaa_variables = self.__transform_data_variable_list()
+
+
+def extract_zarr_top_storms(
+    watershed_name: str,
+    domain_name: str,
+    year: int,
+    n_storms: int,
+    declustered: bool,
+    data_variables: List[str],
+    zarr_bucket: str,
+    zarr_key: str,
+    geojson_bucket: str,
+    geojson_key: str,
+    access_key_id: str,
+    secret_access_key: str,
+    ms_host: str,
+    ms_api_key: str,
+) -> Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]:
+    """Extracts zarr data from for a specified watershed in a specified year with a specified transposition region, coordinating which storms to select using data on meilisearch
+
+    Args:
+        watershed_name (str): Watershed name
+        domain_name (str): Transposition domain name
+        year (int): Year of interest
+        n_storms (int): Number of storms to pull for year, watershed, and transposition region, selecting n top storms ranked by mean precipitation
+        declustered (bool): If True, use declustered ranking for ranking storms, meaning storms within the same duration of modeling will not appear together in ranking. If False, no filter is used when ranking by mean precipitation.
+        data_variables (List[str]): Variables to which zarr dataset will be subset
+        zarr_bucket (str): Bucket holding zarr data to pull
+        zarr_key (str): Key of zarr data to pull
+        geojson_bucket (str): Bucket of watershed data
+        geojson_key (str): Key of watershed geojson
+        access_key_id (str): AWS access key ID
+        secret_access_key (str): AWS secret access key
+        ms_host (str): Meilisearch host
+        ms_api_key (str): Meilisearch API key used to access meilisearch
+
+    Yields:
+        Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]: Yields a tuple containing a trimmed zarr dataset, the start time of the window of interest for that storm, the end time of the window of interest for that storm, and storm rank
+    """
+    logging.info("Starting extraction process")
+    ms_client = Client(ms_host, ms_api_key)
+    zarr_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables)
+    watershed_geom = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
+    for start_dt, end_dt, rank in get_time_windows(year, watershed_name, domain_name, n_storms, declustered, ms_client):
+        t_diff = end_dt - start_dt
+        hours_diff = int(t_diff.total_seconds() / 60 / 60)
+        trimmed = trim_dataset(zarr_ds, start_dt, end_dt, watershed_geom)
+        trimmed_time_length = len(trimmed["time"])
+        if trimmed_time_length != hours_diff:
+            logging.warning(
+                f"Time duration in hours does not match trimmed dataset length. Expected {hours_diff} records, got {trimmed_time_length}"
+            )
+            hours_to_eliminate = trimmed_time_length - hours_diff
+            logging.info(f"Eliminating first {hours_to_eliminate} record(s)")
+            clean_ds = trimmed.isel(time=slice(hours_to_eliminate, trimmed_time_length))
+            logging.info(f"Now has {len(clean_ds['time'])} records")
+        else:
+            clean_ds = trimmed
+        yield clean_ds, start_dt, end_dt, rank
 
 
 def validate_input(

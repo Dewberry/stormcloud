@@ -8,7 +8,7 @@ from zipfile import ZipFile
 
 from dotenv import load_dotenv
 
-from ..write_zarr_to_dss import ZarrExtractionInput, generate_dss_from_zarr
+from write_zarr_to_dss import ZarrExtractionInput, generate_dss_from_zarr
 
 PLUGIN_PARAMS = {
     "required": [

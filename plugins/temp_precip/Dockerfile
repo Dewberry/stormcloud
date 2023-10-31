@@ -1,22 +1,18 @@
+# Dockerfile supporting plugin for temperature and precipitation extraction and conversion to DSS format
 FROM osgeo/gdal:ubuntu-small-3.5.1 as base
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
-RUN apt-get install git
 WORKDIR /plugin
 
-# copy scripts and dependencies
-COPY logger.py .
+# copy scripts called by temperature and precipitation extraction script
+COPY common/. common/.
 
+# copy main script and plugin scripts
 COPY write_zarr_to_dss.py .
-
-# copy temp_precip_plugin scripts and dependencies
-COPY temp_precip_plugin/requirements.txt .
-COPY temp_precip_plugin/extract_storms_plugin_module.py .
-COPY temp_precip_plugin/main.py .
-
-# install python modules
-RUN pip3 install -r requirements.txt
+COPY plugins/temp_precip/entrypoint.sh .
+COPY plugins/temp_precip/main.py .
+COPY plugins/temp_precip/temp_precip_plugin.py .
 
 # install pydsstools from source
 RUN apt-get install -y build-essential
@@ -38,3 +34,10 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
+# install plugin packages
+COPY plugins/temp_precip/requirements.txt .
+RUN pip3 install -r requirements.txt
+
+# run entrypoint
+RUN chmod +x /plugin/entrypoint.sh
+CMD [ "./entrypoint.sh" ]

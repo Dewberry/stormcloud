@@ -5,17 +5,6 @@ RUN apt-get update && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /plugin
 
-# copy scripts called by SST modeling script
-COPY storms/. storms/.
-COPY logger.py .
-COPY batch/batch-logs.py .
-
-# copy main script and plugin scripts
-COPY extract_storms_v2.py .
-COPY plugins/sst/entrypoint.sh .
-COPY plugins/sst/main.py .
-COPY plugins/sst/sst_plugin.py .
-
 # install pydsstools from source
 RUN apt-get install -y build-essential
 RUN apt-get install -y gfortran
@@ -37,8 +26,18 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 RUN ( cd pydsstools && python3 -m pip install . )
 
 # install plugin packages
-COPY plugins/sst/requirements.txt .
+COPY stormcloud/plugins/sst/requirements.txt .
 RUN pip3 install -r requirements.txt
+
+# copy scripts called by SST modeling script
+COPY stormcloud/storms/. storms/.
+COPY stormcloud/common/logger.py common/logger.py
+
+# copy main script and plugin scripts
+COPY stormcloud/extract_storms_v2.py .
+COPY stormcloud/plugins/sst/entrypoint.sh .
+COPY stormcloud/plugins/sst/main.py .
+COPY stormcloud/plugins/sst/sst_plugin.py .
 
 # run entrypoint
 RUN chmod +x /plugin/entrypoint.sh

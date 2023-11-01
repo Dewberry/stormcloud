@@ -1,3 +1,6 @@
+"""
+SST runner for local runs only with no writing to s3
+"""
 import json
 import logging
 import os
@@ -9,7 +12,7 @@ from multiprocessing import Pool
 import numpy as np
 from boto3 import Session
 
-from logger import set_up_logger
+from common.logger import set_up_logger
 from storms.cluster import (
     Cluster,
     Clusterer,
@@ -270,7 +273,6 @@ if __name__ == "__main__":
     execution_time = datetime.now().strftime("%Y%m%d_%H%M")
     logfile = f"extract-storms-{execution_time}.log"
 
-    # logger = set_up_logger(filename=logfile)
     logger = set_up_logger()
     logger.setLevel(logging.DEBUG)
 
@@ -287,5 +289,3 @@ if __name__ == "__main__":
     scale_max = args[9]
 
     main(start, duration, domain_name, domain_uri, watershed_uri, minimum_threshold, dss_dir, png_dir, scale_max)
-
-    # log_to_json(logfile)

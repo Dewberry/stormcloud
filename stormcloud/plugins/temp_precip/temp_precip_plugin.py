@@ -2,13 +2,14 @@
 Invokes methods from write_zarr_to_dss with support for process api
 """
 
+import logging
 import os
 from tempfile import TemporaryDirectory
 import boto3
 
 from dotenv import load_dotenv
 
-from write_zarr_to_dss import ZarrExtractionInput, generate_dss_from_zarr
+from write_aorc_zarr_to_dss import ZarrExtractionInput, generate_dss_from_zarr
 
 PLUGIN_PARAMS = {
     "required": [
@@ -26,7 +27,10 @@ PLUGIN_PARAMS = {
 
 
 def main(params: dict) -> dict:
-    load_dotenv()
+    try:
+        load_dotenv()
+    except:
+        logging.warning("No .env file found")
 
     access_key_id = os.environ["AWS_ACCESS_KEY_ID"]
     secret_access_key = os.environ["AWS_SECRET_ACCESS_KEY"]

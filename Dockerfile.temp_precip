@@ -5,15 +5,6 @@ RUN apt-get update && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /plugin
 
-# copy scripts called by temperature and precipitation extraction script
-COPY common/. common/.
-
-# copy main script and plugin scripts
-COPY write_zarr_to_dss.py .
-COPY plugins/temp_precip/entrypoint.sh .
-COPY plugins/temp_precip/main.py .
-COPY plugins/temp_precip/temp_precip_plugin.py .
-
 # install pydsstools from source
 RUN apt-get install -y build-essential
 RUN apt-get install -y gfortran
@@ -34,8 +25,17 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
+# copy scripts called by temperature and precipitation extraction script
+COPY stormcloud/common/. common/.
+
+# copy main script and plugin scripts
+COPY stormcloud/write_aorc_zarr_to_dss.py .
+COPY stormcloud/plugins/temp_precip/entrypoint.sh .
+COPY stormcloud/plugins/temp_precip/main.py .
+COPY stormcloud/plugins/temp_precip/temp_precip_plugin.py .
+
 # install plugin packages
-COPY plugins/temp_precip/requirements.txt .
+COPY stormcloud/plugins/temp_precip/requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # run entrypoint

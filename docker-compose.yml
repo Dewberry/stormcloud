@@ -1,7 +1,16 @@
 version: '3.8'
+
 services:
-  stormcloud:
-    container_name: stormcloud
+
+  stormcloud-sst:
+    container_name: stormcloud-sst
+    build:
+      context: .
+    env_file:
+      - ./.env
+
+  stormcloud-temp-precip:
+    container_name: stormcloud-temp-precip
     build:
       context: .
     env_file:

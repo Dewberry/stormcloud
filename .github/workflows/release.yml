@@ -36,24 +36,24 @@ jobs:
         with:
           filters: |
             sst:
-              - 'plugins/sst/**'
+              - 'stormcloud/plugins/sst/**'
             temp_precip:
-              - 'plugins/temp_precip/**'
+              - 'stormcloud/plugins/temp_precip/**'
 
-      # run only if 'client' files are modified
+      # run only if 'sst' files are modified
       - name: Build, tag, and push client docker image to Amazon ECR
         if: steps.filter.outputs.sst == 'true'
         run: |
-          docker build ./client --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{ env.DATETAG  }} 
+          docker build ./client --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{github.sha }} 
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{ github.sha }}
           docker tag ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{ github.sha }} ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-latest
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-latest
 
-      # run only if 'api' files are modified
+      # run only if 'temp_precip' files are modified
       - name: Build, tag, and push API docker image to Amazon ECR
         if: steps.filter.outputs.temp_precip == 'true'
         run: |
           docker build ./api --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }}
-          docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ env.DATETAG}}
-          docker tag ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ env.DATETAG }} ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-latest
+          docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha}}
+          docker tag ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }} ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-latest
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-latest

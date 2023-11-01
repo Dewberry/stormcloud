@@ -7,21 +7,21 @@ services:
     build:
       dockerfile: Dockerfile.sst
     env_file:
-      - ./.env
+      - ./stormcloud/plugins/sst/.env
 
   stormcloud-temp-precip:
     container_name: stormcloud-temp-precip
     build:
       dockerfile: Dockerfile.temp_precip
     env_file:
-      - ./.env
+      - ./stormcloud/plugins/temp_precip/.env
 
   stormcloud-etl-temp-transfer:
     container_name: stormcloud-temp-transfer
     build:
       dockerfile: Dockerfile.temp_transfer
     env_file:
-      - ./.env
+      - ./stormcloud/etl/temp_transfer/.env
     tty: true
 
   stormcloud-etl-top-storms-dss:
@@ -29,5 +29,13 @@ services:
     build:
       dockerfile: Dockerfile.top_storms_dss
     env_file:
-      - ./.env
+      - ./stormcloud/etl/top_storms/.env
+    tty: true
+
+  stormcloud-etl-transpose-geom:
+    container_name: stormcloud-transpose-geom
+    build:
+      dockerfile: Dockerfile.transpose_geom
+    env_file:
+      - ./stormcloud/etl/transpose_geom/.env
     tty: true

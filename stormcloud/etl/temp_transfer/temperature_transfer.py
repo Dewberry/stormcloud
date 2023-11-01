@@ -8,6 +8,7 @@ from typing import Generator, List, Tuple
 
 import boto3
 from pydsstools.heclib.dss.HecDss import Open
+from pydsstools.heclib.utils import dss_logging
 
 GRID_RECORD_TEMPLATE = """Grid: AORC {top_date}
      Grid Type: {proper_type}
@@ -144,6 +145,7 @@ def append_grid_record(
     temperature_pathname: str,
     dss_filename: str,
     last_modification: datetime.datetime,
+    watershed: str,
     dry: bool = False,
 ) -> None:
     with open(grid_file_path, "a") as grid_f:
@@ -155,7 +157,7 @@ def append_grid_record(
             proper_type="Temperature",
             modification_date=last_modification.strftime("%d %B %Y"),
             modification_time=last_modification.strftime("%H:%M:%S"),
-            relative_dss_fn=rf"\kanawha\dss\{dss_basename}",
+            relative_dss_fn=rf"\{watershed}\dss\{dss_basename}",
             pathname=temperature_pathname,
         )
         print(f"Appending record for {temperature_pathname} to grid file {grid_file_path}")
@@ -167,16 +169,23 @@ if __name__ == "__main__":
     import argparse
 
     from dotenv import load_dotenv
-    from pydsstools.heclib.utils import dss_logging
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_directory", type=str, help="Path to directory with DSS and GRID data")
+    parser.add_argument(
+        "data_directory",
+        type=str,
+        help="Local filepath to directory containing both precipitation DSS files and precipitation GRID file for the specified watershed of interest",
+    )
     parser.add_argument(
         "temperature_dss",
         type=str,
-        help="Path to DSS file used as source dataset from which temperature data is extracted",
+        help="Local filepath to temperature DSS file used as source dataset from which data is extracted and added to precipitation DSS files",
     )
-    parser.add_argument("destination_directory", type=str, help="Directory to store modified DSS and GRID data")
+    parser.add_argument(
+        "destination_directory",
+        type=str,
+        help="Local file directory to store modified DSS and GRID data, now including both precipitation and temperature data",
+    )
     parser.add_argument(
         "dss_bucket", type=str, help="s3 bucket holding resource which contains temperature DSS resource"
     )

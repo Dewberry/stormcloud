@@ -101,7 +101,7 @@ def generate_dss_from_zarr(
         outpath_basename = (
             f"{watershed_name.lower().replace(' ', '_')}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.dss"
         )
-        logging.info(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
+        logging.debug(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
         data_variable_dict = {data_variable.translate_value(): data_variable.value for data_variable in data_variables}
         extracted_zarr = extract_period_zarr(

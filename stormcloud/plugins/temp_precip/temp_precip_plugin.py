@@ -27,6 +27,9 @@ PLUGIN_PARAMS = {
 
 
 def main(params: dict) -> dict:
+    # Eliminate logs for botocore credential finding
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+
     try:
         load_dotenv()
     except:

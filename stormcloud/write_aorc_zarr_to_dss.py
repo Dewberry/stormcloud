@@ -3,17 +3,17 @@
 import datetime
 import enum
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from tempfile import TemporaryDirectory
 from typing import Iterator, List, Tuple
 from zipfile import ZipFile
 
-from jsonschema import validate
-
 from common.cloud import split_s3_path
-from common.zarr import NOAADataVariable, extract_period_zarr
 from common.dss import write_multivariate_dss
+from common.zarr import NOAADataVariable, extract_period_zarr
+from jsonschema import validate
 
 
 class SpecifiedInterval(enum.Enum):
@@ -101,6 +101,7 @@ def generate_dss_from_zarr(
         outpath_basename = (
             f"{watershed_name.lower().replace(' ', '_')}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.dss"
         )
+        logging.info(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
         data_variable_dict = {data_variable.translate_value(): data_variable.value for data_variable in data_variables}
         extracted_zarr = extract_period_zarr(

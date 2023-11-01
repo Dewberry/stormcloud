@@ -53,7 +53,7 @@ jobs:
       - name: Build, tag, and push API docker image to Amazon ECR
         if: steps.filter.outputs.temp_precip == 'true'
         run: |
-          docker build  . -f Dockerfile.temp_precip ---target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }}
+          docker build  . -f Dockerfile.temp_precip --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }}
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha}}
           docker tag ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }} ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-latest
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-latest

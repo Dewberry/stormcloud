@@ -1,0 +1,128 @@
+
+info:
+  version: '2023.10.1'
+  id: aorc-temp-precip-dss
+  title: AORC Temperature and Precipitation DSS Extraction
+  description: Extracts temperature and precipitation data from .zarr datasets on s3 and saves them to s3
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "aws-batch"
+  jobDefinition: stormcloud-ec2:7
+  jobQueue: stormcloud-ec2-spot
+
+container:
+  image: placeholder
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_DEFAULT_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: start_date
+    title: start date
+    description: start date for extraction, in YYYY-mm-dd format (10-31-2023 for Oct. 31, 2023)
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: end_date
+    title: end date
+    description: end date for extraction, in YYYY-mm-dd format (10-31-2023 for Oct. 31, 2023)
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: data_variables
+    title: data variables
+    description: data variables that will be extracted from zarr data
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 8
+  - id: watershed_name
+    title: watershed name
+    description: watershed name to use in DSS output
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: zarr_s3_bucket
+    title: zarr s3 bucket
+    description: s3 bucket holding AORC .zarr datasets
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: watershed_uri
+    title: watershed uri
+    description: s3 uri of geojson for which data will be extracted
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: output_s3_bucket
+    title: output s3 bucket
+    description: s3 bucket in which output DSS files will be saved
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: output_s3_prefix
+    title: output_s3_prefix
+    description: prefix which comes between s3 bucket and dss file basename
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: write_interval
+    title: write interval
+    description: interval at which DSS files should be written out
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+
+outputs:
+  - id: results
+    title: results
+    description: list of s3 dss output files created by the plugin
+    output:
+      transmissionMode:
+      - value

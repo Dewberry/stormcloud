@@ -12,12 +12,15 @@ PLUGIN_PARAMS = {
         "hours_duration",
         "watershed_name",
         "watershed_uri",
-        "domain_name",
+        "transposition_domain",
         "domain_uri",
         "s3_bucket",
         "s3_prefix",
     ],
-    "optional": ["atlas14_uri", "scale_max", "dss_directory", "png_directory", "doc_directory"],
+    "optional": [
+        "atlas14_uri",
+        "scale_max",
+    ],
 }
 
 
@@ -30,6 +33,8 @@ def main(params: dict) -> dict:
     session, s3_client = get_client_session(run_setting)
     input_params = params.copy()
     input_params["session"] = session
+    input_params["domain_name"] = input_params["transposition_domain"]
+    del input_params["transposition_domain"]
     del input_params["s3_bucket"]
     del input_params["s3_prefix"]
     # Run SST

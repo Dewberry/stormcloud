@@ -6,8 +6,9 @@ from typing import List, Union
 
 import s3fs
 import xarray as xr
-from cloud import load_watershed
 from shapely.geometry import MultiPolygon, Polygon
+
+from .cloud import load_watershed
 
 
 class NOAADataVariable(enum.Enum):

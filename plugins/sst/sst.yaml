@@ -1,0 +1,150 @@
+
+info:
+  version: '2023.10.1'
+  id: aorc-sst
+  title: Stochaistic Storm Transposition
+  description: Performs SST modeling for a single watershed and transposition domain over a specified number of hours
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "aws-batch"
+  jobDefinition: stormcloud-ec2:7
+  jobQueue: stormcloud-ec2-spot
+
+container:
+  image: placeholder
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_DEFAULT_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: start_date
+    title: start date
+    description: start date for sst modeling, in YYYY-mm-dd format (10-31-2023 for Oct. 31, 2023)
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: hours_duration
+    title: duration in hours
+    description: the length of temporal window over which precipitation data is summarized when calculating accumulation statistics
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: watershed_name
+    title: watershed name
+    description: name of watershed with which output is labeled when creating documentation
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: watershed_uri
+    title: watershed uri
+    description: s3 URI of geojson associated with watershed of interest
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: transposition_domain
+    title: transposition domain
+    description: name of region over which watershed will be transposed when modeling
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: domain_uri
+    title: domain uri
+    description: s3 URI of geojson associated with transposition domain of interest
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: s3_bucket
+    title: s3 bucket
+    description: s3 bucket which will hold output dss, png, and json documentation resulting from model run
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: s3_prefix
+    title: s3 prefix
+    description: the s3 key segment which comes after the bucket but before the basenames of the dss, png, and json outputs (something like watersheds/<watershed_name>/<transposition_domain>/<duration>h)
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: atlas14_uri
+    title: atlas14 uri
+    description: the s3 uri of the ATLAS14 data used to normalize the precipitation data. Defaults to no ATLAS14 data and therefore no normalization provided
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: scale_max
+    title: image scale maximum
+    description: the number of inches that will serve as the maximum value for the legend when creating the png file showing the precipitation data over the transposition domain. Defaults to 12 inch maximum
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+
+outputs:
+  - id: png_s3_uri
+    title: png_s3_uri
+    description: s3 uri for png image resulting from SST
+    output:
+      transmissionMode:
+      - value
+  - id: dss_s3_uri
+    title: dss_s3_uri
+    description: s3 uri for dss file resulting from SST
+    output:
+      transmissionMode:
+      - value
+  - id: doc_s3_uri
+    title: doc_s3_uri
+    description: s3 uri for json documentation resulting from SST
+    output:
+      transmissionMode:
+      - value

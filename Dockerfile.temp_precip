@@ -1,20 +1,18 @@
-# Dockerfile supporting plugin for SST modeling runs
-FROM osgeo/gdal:ubuntu-small-3.5.1 as base
+# Dockerfile supporting plugin for temperature and precipitation extraction and conversion to DSS format
+FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
 WORKDIR /plugin
 
-# copy scripts called by SST modeling script
-COPY storms/. storms/.
-COPY logger.py .
-COPY batch/batch-logs.py .
+# copy scripts called by temperature and precipitation extraction script
+COPY common/. common/.
 
 # copy main script and plugin scripts
-COPY extract_storms_v2.py .
-COPY plugins/sst/entrypoint.sh .
-COPY plugins/sst/main.py .
-COPY plugins/sst/sst_plugin.py .
+COPY write_zarr_to_dss.py .
+COPY plugins/temp_precip/entrypoint.sh .
+COPY plugins/temp_precip/main.py .
+COPY plugins/temp_precip/temp_precip_plugin.py .
 
 # install pydsstools from source
 RUN apt-get install -y build-essential
@@ -37,7 +35,7 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 RUN ( cd pydsstools && python3 -m pip install . )
 
 # install plugin packages
-COPY plugins/sst/requirements.txt .
+COPY plugins/temp_precip/requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # run entrypoint

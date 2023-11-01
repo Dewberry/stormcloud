@@ -2,9 +2,10 @@ import datetime
 import logging
 from typing import Generator, Tuple
 
-from constants import INDEX
 from meilisearch import Client
-from storm_query import query_ms
+
+from .constants import INDEX
+from .storm_query import query_ms
 
 
 def get_time_windows(

@@ -70,6 +70,7 @@ def main(params: dict) -> dict:
             param_list.append(params["write_interval"])
         for dss_path, dss_basename in generate_dss_from_zarr(*param_list):
             s3_key = os.path.join(params["output_s3_prefix"], dss_basename)
+            logging.info(f"Uploading DSS data to {s3_key}")
             s3_client.upload_file(dss_path, params["output_s3_bucket"], s3_key)
             result_list.append(f"s3://{params['output_s3_bucket']}/{s3_key}")
 

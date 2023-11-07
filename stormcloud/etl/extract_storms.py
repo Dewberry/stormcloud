@@ -136,7 +136,13 @@ def main(
     # this will be used for clustering/identifying storms
     aggregate_method = "sum"
     try:
-        xsum = get_xr_dataset(data_type, start, duration, aggregate_method=aggregate_method, mask=transposition_geom)
+        xsum = get_xr_dataset(
+            data_type,
+            start,
+            duration,
+            aggregate_method=aggregate_method,
+            mask=transposition_geom,
+        )
         logging.info(
             json.dumps(
                 {
@@ -183,7 +189,11 @@ def main(
     # adjust clusters' sizes (multi-processing)
     args = list(
         product(
-            [clusterer.get_cluster(cluster_labels, label) for label in np.unique(cluster_labels) if label > -1],
+            [
+                clusterer.get_cluster(cluster_labels, label)
+                for label in np.unique(cluster_labels)
+                if label > -1
+            ],
             [target_n_cells],
         )
     )
@@ -198,14 +208,21 @@ def main(
         # flatten results (potentially mixed returns of Clusters and lists)
         results = [
             *[cluster for cluster in results if isinstance(cluster, Cluster)],
-            *[cluster for split_clusters in results if isinstance(split_clusters, list) for cluster in split_clusters],
+            *[
+                cluster
+                for split_clusters in results
+                if isinstance(split_clusters, list)
+                for cluster in split_clusters
+            ],
         ]
 
         # overwrite args with "unfinished" (split) clusters
         args = [cluster for cluster in results if cluster.size != target_n_cells]
 
         # add "finished" clusters to the final list
-        final_clusters.extend([cluster for cluster in results if cluster.size == target_n_cells])
+        final_clusters.extend(
+            [cluster for cluster in results if cluster.size == target_n_cells]
+        )
 
     # gather statistics on clusters (how to handle ties?)
     mean_ranks = rank_by_mean(final_clusters)
@@ -234,26 +251,53 @@ def main(
 
     # mean cluster
     clust_geom = cells_to_geometry(
-        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, mean_cluster.cells
+        xsum.longitude.to_numpy(),
+        xsum.latitude.to_numpy(),
+        cellsize_x,
+        cellsize_y,
+        mean_cluster.cells,
     )
     plotter.cluster_plot(
-        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-mean.png")
+        xsum,
+        clust_geom,
+        0,
+        scale_max,
+        "Accumulation (MM)",
+        png=os.path.join(png_dir, f"{start_as_str}-mean.png"),
     )
 
     # max cluster
     clust_geom = cells_to_geometry(
-        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, max_cluster.cells
+        xsum.longitude.to_numpy(),
+        xsum.latitude.to_numpy(),
+        cellsize_x,
+        cellsize_y,
+        max_cluster.cells,
     )
     plotter.cluster_plot(
-        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-max.png")
+        xsum,
+        clust_geom,
+        0,
+        scale_max,
+        "Accumulation (MM)",
+        png=os.path.join(png_dir, f"{start_as_str}-max.png"),
     )
 
     # mean cluster
     clust_geom = cells_to_geometry(
-        xsum.longitude.to_numpy(), xsum.latitude.to_numpy(), cellsize_x, cellsize_y, norm_cluster.cells
+        xsum.longitude.to_numpy(),
+        xsum.latitude.to_numpy(),
+        cellsize_x,
+        cellsize_y,
+        norm_cluster.cells,
     )
     plotter.cluster_plot(
-        xsum, clust_geom, 0, scale_max, "Accumulation (MM)", png=os.path.join(png_dir, f"{start_as_str}-norm.png")
+        xsum,
+        clust_geom,
+        0,
+        scale_max,
+        "Accumulation (MM)",
+        png=os.path.join(png_dir, f"{start_as_str}-norm.png"),
     )
 
     # write grid to dss
@@ -288,4 +332,14 @@ if __name__ == "__main__":
     png_dir = args[8]
     scale_max = args[9]
 
-    main(start, duration, domain_name, domain_uri, watershed_uri, minimum_threshold, dss_dir, png_dir, scale_max)
+    main(
+        start,
+        duration,
+        domain_name,
+        domain_uri,
+        watershed_uri,
+        minimum_threshold,
+        dss_dir,
+        png_dir,
+        scale_max,
+    )

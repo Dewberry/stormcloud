@@ -41,12 +41,18 @@ def get_client_session(setting: RunSetting = RunSetting.BATCH) -> "Tuple[Any, An
     if setting == RunSetting.LOCAL:
         # for local testing
         load_dotenv(find_dotenv())
-        session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
+        session = boto3.session.Session(
+            os.environ["AWS_ACCESS_KEY_ID"],
+            os.environ["AWS_SECRET_ACCESS_KEY"],
+            region_name=os.environ["AWS_REGION"],
+        )
         s3_client = session.client("s3")
     elif setting == RunSetting.BATCH:
         # for batch production
         logging.getLogger("botocore").setLevel(logging.WARNING)
-        os.environ.update(batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1"))
+        os.environ.update(
+            batch.get_secrets(secret_name="stormcloud-secrets", region_name="us-east-1")
+        )
         session = boto3.session.Session()
         s3_client = session.client("s3")
     return session, s3_client
@@ -162,7 +168,9 @@ def main(
     # read AORC data into xarray (time series)
     # this will be used later to write to dss
     try:
-        xdata = get_xr_dataset(STORM_DATA_TYPE, start_dt, hours_duration, mask=transposition_geom)
+        xdata = get_xr_dataset(
+            STORM_DATA_TYPE, start_dt, hours_duration, mask=transposition_geom
+        )
         logging.info(
             json.dumps(
                 {
@@ -204,7 +212,11 @@ def main(
     aggregate_method = "sum"
     try:
         xsum = get_xr_dataset(
-            STORM_DATA_TYPE, start_dt, hours_duration, aggregate_method=aggregate_method, mask=transposition_geom
+            STORM_DATA_TYPE,
+            start_dt,
+            hours_duration,
+            aggregate_method=aggregate_method,
+            mask=transposition_geom,
         )
         logging.info(
             json.dumps(
@@ -282,7 +294,12 @@ def main(
 
     # transpose watershed around transposition domain
     try:
-        transposer = Transposer(xsum, watershed_geom, normalized_data=norm_arr, multiplier=MM_TO_INCH_CONVERSION_FACTOR)
+        transposer = Transposer(
+            xsum,
+            watershed_geom,
+            normalized_data=norm_arr,
+            multiplier=MM_TO_INCH_CONVERSION_FACTOR,
+        )
         logging.info(
             json.dumps(
                 {
@@ -412,7 +429,9 @@ def main(
                     }
                 )
             )
-            translates = translates[max_ranks[mean_ranks == 1] == max_ranks[mean_ranks == 1].min()]
+            translates = translates[
+                max_ranks[mean_ranks == 1] == max_ranks[mean_ranks == 1].min()
+            ]
 
             if len(translates) > 1:
                 logging.warning(
@@ -593,7 +612,13 @@ def main(
 
     try:
         doc = ms.tranpose_to_doc(
-            start_dt, hours_duration, watershed_name, domain_name, watershed_uri, domain_uri, best_translate
+            start_dt,
+            hours_duration,
+            watershed_name,
+            domain_name,
+            watershed_uri,
+            domain_uri,
+            best_translate,
         )
         logging.info(
             json.dumps(
@@ -698,15 +723,27 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-w", "--watershed_name", type=str, required=True, help="Name of watershed for which model will be run"
+        "-w",
+        "--watershed_name",
+        type=str,
+        required=True,
+        help="Name of watershed for which model will be run",
     )
 
     parser.add_argument(
-        "-wu", "--watershed_uri", type=str, required=True, help="s3 path to geojson file for watershed extent"
+        "-wu",
+        "--watershed_uri",
+        type=str,
+        required=True,
+        help="s3 path to geojson file for watershed extent",
     )
 
     parser.add_argument(
-        "-d", "--domain_name", type=str, required=True, help="Name for version of transposition region used"
+        "-d",
+        "--domain_name",
+        type=str,
+        required=True,
+        help="Name for version of transposition region used",
     )
 
     parser.add_argument(
@@ -717,7 +754,13 @@ if __name__ == "__main__":
         help="s3 path to geojson file for transposition region used in model",
     )
 
-    parser.add_argument("-b", "--s3_bucket", type=str, required=True, help="s3 bucket to use for storing output files")
+    parser.add_argument(
+        "-b",
+        "--s3_bucket",
+        type=str,
+        required=True,
+        help="s3 bucket to use for storing output files",
+    )
 
     parser.add_argument(
         "-p",
@@ -790,7 +833,9 @@ if __name__ == "__main__":
     elif args.run_setting == "LOCAL":
         run_setting = RunSetting.LOCAL
     else:
-        raise ValueError(f"Unexpected run setting. Expected LOCAL or BATCH, got {args.run_setting}")
+        raise ValueError(
+            f"Unexpected run setting. Expected LOCAL or BATCH, got {args.run_setting}"
+        )
 
     # get session and client
     session, s3_client = get_client_session(run_setting)

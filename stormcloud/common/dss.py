@@ -8,7 +8,12 @@ from typing import Dict
 import numpy as np
 from affine import Affine
 from pydsstools.heclib.dss.HecDss import Open
-from pydsstools.heclib.utils import SHG_WKT, dss_logging, gridInfo, lower_left_xy_from_transform
+from pydsstools.heclib.utils import (
+    SHG_WKT,
+    dss_logging,
+    gridInfo,
+    lower_left_xy_from_transform,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -24,13 +29,14 @@ logging.root.setLevel(logging.INFO)
 
 def write_multivariate_dss(
     xdata: xr.Dataset,
-    data_variable_dict: Dict[str, str],
+    data_variable_dict: Dict[str, Dict[str, str]],
     dss_path: str,
     path_a: str,
     path_b: str,
     path_f: str,
     resolution: int,
 ):
+    logging.info(f"Writing DSS file to {dss_path}")
     # Get variables which are constant to dataset
     xdata = xdata.rio.reproject(SHG_WKT, resolution=resolution)
     grid_type = "shg-time"
@@ -38,7 +44,10 @@ def write_multivariate_dss(
     cell_zero_ycoord = 0
 
     # Iterate through data variables
-    for label, variable_name in data_variable_dict.items():
+    for label, variable_dict in data_variable_dict.items():
+        variable_name = variable_dict.get("variable")
+        measurement_type = variable_dict.get("measurement")
+        measurement_unit = variable_dict.get("unit")
         # Calculate coordinates not filled with nodata values and create spatial transform
         xdata = xdata.where(xdata[variable_name] != xdata[variable_name].rio.nodata)
         if xdata.y.to_numpy()[-1] < xdata.y.to_numpy()[0]:
@@ -59,21 +68,34 @@ def write_multivariate_dss(
         # Write pathnames into file
         with Open(dss_path) as fid:
             for i, dt64 in enumerate(xdata.time.to_numpy()):
-                end_dt = datetime.utcfromtimestamp(
-                    (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
-                )
                 data = xdata.isel(time=i)[variable_name].to_numpy()
                 data[~np.isfinite(data)] = np.nan
                 if i == 0:
                     lower_left_x, lower_left_y = lower_left_xy_from_transform(
                         affine_transform, data.shape, cell_zero_xcoord, cell_zero_ycoord
                     )
-                start_dt = end_dt - timedelta(hours=1)
-                path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
-                if end_dt.hour == 0 and end_dt.minute == 0:
-                    path_e = start_dt.strftime("%d%b%Y:2400").upper()
+                if measurement_type == "per-cum":
+                    end_dt = datetime.utcfromtimestamp(
+                        (dt64 - np.datetime64("1970-01-01T00:00:00"))
+                        / np.timedelta64(1, "s")
+                    )
+                    start_dt = end_dt - timedelta(hours=1)
+                    path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
+                    if end_dt.hour == 0 and end_dt.minute == 0:
+                        path_e = start_dt.strftime("%d%b%Y:2400").upper()
+                    else:
+                        path_e = end_dt.strftime("%d%b%Y:%H%M").upper()
+                elif measurement_type == "inst-val":
+                    start_dt = datetime.utcfromtimestamp(
+                        (dt64 - np.datetime64("1970-01-01T00:00:00"))
+                        / np.timedelta64(1, "s")
+                    )
+                    path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
+                    path_e = ""
                 else:
-                    path_e = end_dt.strftime("%d%b%Y:%H%M").upper()
+                    raise NotImplementedError(
+                        f"Handling method not implemented for measurement type {measurement_type}"
+                    )
                 path = f"/{path_a}/{path_b}/{label}/{path_d}/{path_e}/{path_f}/"
 
                 grid_info = gridInfo()
@@ -82,8 +104,8 @@ def write_multivariate_dss(
                         ("grid_type", grid_type),
                         ("grid_crs", wkt),
                         ("grid_transform", affine_transform),
-                        ("data_type", "per-cum"),
-                        ("data_units", "MM"),
+                        ("data_type", measurement_type),
+                        ("data_units", measurement_unit),
                         ("opt_crs_name", "WKT"),
                         ("opt_crs_type", 0),
                         ("opt_compression", "zlib deflate"),

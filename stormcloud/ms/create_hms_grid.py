@@ -127,7 +127,9 @@ def main(
             dss_filename = os.path.join("C:/Data", dss_path).replace("/", "\\")
 
             # Get last modification date and time from s3 key
-            last_modified = s3_client.head_object(Bucket=bucket_name, Key=s3_key)["LastModified"]
+            last_modified = s3_client.head_object(Bucket=bucket_name, Key=s3_key)[
+                "LastModified"
+            ]
             last_modified_date = datetime.strftime(last_modified, "%d %B %Y")
             last_modified_time = datetime.strftime(last_modified, "%H:%M:%S")
 

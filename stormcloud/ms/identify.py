@@ -9,7 +9,12 @@ from .storm_query import query_ms
 
 
 def get_time_windows(
-    year: int, watershed_name: str, domain_name: str, n: int, declustered: bool, ms_client: Client
+    year: int,
+    watershed_name: str,
+    domain_name: str,
+    n: int,
+    declustered: bool,
+    ms_client: Client,
 ) -> Generator[Tuple[datetime.datetime, datetime.datetime, int], None, None]:
     """Generates start and end time windows for storms identified in meilisearch database as in the top storms when ranked by mean precipitation
 
@@ -31,7 +36,9 @@ def get_time_windows(
     logging.info(
         f"Finding time windows aligning with top {n} storms in year {year} for watershed {watershed_name}, transposition region version {domain_name} using {search_method_name} rank"
     )
-    for hit in query_ms(ms_client, INDEX, watershed_name, domain_name, 0, n, declustered, n, year):
+    for hit in query_ms(
+        ms_client, INDEX, watershed_name, domain_name, 0, n, declustered, n, year
+    ):
         rank = hit["ranks"]["true_rank"]
         if declustered:
             rank = hit["ranks"]["declustered_rank"]

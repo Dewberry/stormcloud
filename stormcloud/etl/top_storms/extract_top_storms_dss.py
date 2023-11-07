@@ -95,7 +95,9 @@ def extract_zarr_top_storms(
     secret_access_key: str,
     ms_host: str,
     ms_api_key: str,
-) -> Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]:
+) -> Generator[
+    Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None
+]:
     """Extracts zarr data from for a specified watershed in a specified year with a specified transposition region, coordinating which storms to select using data on meilisearch
 
     Args:
@@ -119,9 +121,15 @@ def extract_zarr_top_storms(
     """
     logging.info("Starting extraction process")
     ms_client = Client(ms_host, ms_api_key)
-    zarr_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables)
-    watershed_geom = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
-    for start_dt, end_dt, rank in get_time_windows(year, watershed_name, domain_name, n_storms, declustered, ms_client):
+    zarr_ds = load_zarr(
+        zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables
+    )
+    watershed_geom = load_watershed(
+        geojson_bucket, geojson_key, access_key_id, secret_access_key
+    )
+    for start_dt, end_dt, rank in get_time_windows(
+        year, watershed_name, domain_name, n_storms, declustered, ms_client
+    ):
         t_diff = end_dt - start_dt
         hours_diff = int(t_diff.total_seconds() / 60 / 60)
         trimmed = trim_dataset(zarr_ds, start_dt, end_dt, watershed_geom)
@@ -140,7 +148,8 @@ def extract_zarr_top_storms(
 
 
 def validate_input(
-    input_json_path: str, schema_path: str = "records/zarr-dss/ms/zarr_input_schema.json"
+    input_json_path: str,
+    schema_path: str = "records/zarr-dss/ms/zarr_input_schema.json",
 ) -> ZarrMeilisearchInput:
     """Validates JSON document using schema
 
@@ -197,13 +206,24 @@ def extract_and_write_zarr_ms(
         ms_api_key,
     ):
         data_variable_dict = {
-            data_variable.translate_value(): data_variable.value for data_variable in zarr_input.noaa_variables
+            data_variable.dss_variable_title: {
+                "variable": data_variable.value,
+                "measurement": data_variable.measurement_type,
+                "unit": data_variable.measurement_unit,
+            }
+            for data_variable in zarr_input.noaa_variables
         }
         outpath_basename = f"{zarr_input.watershed_name.lower().replace(' ', '_')}_rank{rank}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.dss"
         outpath = os.path.join(out_dir, outpath_basename)
         logging.info(f"Beginning process of writing to {outpath}")
         write_multivariate_dss(
-            ds, data_variable_dict, outpath, "SHG1K", zarr_input.watershed_name.upper(), "AORC", 1000
+            ds,
+            data_variable_dict,
+            outpath,
+            "SHG1K",
+            zarr_input.watershed_name.upper(),
+            "AORC",
+            1000,
         )
         yield outpath, outpath_basename
 
@@ -235,7 +255,12 @@ def main(
     with ZipFile(out_zip, "w") as zf:
         with TemporaryDirectory() as tmp_dir:
             for dss_path, dss_basename in extract_and_write_zarr_ms(
-                zarr_input, tmp_dir, access_key_id, secret_access_key, ms_host, ms_api_key
+                zarr_input,
+                tmp_dir,
+                access_key_id,
+                secret_access_key,
+                ms_host,
+                ms_api_key,
             ):
                 zf.write(dss_path, dss_basename)
     logging.info(f"Zipped all DSS docs to {out_zip}")
@@ -261,11 +286,22 @@ if __name__ == "__main__":
         type=str,
         help="JSON path for DSS extraction; should follow format of records/zarr/ms/zarr_input_schema.json",
     )
-    parser.add_argument("output_zip", type=str, help="path to which output DSS file will be zipped and saved")
+    parser.add_argument(
+        "output_zip",
+        type=str,
+        help="path to which output DSS file will be zipped and saved",
+    )
 
     args = parser.parse_args()
 
     botocore_logger = logging.getLogger("botocore")
     botocore_logger.setLevel(level=logging.ERROR)
 
-    main(args.json_path, args.output_zip, access_key_id, secret_access_key, ms_host, ms_api_key)
+    main(
+        args.json_path,
+        args.output_zip,
+        access_key_id,
+        secret_access_key,
+        ms_host,
+        ms_api_key,
+    )

@@ -98,12 +98,17 @@ def generate_dss_from_zarr(
             current_dt_next = current_dt + datetime.timedelta(days=1)
         if current_dt_next > end_dt:
             current_dt_next = end_dt
-        outpath_basename = (
-            f"{watershed_name.lower().replace(' ', '_')}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.dss"
-        )
+        outpath_basename = f"{watershed_name.lower().replace(' ', '_')}_{current_dt.strftime('%Y%m%d')}_{current_dt_next.strftime('%Y%m%d')}.dss"
         logging.debug(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
-        data_variable_dict = {data_variable.translate_value(): data_variable.value for data_variable in data_variables}
+        data_variable_dict = {
+            data_variable.dss_variable_title: {
+                "variable": data_variable.value,
+                "measurement": data_variable.measurement_type,
+                "unit": data_variable.measurement_unit,
+            }
+            for data_variable in data_variables
+        }
         extracted_zarr = extract_period_zarr(
             current_dt,
             current_dt_next,
@@ -115,14 +120,21 @@ def generate_dss_from_zarr(
             secret_access_key,
         )
         write_multivariate_dss(
-            extracted_zarr, data_variable_dict, outpath, "SHG1K", watershed_name.upper(), "AORC", 1000
+            extracted_zarr,
+            data_variable_dict,
+            outpath,
+            "SHG1K",
+            watershed_name.upper(),
+            "AORC",
+            1000,
         )
         current_dt = current_dt_next
         yield outpath, outpath_basename
 
 
 def validate_input(
-    input_json_path: str, schema_path: str = "records/zarr-dss/multivariate/zarr_input_schema.json"
+    input_json_path: str,
+    schema_path: str = "records/zarr-dss/multivariate/zarr_input_schema.json",
 ) -> ZarrExtractionInput:
     """Validates JSON document using schema
 
@@ -186,7 +198,11 @@ if __name__ == "__main__":
         type=str,
         help="JSON path for DSS extraction; should follow format of records/zarr/multivariate/zarr_input_schema.json",
     )
-    parser.add_argument("output_zip", type=str, help="path to which output DSS file will be zipped and saved")
+    parser.add_argument(
+        "output_zip",
+        type=str,
+        help="path to which output DSS file will be zipped and saved",
+    )
     parser.add_argument(
         "--write_interval",
         type=str,

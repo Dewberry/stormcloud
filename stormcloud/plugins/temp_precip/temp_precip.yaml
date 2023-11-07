@@ -9,12 +9,10 @@ info:
   outputTransmission:
 
 host:
-  type: "aws-batch"
-  jobDefinition: stormcloud-ec2:7
-  jobQueue: stormcloud-ec2-spot
+  type: "local"
 
 container:
-  image: placeholder
+  image: stormcloud:sst-latest
   command:
     - python
     - -m
@@ -22,7 +20,7 @@ container:
   envVars:
     - AWS_ACCESS_KEY_ID
     - AWS_SECRET_ACCESS_KEY
-    - AWS_DEFAULT_REGION
+    - AWS_REGION
   maxResources:
     cpus: 1
     memory: 3072

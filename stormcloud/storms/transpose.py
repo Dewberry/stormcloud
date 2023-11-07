@@ -74,16 +74,26 @@ class Transposer:
                     and mask_miny + y_diff >= 0
                     and mask_maxy + y_diff <= max_y
                 ):
-                    transl_indexes = np.column_stack((mask_idxs[:, 0] + x_diff, mask_idxs[:, 1] + y_diff))
+                    transl_indexes = np.column_stack(
+                        (mask_idxs[:, 0] + x_diff, mask_idxs[:, 1] + y_diff)
+                    )
                     data_slice = self.data[transl_indexes[:, 1], transl_indexes[:, 0]]
 
                     if np.all(np.isfinite(data_slice)):
                         coords = np.column_stack(
-                            (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
+                            (
+                                self.x_coords[transl_indexes[:, 0]],
+                                self.y_coords[transl_indexes[:, 1]],
+                            )
                         )
                         if self.normalized_data is not None:
                             norm_mean = float(
-                                (data_slice / self.normalized_data[transl_indexes[:, 1], transl_indexes[:, 0]]).mean()
+                                (
+                                    data_slice
+                                    / self.normalized_data[
+                                        transl_indexes[:, 1], transl_indexes[:, 0]
+                                    ]
+                                ).mean()
                             )
                             # Recode NaN values to None
                             if np.isnan(norm_mean):
@@ -101,7 +111,10 @@ class Transposer:
                                 max=float(data_slice.max()),
                                 min=float(data_slice.min()),
                                 normalized_mean=norm_mean,
-                                center=[float(coord) for coord in coords[np.argmax(data_slice)].tolist()],
+                                center=[
+                                    float(coord)
+                                    for coord in coords[np.argmax(data_slice)].tolist()
+                                ],
                             )
                         )
 
@@ -172,9 +185,14 @@ class Transposer:
                 return np.array([t.normalized_mean for t in self.transposes])
 
         else:
-            raise ValueError(f"`{metric}` metric is not implemented.\nAcceptable value(s): " + ", ".join(metrics))
+            raise ValueError(
+                f"`{metric}` metric is not implemented.\nAcceptable value(s): "
+                + ", ".join(metrics)
+            )
 
-    def ranks(self, metric: str, rank_method: str = "ordinal", order_high_low: bool = True):
+    def ranks(
+        self, metric: str, rank_method: str = "ordinal", order_high_low: bool = True
+    ):
         # rank_methods = ["average", "min", "max", "dense", "ordinal"]
         if order_high_low:
             return rankdata(self.stats(metric) * -1, method=rank_method)
@@ -183,7 +201,9 @@ class Transposer:
 
     def valid_space_geom(self):
         cells = np.flip(np.column_stack(np.where(self.valid_space)), 1)
-        coords = np.column_stack((self.x_coords[cells[:, 0]], self.y_coords[cells[:, 1]]))
+        coords = np.column_stack(
+            (self.x_coords[cells[:, 0]], self.y_coords[cells[:, 1]])
+        )
 
         boxes = []
         for coord in coords:
@@ -200,9 +220,13 @@ class Transposer:
     def transpose_geom(self, transpose: Transpose):
         x_diff = transpose.x_delta
         y_diff = transpose.y_delta
-        transl_indexes = np.column_stack((self.mask_idxs[:, 0] + x_diff, self.mask_idxs[:, 1] + y_diff))
+        transl_indexes = np.column_stack(
+            (self.mask_idxs[:, 0] + x_diff, self.mask_idxs[:, 1] + y_diff)
+        )
 
-        coords = np.column_stack((self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]]))
+        coords = np.column_stack(
+            (self.x_coords[transl_indexes[:, 0]], self.y_coords[transl_indexes[:, 1]])
+        )
 
         boxes = []
         for coord in coords:

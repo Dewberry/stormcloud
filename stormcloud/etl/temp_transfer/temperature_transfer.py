@@ -29,7 +29,19 @@ End:
 
 """
 
-MONTH_LIST = ["JAN", "FEB", "MAR", "APR", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+MONTH_LIST = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+]
 
 
 def copy_dir(source_dir: str, copy_dest: str):
@@ -56,10 +68,14 @@ def upper_case_month(datetime_string: str) -> str:
     return datetime_string
 
 
-def create_session(aws_access_key_id: str, aws_secret_access_key: str, region_name: str) -> object:
+def create_session(
+    aws_access_key_id: str, aws_secret_access_key: str, region_name: str
+) -> object:
     print("Creating session")
     session = boto3.Session(
-        aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=region_name
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name,
     )
     s3 = session.resource("s3")
     return s3
@@ -95,7 +111,10 @@ class TemperatureInserter:
         self.failed_inserts = []
 
     def insert_grid(
-        self, temperature_dss_fn: str, precip_fn_pathname_list: List[Tuple[str, str]], dry: bool = False
+        self,
+        temperature_dss_fn: str,
+        precip_fn_pathname_list: List[Tuple[str, str]],
+        dry: bool = False,
     ) -> Generator[Tuple[str, str], None, None]:
         unique_dss_fns = []
         print(f"Opening source temperature DSS file {temperature_dss_fn}")
@@ -107,10 +126,14 @@ class TemperatureInserter:
                 pathname_parts[3] = "TEMPERATURE"
                 begin_window = pathname_parts[4]
                 begin_window_proper = proper_case_month(begin_window)
-                begin_window_dt = datetime.datetime.strptime(begin_window_proper, "%d%b%Y:%H%M")
+                begin_window_dt = datetime.datetime.strptime(
+                    begin_window_proper, "%d%b%Y:%H%M"
+                )
                 if begin_window_dt.hour == 0:
                     altered_window_dt = begin_window_dt - datetime.timedelta(hours=1)
-                    altered_window = upper_case_month(altered_window_dt.strftime("%d%b%Y:24%M"))
+                    altered_window = upper_case_month(
+                        altered_window_dt.strftime("%d%b%Y:24%M")
+                    )
                     pathname_parts[4] = altered_window
                 pathname_parts[5] = ""
                 temperature_pathname = "/".join(pathname_parts)
@@ -121,13 +144,19 @@ class TemperatureInserter:
                     end_window_dt = begin_window_dt + datetime.timedelta(hours=1)
                     if end_window_dt.hour == 0:
                         end_window_dt -= datetime.timedelta(hours=1)
-                        end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:24%M"))
+                        end_window = upper_case_month(
+                            end_window_dt.strftime("%d%b%Y:24%M")
+                        )
                     else:
-                        end_window = upper_case_month(end_window_dt.strftime("%d%b%Y:%H%M"))
+                        end_window = upper_case_month(
+                            end_window_dt.strftime("%d%b%Y:%H%M")
+                        )
                     pathname_parts[5] = end_window
                     temperature_pathname = "/".join(pathname_parts)
                     try:
-                        print(f"Inserting dataset at {temperature_pathname} in DSS file {dest_dss_fn}")
+                        print(
+                            f"Inserting dataset at {temperature_pathname} in DSS file {dest_dss_fn}"
+                        )
                         if not dry:
                             dest_dss.put_grid(temperature_pathname, source_dataset)
                         if dest_dss_fn not in unique_dss_fns:
@@ -160,7 +189,9 @@ def append_grid_record(
             relative_dss_fn=rf"\{watershed}\dss\{dss_basename}",
             pathname=temperature_pathname,
         )
-        print(f"Appending record for {temperature_pathname} to grid file {grid_file_path}")
+        print(
+            f"Appending record for {temperature_pathname} to grid file {grid_file_path}"
+        )
         if not dry:
             grid_f.write(formatted_template)
 
@@ -187,7 +218,9 @@ if __name__ == "__main__":
         help="Local file directory to store modified DSS and GRID data, now including both precipitation and temperature data",
     )
     parser.add_argument(
-        "dss_bucket", type=str, help="s3 bucket holding resource which contains temperature DSS resource"
+        "dss_bucket",
+        type=str,
+        help="s3 bucket holding resource which contains temperature DSS resource",
     )
     parser.add_argument("dss_key", type=str, help="s3 key for temperature DSS resource")
     args = parser.parse_args()
@@ -195,7 +228,9 @@ if __name__ == "__main__":
     load_dotenv()
 
     s3 = create_session(
-        os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], os.environ["AWS_DEFAULT_REGION"]
+        os.environ["AWS_ACCESS_KEY_ID"],
+        os.environ["AWS_SECRET_ACCESS_KEY"],
+        os.environ["AWS_REGION"],
     )
 
     # Disable pydsstools logging
@@ -203,12 +238,19 @@ if __name__ == "__main__":
 
     copy_dir(args.data_directory, args.destination_directory)
     grid_file = find_grid_file(args.data_directory)
-    temperature_last_modification = get_last_modification(s3, args.dss_bucket, args.dss_key)
+    temperature_last_modification = get_last_modification(
+        s3, args.dss_bucket, args.dss_key
+    )
     precip_fn_pathnames = get_precip_pathnames(args.destination_directory)
     temperature_inserter = TemperatureInserter()
-    for pathname, fn in temperature_inserter.insert_grid(args.temperature_dss, precip_fn_pathnames):
+    for pathname, fn in temperature_inserter.insert_grid(
+        args.temperature_dss, precip_fn_pathnames
+    ):
         append_grid_record(
-            os.path.join(args.destination_directory, grid_file), pathname, fn, temperature_last_modification
+            os.path.join(args.destination_directory, grid_file),
+            pathname,
+            fn,
+            temperature_last_modification,
         )
     print(f"Failed inserts: {', '.join(temperature_inserter.failed_inserts)}")
     print(f"Number of failures: {len(temperature_inserter.failed_inserts)}")

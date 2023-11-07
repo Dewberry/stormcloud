@@ -12,7 +12,9 @@ def set_up_logger(filename: str = None):
         logger.removeHandler(logger.handlers[0])
 
     logger.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}')
+    formatter = logging.Formatter(
+        '{"time":"%(asctime)s", "level": "%(levelname)s", "message":%(message)s}'
+    )
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)

@@ -7,8 +7,7 @@ from typing import Iterator, List, Tuple, Union
 import s3fs
 import xarray as xr
 from shapely.geometry import MultiPolygon, Polygon
-
-from .cloud import load_watershed
+from zarr.errors import GroupNotFoundError
 
 
 class NOAADataVariable(enum.Enum):
@@ -55,7 +54,7 @@ def load_zarr(
     access_key_id: str,
     secret_access_key: str,
     data_variables: Union[List[str], None] = None,
-) -> xr.Dataset:
+) -> Union[xr.Dataset, None]:
     """Load zarr data from s3
 
     Args:
@@ -68,13 +67,17 @@ def load_zarr(
     Returns:
         xr.Dataset: zarr dataset loaded to xarray dataset
     """
-    logging.info(f"Loading .zarr dataset from s3://{s3_bucket}/{s3_key}")
-    s3 = s3fs.S3FileSystem(key=access_key_id, secret=secret_access_key)
-    ds = xr.open_zarr(s3fs.S3Map(f"{s3_bucket}/{s3_key}", s3=s3))
-    if data_variables:
-        logging.info(f"Subsetting dataset to data variables of interest: {', '.join(data_variables)}")
-        ds = ds[data_variables]
-    return ds
+    logging.debug(f"Loading .zarr dataset from s3://{s3_bucket}/{s3_key}")
+    try:
+        s3 = s3fs.S3FileSystem(key=access_key_id, secret=secret_access_key)
+        ds = xr.open_zarr(s3fs.S3Map(f"{s3_bucket}/{s3_key}", s3=s3))
+        if data_variables:
+            logging.debug(f"Subsetting dataset to data variables of interest: {', '.join(data_variables)}")
+            ds = ds[data_variables]
+        return ds
+    except GroupNotFoundError:
+        logging.warning(f"Failed to load .zarr dataset from s3://{s3_bucket}/{s3_key}; key '{s3_key}' may not exist")
+        return None
 
 
 def trim_dataset(
@@ -108,29 +111,25 @@ def extract_period_zarr(
     end_dt: datetime.datetime,
     data_variables: List[NOAADataVariable],
     zarr_bucket: str,
-    geojson_bucket: str,
-    geojson_key: str,
+    aoi_shape: Union[Polygon, MultiPolygon],
     access_key_id: str,
     secret_access_key: str,
 ) -> Iterator[Tuple[xr.Dataset, NOAADataVariable]]:
-    """Extracts zarr data for a specified watershed and transposition region over a specified period
+    """Extracts zarr data for a specified area of interest over a specified period
 
     Args:
-        watershed_name (str): Watershed of interest
-        domain_name (str): Transposition region
         start_dt (datetime.datetime): Start of period to extract
         end_dt (datetime.datetime): End of period to extract
         data_variables (List[NOAADataVariable]): List of data variables
         zarr_bucket (str): s3 bucket holding zarr data
-        geojson_bucket (str): s3 geojson bucket
-        geojson_key (str): s3 geojson key
+        aoi_shape: (Union[Polygon, MultiPolygon]): Shapely geometry of area of interest for extraction
         access_key_id (str): s3 access key ID
         secret_access_key (str): s3 secret access key
     """
     current_dt = start_dt
-    watershed_shape = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
     while current_dt < end_dt:
-        current_dt += datetime.timedelta(hours=1)
+        if current_dt.hour == 0:
+            logging.info(f"Loading data for {current_dt}")
         for data_variable in data_variables:
             if data_variable == NOAADataVariable.APCP:
                 zarr_key_prefix = "transforms/aorc/precipitation"
@@ -140,8 +139,11 @@ def extract_period_zarr(
                 raise ValueError(
                     f"Data variable within provided data variables ({data_variables}) does not have s3 data tracked by Dewberry: {data_variable}"
                 )
+
             zarr_key = f"{zarr_key_prefix}/{current_dt.year}/{current_dt.strftime('%Y%m%d%H')}.zarr"
             hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
-            hour_ds.rio.write_crs("epsg:4326", inplace=True)
-            watershed_hour_ds = hour_ds.rio.clip([watershed_shape], drop=True, all_touched=True)
-            yield watershed_hour_ds, data_variable
+            if hour_ds:
+                hour_ds.rio.write_crs("epsg:4326", inplace=True)
+                watershed_hour_ds = hour_ds.rio.clip([aoi_shape], drop=True, all_touched=True)
+                yield watershed_hour_ds, data_variable
+        current_dt += datetime.timedelta(hours=1)

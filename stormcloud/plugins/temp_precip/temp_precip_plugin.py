@@ -7,13 +7,9 @@ import os
 from tempfile import TemporaryDirectory
 
 import boto3
+from common.cloud import create_presigned_url, split_s3_path
 from dotenv import load_dotenv
-from write_aorc_zarr_to_dss import (
-    SpecifiedInterval,
-    ZarrExtractionInput,
-    generate_dss_from_zarr,
-)
-from common.cloud import split_s3_path, create_presigned_url
+from write_aorc_zarr_to_dss import SpecifiedInterval, ZarrExtractionInput, generate_dss_from_zarr
 
 PLUGIN_PARAMS = {
     "required": [
@@ -52,9 +48,7 @@ def main(params: dict) -> dict:
         params["zarr_s3_bucket"],
     )
 
-    session = boto3.session.Session(
-        access_key_id, secret_access_key, region_name=aws_region
-    )
+    session = boto3.session.Session(access_key_id, secret_access_key, region_name=aws_region)
     s3_client = session.client("s3")
 
     result_list = []
@@ -94,7 +88,7 @@ def main(params: dict) -> dict:
 
     result_dict["results"] = result_list
     ref_links = []
-    # Add presigne urls
+    # Add presigned urls
     for key in result_list:
         bucket, s3_key = split_s3_path(key)
         ref_links.append(

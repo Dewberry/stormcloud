@@ -35,7 +35,7 @@ class DSSWriter:
         path_b: str,
         path_f: str,
         resolution: int,
-        verbose: bool = True,
+        verbose: bool = False,
         grid_type: str = "shg-time",
         cell_zero_xcoord: int = 0,
         cell_zero_ycoord: int = 0,
@@ -51,6 +51,7 @@ class DSSWriter:
         self.cell_zero_xcoord = cell_zero_xcoord
         self.cell_zero_ycoord = cell_zero_ycoord
         self.dss_file = None
+        self.records = 0
 
     def __enter__(self):
         if not self.print_pydss:
@@ -92,7 +93,7 @@ class DSSWriter:
         self.dss_file.close()
 
     def write_data(self, xdata: xr.Dataset, labeled_variable_dict: Tuple[str, Dict[str, str]]):
-        logging.info("Writing data to dss")
+        logging.debug("Writing data to dss")
         if not self.dss_file:
             raise ValueError(
                 f"No dss file is open to receive data. Make sure that either context manager or open method is used before writing."
@@ -164,8 +165,18 @@ class DSSWriter:
         )
 
         self.dss_file.put_grid(path, data, grid_info)
+        self.records += 1
 
-def write_dss(xdata: xr.Dataset, data_variable_dict: Dict[str, Dict[str, str]], dss_path: str, path_a: str, path_b: str, path_f: str, resolution: int) -> None:
+
+def write_dss(
+    xdata: xr.Dataset,
+    data_variable_dict: Dict[str, Dict[str, str]],
+    dss_path: str,
+    path_a: str,
+    path_b: str,
+    path_f: str,
+    resolution: int,
+) -> None:
     with DSSWriter(dss_path, path_a, path_b, path_f, resolution) as writer:
         for labeled_variable_dict in data_variable_dict.items():
             for i, _ in enumerate(xdata.time.to_numpy()):

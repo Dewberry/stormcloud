@@ -69,7 +69,9 @@ def main(params: dict) -> dict:
         ]
         if params.get("write_interval"):
             interval_str = params["write_interval"]
-            if interval_str == "month":
+            if interval_str == "year":
+                interval = SpecifiedInterval.YEAR
+            elif interval_str == "month":
                 interval = SpecifiedInterval.MONTH
             elif interval_str == "week":
                 interval = SpecifiedInterval.WEEK

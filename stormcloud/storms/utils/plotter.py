@@ -58,7 +58,15 @@ def geom_to_patches(geom, lw, facecolor, edgecolor):
 
 
 def cluster_plot(
-    xdata, cluster_geometry, vmin, vmax, scale_label, multiplier: int = 1, geom=None, png=None, figsize: tuple = (5, 5)
+    xdata,
+    cluster_geometry,
+    vmin,
+    vmax,
+    scale_label,
+    multiplier: int = 1,
+    geom=None,
+    png=None,
+    figsize: tuple = (5, 5),
 ):
     fig, ax = plt.subplots(figsize=figsize)
 

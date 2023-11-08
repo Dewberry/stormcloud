@@ -3,7 +3,7 @@ FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
-WORKDIR /plugin
+WORKDIR /misc
 
 # install pydsstools from source
 RUN apt-get install -y build-essential
@@ -25,21 +25,9 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-# install plugin packages
-COPY stormcloud/plugins/sst/requirements.txt .
-RUN pip3 install -r requirements.txt
-
 # copy scripts called by SST modeling script
 COPY stormcloud/storms/. storms/.
-COPY stormcloud/common/logger.py common/logger.py
-COPY stormcloud/common/cloud.py common/cloud.py
 
-# copy main script and plugin scripts
-COPY stormcloud/extract_storms_v2.py .
-COPY stormcloud/plugins/sst/entrypoint.sh .
-COPY stormcloud/plugins/sst/main.py .
-COPY stormcloud/plugins/sst/sst_plugin.py .
-
-# # run entrypoint
-# RUN chmod +x /plugin/entrypoint.sh
-# CMD [ "./entrypoint.sh" ]
+# copy main script and install required packages
+COPY stormcloud/etl/transpose_geom/. .
+RUN pip3 install -r requirements.txt

@@ -5,6 +5,7 @@ Invokes methods from extract_storms_v2 with support for process api
 import os
 
 from extract_storms_v2 import main as interior_main, get_client_session, RunSetting
+from common.cloud import create_presigned_url, split_s3_path
 
 PLUGIN_PARAMS = {
     "required": [
@@ -52,5 +53,22 @@ def main(params: dict) -> dict:
     dss_s3_uri = create_s3_uri(params["s3_bucket"], dss_key)
     doc_s3_uri = create_s3_uri(params["s3_bucket"], doc_key)
 
-    results_dict = {"png_s3_uri": png_s3_uri, "dss_s3_uri": dss_s3_uri, "doc_s3_uri": doc_s3_uri}
+    results_dict = {"png": png_s3_uri, "dss": dss_s3_uri, "metadata": doc_s3_uri}
+    ref_links = []
+
+    # Add presigne urls
+    for key, value in results_dict.items():
+        bucket, s3_key = split_s3_path(value)
+        exp_url = create_presigned_url(bucket, s3_key)
+        ref_links.append(
+            {
+                "href": exp_url,
+                "rel": "presigned-url",
+                "type": "application/octet-stream",
+                "title": key,
+            }
+        )
+
+    results_dict["links"] = ref_links
+
     return results_dict

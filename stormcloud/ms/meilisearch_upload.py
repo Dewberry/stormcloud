@@ -40,13 +40,20 @@ class MeilisearchInputs:
 def load_inputs(json_path: str) -> MeilisearchInputs:
     with open(json_path) as f:
         data = json.load(f)
-        selection = {"watershed_name": data["watershed_name"], "domain_name": data["domain_name"]}
+        selection = {
+            "watershed_name": data["watershed_name"],
+            "domain_name": data["domain_name"],
+        }
         if "s3_bucket" in data.keys():
             selection["s3_bucket"] = data["s3_bucket"]
         if "por_start" in data.keys():
-            selection["start_year"] = datetime.strptime(data["por_start"], "%Y-%m-%d %H:%M").year
+            selection["start_year"] = datetime.strptime(
+                data["por_start"], "%Y-%m-%d %H:%M"
+            ).year
         if "por_end" in data.keys():
-            selection["end_year"] = datetime.strptime(data["por_end"], "%Y-%m-%d %H:%M").year
+            selection["end_year"] = datetime.strptime(
+                data["por_end"], "%Y-%m-%d %H:%M"
+            ).year
     inputs = MeilisearchInputs(**selection)
     return inputs
 
@@ -104,9 +111,7 @@ def structure_document(input_data: dict) -> dict:
     input_data["categories"] = categories
 
     # Add id to serve as primary key
-    data_id = (
-        f"{watershed_name_formatted}_{domain_name_formatted}_{input_data.get('duration')}h_{data_datetime_formatted}"
-    )
+    data_id = f"{watershed_name_formatted}_{domain_name_formatted}_{input_data.get('duration')}h_{data_datetime_formatted}"
     input_data["id"] = data_id
     return input_data
 
@@ -124,7 +129,9 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
     logging.info("Start ranking")
     # rank docs by year
     docs = np.array(data)
-    starts = np.array([datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
+    starts = np.array(
+        [datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs]
+    )
     means = np.array([d["stats"]["mean"] for d in docs])
     mean_ranks = rankdata(means * -1, method="ordinal")
 
@@ -138,7 +145,10 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
         else:
             min_dt = dt - timedelta(hours=71)
             max_dt = dt + timedelta(hours=71)
-            if np.any((starts_by_mean[decluster_mask] >= min_dt) & (starts_by_mean[decluster_mask] <= max_dt)):
+            if np.any(
+                (starts_by_mean[decluster_mask] >= min_dt)
+                & (starts_by_mean[decluster_mask] <= max_dt)
+            ):
                 decluster = False
             else:
                 decluster = True
@@ -157,7 +167,9 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
         for doc, start in zip(yr_docs, yr_starts):
             idx = np.where(yr_starts_by_mean == start)[0][0]
             if yr_decluster_mask[idx]:
-                decluster_rank = np.where(yr_starts_by_mean[yr_decluster_mask] == start)[0][0] + 1
+                decluster_rank = (
+                    np.where(yr_starts_by_mean[yr_decluster_mask] == start)[0][0] + 1
+                )
             else:
                 decluster_rank = -1
             true_rank = idx + 1
@@ -170,7 +182,11 @@ def rank_documents(data: List[dict], year_range: range) -> List[dict]:
 
 
 def upload(
-    inputs: MeilisearchInputs, access_key_id: str, secret_access_key: str, ms_host: str, ms_api_key: str
+    inputs: MeilisearchInputs,
+    access_key_id: str,
+    secret_access_key: str,
+    ms_host: str,
+    ms_api_key: str,
 ) -> None:
     session = boto3.session.Session(access_key_id, secret_access_key)
     s3_client = session.client("s3")
@@ -220,7 +236,12 @@ def update(
                     f"Expected one of the following attributes: {restructured.keys()}; got {update_attribute}"
                 )
             if ms_client.index(INDEX).get_document(restructured["id"]):
-                docs.append({"id": restructured["id"], update_attribute: restructured[update_attribute]})
+                docs.append(
+                    {
+                        "id": restructured["id"],
+                        update_attribute: restructured[update_attribute],
+                    }
+                )
             else:
                 raise ValueError(
                     f"Document id parsed for update does not exist in the database. ID searched: {restructured['id']}"
@@ -240,7 +261,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-f", "--filepath", type=str, required=True, help="JSON document which defines watershed of interest"
+        "-f",
+        "--filepath",
+        type=str,
+        required=True,
+        help="JSON document which defines watershed of interest",
     )
 
     parser.add_argument(
@@ -286,5 +311,14 @@ if __name__ == "__main__":
     if args.option == "update":
         if not args.attribute:
             raise ValueError("Update option given but no attribute to update provided")
-        logging.info(f"Updating attribute {args.attribute} based on inputs: {ms_inputs}")
-        update(ms_inputs, args.attribute, access_key_id, secret_access_key, ms_host, ms_api_key)
+        logging.info(
+            f"Updating attribute {args.attribute} based on inputs: {ms_inputs}"
+        )
+        update(
+            ms_inputs,
+            args.attribute,
+            access_key_id,
+            secret_access_key,
+            ms_host,
+            ms_api_key,
+        )

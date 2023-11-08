@@ -38,6 +38,6 @@ COPY stormcloud/plugins/temp_precip/temp_precip_plugin.py .
 COPY stormcloud/plugins/temp_precip/requirements.txt .
 RUN pip3 install -r requirements.txt
 
-# run entrypoint
-RUN chmod +x /plugin/entrypoint.sh
-CMD [ "./entrypoint.sh" ]
+# # run entrypoint
+# RUN chmod +x /plugin/entrypoint.sh
+# CMD [ "./entrypoint.sh" ]

@@ -27,7 +27,13 @@ Creates datasets for hydrologic modeling in the cloud.
 
  - Requires use of docker container as specified in [Dockerfile.top_storms_dss](Dockerfile.top_storms_dss)
 
-## Process API support
+## Getting valid transposition geometry
+
+[Get the geometry defining all valid transposes within a transposition region for a given watershed and saves the geometry as a simple geojson polygon](stormcloud/etl/transpose_geom/get_valid_transpose_geom.py)
+
+ - Requires use of docker container as specified in [Dockerfile.transpose_geom](Dockerfile.transpose_geom)
+
+## Plugins -- Process API support
 
 Process API plugins exist which support both SST modeling runs and DSS file extraction from zarr data
 

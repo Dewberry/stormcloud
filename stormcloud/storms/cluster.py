@@ -11,7 +11,12 @@ from affine import Affine
 from boto3 import Session
 from fiona.session import AWSSession
 from pydsstools.heclib.dss.HecDss import Open
-from pydsstools.heclib.utils import SHG_WKT, dss_logging, gridInfo, lower_left_xy_from_transform
+from pydsstools.heclib.utils import (
+    SHG_WKT,
+    dss_logging,
+    gridInfo,
+    lower_left_xy_from_transform,
+)
 from scipy.ndimage import measurements
 from scipy.stats import rankdata
 from shapely.geometry import Polygon, box, shape
@@ -50,7 +55,13 @@ class Clusterer:
         set to True to fill voids in the mask
     """
 
-    def __init__(self, data: np.ndarray, target_n_cells: int, minimum_threshold: float = 0, fill_voids: bool = True):
+    def __init__(
+        self,
+        data: np.ndarray,
+        target_n_cells: int,
+        minimum_threshold: float = 0,
+        fill_voids: bool = True,
+    ):
         self.data = data
         self.target_n_cells = target_n_cells
         self.minimum_threshold = minimum_threshold
@@ -121,7 +132,10 @@ class Clusterer:
         for l in np.unique(label):
             idys, idxs = np.where(label == l)
             if mask_copy[(idys, idxs)].mean() == 0:
-                if not (np.any(np.isin([0, max_y], idys)) or np.any(np.isin([0, max_x], idxs))):
+                if not (
+                    np.any(np.isin([0, max_y], idys))
+                    or np.any(np.isin([0, max_x], idxs))
+                ):
                     mask_copy[(idys, idxs)] = 1
 
         return mask_copy
@@ -198,11 +212,13 @@ class Cluster:
         Normalize algorithm with Atlas14 data
         """
         if norm_arr.shape[0] == self.cells.shape[0] and len(norm_arr.shape) == 1:
-            normalized_values = self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]] / (norm_arr * norm_conversion)
+            normalized_values = self.__clusterer.data[
+                self.cells[:, 1], self.cells[:, 0]
+            ] / (norm_arr * norm_conversion)
         else:
-            normalized_values = self.__clusterer.data[self.cells[:, 1], self.cells[:, 0]] / (
-                norm_arr[self.cells[:, 1], self.cells[:, 0]] * norm_conversion
-            )
+            normalized_values = self.__clusterer.data[
+                self.cells[:, 1], self.cells[:, 0]
+            ] / (norm_arr[self.cells[:, 1], self.cells[:, 0]] * norm_conversion)
 
         normalized_values[~np.isfinite(normalized_values)] = 0
 
@@ -232,7 +248,12 @@ class Cluster:
         clusters = []
         for label in np.unique(labels):
             if label > 1:  # zero considered background
-                clusters.append(Cluster(self.__clusterer, self.__clusterer.column_stack[np.where(labels == label)[0]]))
+                clusters.append(
+                    Cluster(
+                        self.__clusterer,
+                        self.__clusterer.column_stack[np.where(labels == label)[0]],
+                    )
+                )
 
     def build_exterior_cells(self) -> np.ndarray:
         """
@@ -246,8 +267,16 @@ class Cluster:
             xlist = [x + 1, x - 1]
             ylist = [y + 1, y - 1]
             if (
-                len(self.cells[(self.cells[:, 0] == x) & np.isin(self.cells[:, 1], ylist)])
-                + len(self.cells[np.isin(self.cells[:, 0], xlist) & (self.cells[:, 1] == y)])
+                len(
+                    self.cells[
+                        (self.cells[:, 0] == x) & np.isin(self.cells[:, 1], ylist)
+                    ]
+                )
+                + len(
+                    self.cells[
+                        np.isin(self.cells[:, 0], xlist) & (self.cells[:, 1] == y)
+                    ]
+                )
                 < 4
             ):
                 exterior_cells.append([x, y])
@@ -275,7 +304,16 @@ class Cluster:
         max_y, max_x = self.__clusterer.shape
 
         touching_cells = []
-        transforms = [[0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1]]
+        transforms = [
+            [0, 1],
+            [1, 1],
+            [1, 0],
+            [1, -1],
+            [0, -1],
+            [-1, -1],
+            [-1, 0],
+            [-1, 1],
+        ]
         for e in self.exterior:
             x = e[0]
             y = e[1]
@@ -301,12 +339,18 @@ class Cluster:
         Returns index of the added cell.
         """
         touching_cells = self.buffer()
-        cell_to_add = touching_cells[np.nanargmax(self.__clusterer.data[touching_cells[:, 1], touching_cells[:, 0]])]
+        cell_to_add = touching_cells[
+            np.nanargmax(
+                self.__clusterer.data[touching_cells[:, 1], touching_cells[:, 0]]
+            )
+        ]
 
         # update exterior, interior, and touching cells to improve speed
 
         # get index to add cell
-        add_idx = np.where((self.cells[:, 0] >= cell_to_add[0]) & (self.cells[:, 1] >= cell_to_add[1]))[0]
+        add_idx = np.where(
+            (self.cells[:, 0] >= cell_to_add[0]) & (self.cells[:, 1] >= cell_to_add[1])
+        )[0]
 
         if add_idx.size >= 1:
             self.cells = np.insert(self.cells, add_idx[0], cell_to_add, axis=0)
@@ -335,7 +379,10 @@ class Cluster:
         idxs = np.where(precip_data == np.nanmin(precip_data))[0]
         cell_to_remove = self.exterior[idxs.max()]
 
-        idx = np.where((self.cells[:, 0] == cell_to_remove[0]) & (self.cells[:, 1] == cell_to_remove[1]))
+        idx = np.where(
+            (self.cells[:, 0] == cell_to_remove[0])
+            & (self.cells[:, 1] == cell_to_remove[1])
+        )
 
         self.cells = np.delete(self.cells, idx[0][0], axis=0)
 
@@ -367,7 +414,9 @@ def infer_threshold(data: np.ndarray, target_n_cells: int) -> Tuple[float, float
     return threshold, percentile
 
 
-def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: str = "tempest") -> List[str]:
+def get_zarrfiles(
+    data_type: str, start: datetime, end: datetime, bucket_name: str = "tempest"
+) -> List[str]:
     """
     Fetches a sorted list of AORC zarr files for a given time range.
     The start and end of the time range is inclusive.
@@ -400,7 +449,9 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
         dt = start
     else:
         # duplicated from above, should add decorators for each specific file type
-        raise ValueError(f"data_type `{data_type}` not found, must be one of {data_types}")
+        raise ValueError(
+            f"data_type `{data_type}` not found, must be one of {data_types}"
+        )
 
     while dt <= end:
         zarrfile = f"s3://{bucket_name}/transforms/aorc/{data_type}/{dt.year}/{dt.year}{dt.month:02}{dt.day:02}{dt.hour:02}.zarr"
@@ -411,7 +462,11 @@ def get_zarrfiles(data_type: str, start: datetime, end: datetime, bucket_name: s
 
 
 def get_xr_dataset(
-    data_type: str, start: datetime, duration: int, aggregate_method: str = None, mask: Polygon = None
+    data_type: str,
+    start: datetime,
+    duration: int,
+    aggregate_method: str = None,
+    mask: Polygon = None,
 ) -> xr.Dataset:
     """
     Loads hourly AORC data begining at <start> for <duration> hours into an xarray dataset.
@@ -445,7 +500,9 @@ def get_xr_dataset(
 
     zarr_files = get_zarrfiles(data_type, start, end)
 
-    xdata = xr.open_mfdataset(zarr_files, engine="zarr", chunks="auto", consolidated=True)
+    xdata = xr.open_mfdataset(
+        zarr_files, engine="zarr", chunks="auto", consolidated=True
+    )
 
     if mask:
         xdata = xdata.rio.clip([mask], drop=True, all_touched=True)
@@ -530,7 +587,9 @@ def write_dss(xdata, dss_path, path_a, path_b, path_c, path_f, resolution=4000):
 
     with Open(dss_path) as fid:
         for i, dt64 in enumerate(xdata.time.to_numpy()):
-            end_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
+            end_dt = datetime.utcfromtimestamp(
+                (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
+            )
 
             data = xdata.isel(time=i).APCP_surface.to_numpy()
 
@@ -629,7 +688,9 @@ def rank_by_max(clusters: List[Cluster]) -> np.ndarray:
     return rankdata(values, method="ordinal")
 
 
-def rank_by_norm(clusters: List[Cluster], norm_arr: np.ndarray, norm_conversion: float) -> np.ndarray:
+def rank_by_norm(
+    clusters: List[Cluster], norm_arr: np.ndarray, norm_conversion: float
+) -> np.ndarray:
     """
     Ranks a list of clusters by their normalized mean.
     Returns a list used to index by rank
@@ -642,7 +703,11 @@ def rank_by_norm(clusters: List[Cluster], norm_arr: np.ndarray, norm_conversion:
 
 
 def cells_to_geometry(
-    longitudes: np.ndarray, latitudes: np.ndarray, cellsize_x: float, cellsize_y: float, cells: np.ndarray
+    longitudes: np.ndarray,
+    latitudes: np.ndarray,
+    cellsize_x: float,
+    cellsize_y: float,
+    cells: np.ndarray,
 ):
     """
     Creates a (Multi)Polygon geometry
@@ -676,7 +741,11 @@ def s3_geometry_reader(session: Session, uri: str, layer: str = None):
 
 
 def get_atlas14(s3_uri: str, interpolate_to: xr.DataArray = None):
-    atlas14 = rxr.open_rasterio(s3_uri, mask_and_scale=True).sel(band=1, drop=True).rename(x="longitude", y="latitude")
+    atlas14 = (
+        rxr.open_rasterio(s3_uri, mask_and_scale=True)
+        .sel(band=1, drop=True)
+        .rename(x="longitude", y="latitude")
+    )
     if interpolate_to is not None:
         atlas14 = atlas14.interp_like(interpolate_to, method="linear")
 

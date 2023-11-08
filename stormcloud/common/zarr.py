@@ -68,7 +68,7 @@ def load_zarr(
     Returns:
         xr.Dataset: zarr dataset loaded to xarray dataset
     """
-    logging.info(f"Loading .zarr dataset from s3://{s3_bucket}/{s3_key}")
+    logging.debug(f"Loading .zarr dataset from s3://{s3_bucket}/{s3_key}")
     s3 = s3fs.S3FileSystem(key=access_key_id, secret=secret_access_key)
     ds = xr.open_zarr(s3fs.S3Map(f"{s3_bucket}/{s3_key}", s3=s3))
     if data_variables:
@@ -140,6 +140,8 @@ def extract_period_zarr(
                 raise ValueError(
                     f"Data variable within provided data variables ({data_variables}) does not have s3 data tracked by Dewberry: {data_variable}"
                 )
+            if current_dt.hour == 0:
+                logging.info(f"Loading data from s3://{zarr_bucket}/{zarr_key}")
             zarr_key = f"{zarr_key_prefix}/{current_dt.year}/{current_dt.strftime('%Y%m%d%H')}.zarr"
             hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
             hour_ds.rio.write_crs("epsg:4326", inplace=True)

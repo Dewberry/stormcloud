@@ -2,7 +2,7 @@
 import datetime
 import enum
 import logging
-from typing import List, Union
+from typing import Iterator, List, Tuple, Union
 
 import s3fs
 import xarray as xr
@@ -72,9 +72,7 @@ def load_zarr(
     s3 = s3fs.S3FileSystem(key=access_key_id, secret=secret_access_key)
     ds = xr.open_zarr(s3fs.S3Map(f"{s3_bucket}/{s3_key}", s3=s3))
     if data_variables:
-        logging.info(
-            f"Subsetting dataset to data variables of interest: {', '.join(data_variables)}"
-        )
+        logging.info(f"Subsetting dataset to data variables of interest: {', '.join(data_variables)}")
         ds = ds[data_variables]
     return ds
 
@@ -114,7 +112,7 @@ def extract_period_zarr(
     geojson_key: str,
     access_key_id: str,
     secret_access_key: str,
-) -> xr.Dataset:
+) -> Iterator[Tuple[xr.Dataset, NOAADataVariable]]:
     """Extracts zarr data for a specified watershed and transposition region over a specified period
 
     Args:
@@ -129,12 +127,10 @@ def extract_period_zarr(
         access_key_id (str): s3 access key ID
         secret_access_key (str): s3 secret access key
     """
-    watershed_ds_list = []
     current_dt = start_dt
-    watershed_shape = load_watershed(
-        geojson_bucket, geojson_key, access_key_id, secret_access_key
-    )
+    watershed_shape = load_watershed(geojson_bucket, geojson_key, access_key_id, secret_access_key)
     while current_dt < end_dt:
+        current_dt += datetime.timedelta(hours=1)
         for data_variable in data_variables:
             if data_variable == NOAADataVariable.APCP:
                 zarr_key_prefix = "transforms/aorc/precipitation"
@@ -147,11 +143,5 @@ def extract_period_zarr(
             zarr_key = f"{zarr_key_prefix}/{current_dt.year}/{current_dt.strftime('%Y%m%d%H')}.zarr"
             hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
             hour_ds.rio.write_crs("epsg:4326", inplace=True)
-            watershed_hour_ds = hour_ds.rio.clip(
-                [watershed_shape], drop=True, all_touched=True
-            )
-            watershed_ds_list.append(watershed_hour_ds)
-        current_dt += datetime.timedelta(hours=1)
-    logging.info("Merging hourly datasets")
-    watershed_merged_ds = xr.merge(watershed_ds_list)
-    return watershed_merged_ds
+            watershed_hour_ds = hour_ds.rio.clip([watershed_shape], drop=True, all_touched=True)
+            yield watershed_hour_ds, data_variable

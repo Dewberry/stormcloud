@@ -11,7 +11,7 @@ from typing import Iterator, List, Tuple
 from zipfile import ZipFile
 
 from common.cloud import split_s3_path
-from common.dss import write_multivariate_dss
+from common.dss import DSSWriter
 from common.zarr import NOAADataVariable, extract_period_zarr
 from jsonschema import validate
 
@@ -101,35 +101,28 @@ def generate_dss_from_zarr(
         outpath_basename = f"{watershed_name.lower().replace(' ', '_')}_{current_dt.strftime('%Y%m%d')}_{current_dt_next.strftime('%Y%m%d')}.dss"
         logging.debug(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
-        data_variable_dict = {
-            data_variable.dss_variable_title: {
-                "variable": data_variable.value,
-                "measurement": data_variable.measurement_type,
-                "unit": data_variable.measurement_unit,
-            }
-            for data_variable in data_variables
-        }
-        extracted_zarr = extract_period_zarr(
-            current_dt,
-            current_dt_next,
-            data_variables,
-            zarr_bucket,
-            geojson_bucket,
-            geojson_key,
-            access_key_id,
-            secret_access_key,
-        )
-        write_multivariate_dss(
-            extracted_zarr,
-            data_variable_dict,
-            outpath,
-            "SHG1K",
-            watershed_name.upper(),
-            "AORC",
-            1000,
-        )
+        with DSSWriter(outpath, "SHG1K", watershed_name.upper(), "AORC", 1000) as writer:
+            for watershed_hour_ds, data_variable in extract_period_zarr(
+                current_dt,
+                current_dt_next,
+                data_variables,
+                zarr_bucket,
+                geojson_bucket,
+                geojson_key,
+                access_key_id,
+                secret_access_key,
+            ):
+                labeled_data_variable = (
+                    data_variable.dss_variable_title,
+                    {
+                        "variable": data_variable.value,
+                        "measurement": data_variable.measurement_type,
+                        "unit": data_variable.measurement_unit,
+                    },
+                )
+                writer.write_data(watershed_hour_ds, labeled_data_variable)
         current_dt = current_dt_next
-        yield outpath, outpath_basename
+        yield writer.filepath, outpath_basename
 
 
 def validate_input(

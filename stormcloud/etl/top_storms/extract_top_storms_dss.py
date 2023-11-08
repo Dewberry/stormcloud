@@ -13,7 +13,7 @@ from meilisearch import Client
 
 from common.cloud import split_s3_path
 from common.zarr import NOAADataVariable, load_watershed, load_zarr, trim_dataset
-from common.dss import write_multivariate_dss
+from common.dss import write_dss
 from ms.identify import get_time_windows
 
 
@@ -216,7 +216,7 @@ def extract_and_write_zarr_ms(
         outpath_basename = f"{zarr_input.watershed_name.lower().replace(' ', '_')}_rank{rank}_{start_dt.strftime('%Y%m%d')}_{end_dt.strftime('%Y%m%d')}.dss"
         outpath = os.path.join(out_dir, outpath_basename)
         logging.info(f"Beginning process of writing to {outpath}")
-        write_multivariate_dss(
+        write_dss(
             ds,
             data_variable_dict,
             outpath,

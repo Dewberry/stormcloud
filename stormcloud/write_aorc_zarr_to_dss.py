@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from typing import Iterator, List, Tuple
 from zipfile import ZipFile
 
-from common.cloud import split_s3_path
+from common.cloud import load_aoi, split_s3_path
 from common.dss import DSSWriter
 from common.zarr import NOAADataVariable, extract_period_zarr
 from jsonschema import validate
@@ -89,6 +89,7 @@ def generate_dss_from_zarr(
     secret_access_key: str,
     write_interval: SpecifiedInterval = SpecifiedInterval.MONTH,
 ) -> Iterator[Tuple[str, str]]:
+    aoi_shape = load_aoi(geojson_bucket, geojson_key, access_key_id, secret_access_key)
     current_dt = start_dt
     while current_dt < end_dt:
         if write_interval == SpecifiedInterval.YEAR:
@@ -110,8 +111,7 @@ def generate_dss_from_zarr(
                 current_dt_next,
                 data_variables,
                 zarr_bucket,
-                geojson_bucket,
-                geojson_key,
+                aoi_shape,
                 access_key_id,
                 secret_access_key,
             ):
@@ -125,7 +125,8 @@ def generate_dss_from_zarr(
                 )
                 writer.write_data(watershed_hour_ds, labeled_data_variable)
         current_dt = current_dt_next
-        yield writer.filepath, outpath_basename
+        if writer.records > 0:
+            yield writer.filepath, outpath_basename
 
 
 def validate_input(

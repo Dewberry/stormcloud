@@ -35,7 +35,7 @@ class DSSWriter:
         path_b: str,
         path_f: str,
         resolution: int,
-        verbose: bool = True,
+        verbose: bool = False,
         grid_type: str = "shg-time",
         cell_zero_xcoord: int = 0,
         cell_zero_ycoord: int = 0,
@@ -51,6 +51,7 @@ class DSSWriter:
         self.cell_zero_xcoord = cell_zero_xcoord
         self.cell_zero_ycoord = cell_zero_ycoord
         self.dss_file = None
+        self.records = 0
 
     def __enter__(self):
         if not self.print_pydss:
@@ -164,6 +165,7 @@ class DSSWriter:
         )
 
         self.dss_file.put_grid(path, data, grid_info)
+        self.records += 1
 
 
 def write_dss(

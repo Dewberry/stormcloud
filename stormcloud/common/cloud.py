@@ -55,9 +55,7 @@ def split_s3_path(s3_path: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def load_watershed(
-    s3_bucket: str, s3_key: str, access_key_id: str, secret_access_key: str
-) -> Union[Polygon, MultiPolygon]:
+def load_aoi(s3_bucket: str, s3_key: str, access_key_id: str, secret_access_key: str) -> Union[Polygon, MultiPolygon]:
     """Loads watershed geometry from s3 resource
 
     Args:
@@ -72,9 +70,7 @@ def load_watershed(
     Returns:
         Union[Polygon, MultiPolygon]: shapely geometry pulled from watershed s3 geojson
     """
-    logging.info(
-        f"Loading watershed transposition region geometry from geojson s3://{s3_bucket}/{s3_key}"
-    )
+    logging.info(f"Loading watershed transposition region geometry from geojson s3://{s3_bucket}/{s3_key}")
     session = boto3.session.Session(access_key_id, secret_access_key)
     s3_client = session.client("s3")
     response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)
@@ -82,9 +78,7 @@ def load_watershed(
     geojson_dict = json.loads(geojson_data)
     features = geojson_dict["features"]
     if len(features) > 1:
-        err = ValueError(
-            "More than one feature in watershed geojson, only expected one feature"
-        )
+        err = ValueError("More than one feature in watershed geojson, only expected one feature")
         logging.exception(err)
         raise err
     geometry_attribute = features[0]["geometry"]

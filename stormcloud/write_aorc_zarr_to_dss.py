@@ -20,6 +20,7 @@ class SpecifiedInterval(enum.Enum):
     DAY = enum.auto()
     WEEK = enum.auto()
     MONTH = enum.auto()
+    YEAR = enum.auto()
 
 
 @dataclass
@@ -90,7 +91,9 @@ def generate_dss_from_zarr(
 ) -> Iterator[Tuple[str, str]]:
     current_dt = start_dt
     while current_dt < end_dt:
-        if write_interval == SpecifiedInterval.MONTH:
+        if write_interval == SpecifiedInterval.YEAR:
+            current_dt_next = current_dt.replace(year=current_dt.year + 1)
+        elif write_interval == SpecifiedInterval.MONTH:
             current_dt_next = current_dt.replace(month=current_dt.month + 1)
         elif write_interval == SpecifiedInterval.WEEK:
             current_dt_next = current_dt + datetime.timedelta(days=7)
@@ -199,14 +202,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--write_interval",
         type=str,
-        choices=["month", "week", "day"],
+        choices=["year", "month", "week", "day"],
         default="month",
-        help="Interval at which DSS files will be written out",
+        help="Interval at which DSS files will be written out. Defaults to month.",
     )
 
     args = parser.parse_args()
 
-    if args.write_interval == "month":
+    if args.write_interval == "year":
+        interval = SpecifiedInterval.YEAR
+    elif args.write_interval == "month":
         interval = SpecifiedInterval.MONTH
     elif args.write_interval == "week":
         interval = SpecifiedInterval.WEEK

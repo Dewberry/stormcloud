@@ -108,7 +108,7 @@ inputs:
     maxOccurs: 1
   - id: write_interval
     title: write interval
-    description: interval at which DSS files should be written out
+    description: interval at which DSS files should be written out, valid choices -- ["year", "month", "week", "hour"], defaults to month of none provided
     input:
       literalDataDomain:
         dataType: value

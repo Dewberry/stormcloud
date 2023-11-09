@@ -12,7 +12,7 @@ from zipfile import ZipFile
 
 from common.cloud import load_aoi, split_s3_path
 from common.dss import DSSWriter
-from common.zarr import NOAADataVariable, extract_period_zarr
+from common.zarr import NOAADataVariable, convert_temperature_dataset, extract_period_zarr
 from jsonschema import validate
 
 
@@ -78,7 +78,7 @@ class ZarrExtractionInput:
 
 def generate_dss_from_zarr(
     output_dir: str,
-    watershed_name: str,
+    aoi_name: str,
     start_dt: datetime.datetime,
     end_dt: datetime.datetime,
     data_variables: List[NOAADataVariable],
@@ -102,11 +102,11 @@ def generate_dss_from_zarr(
             current_dt_next = current_dt + datetime.timedelta(days=1)
         if current_dt_next > end_dt:
             current_dt_next = end_dt
-        outpath_basename = f"{watershed_name.lower().replace(' ', '_')}_{current_dt.strftime('%Y%m%d')}_{current_dt_next.strftime('%Y%m%d')}.dss"
+        outpath_basename = f"{aoi_name.lower().replace(' ', '_')}_{current_dt.strftime('%Y%m%d')}_{current_dt_next.strftime('%Y%m%d')}.dss"
         logging.debug(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
-        with DSSWriter(outpath, "SHG1K", watershed_name.upper(), "AORC", 1000) as writer:
-            for watershed_hour_ds, data_variable in extract_period_zarr(
+        with DSSWriter(outpath, "SHG1K", aoi_name.upper(), "AORC", 1000) as writer:
+            for hour_ds, data_variable in extract_period_zarr(
                 current_dt,
                 current_dt_next,
                 data_variables,
@@ -115,6 +115,8 @@ def generate_dss_from_zarr(
                 access_key_id,
                 secret_access_key,
             ):
+                if data_variable == NOAADataVariable.TMP:
+                    hour_ds = convert_temperature_dataset(hour_ds, data_variable.measurement_unit)
                 labeled_data_variable = (
                     data_variable.dss_variable_title,
                     {
@@ -123,7 +125,7 @@ def generate_dss_from_zarr(
                         "unit": data_variable.measurement_unit,
                     },
                 )
-                writer.write_data(watershed_hour_ds, labeled_data_variable)
+                writer.write_data(hour_ds, labeled_data_variable)
         current_dt = current_dt_next
         if writer.records > 0:
             yield writer.filepath, outpath_basename

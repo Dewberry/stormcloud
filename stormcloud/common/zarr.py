@@ -4,6 +4,7 @@ import enum
 import logging
 from typing import Iterator, List, Tuple, Union
 
+import numpy as np
 import s3fs
 import xarray as xr
 from shapely.geometry import MultiPolygon, Polygon
@@ -43,7 +44,7 @@ class NOAADataVariable(enum.Enum):
         if self == NOAADataVariable.APCP:
             return "MM"
         elif self == NOAADataVariable.TMP:
-            return "K"
+            return "DEG C"
         else:
             raise NotImplementedError(f"Unit unknown for data variable {self.__repr__}")
 
@@ -144,6 +145,29 @@ def extract_period_zarr(
             hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
             if hour_ds:
                 hour_ds.rio.write_crs("epsg:4326", inplace=True)
-                watershed_hour_ds = hour_ds.rio.clip([aoi_shape], drop=True, all_touched=True)
-                yield watershed_hour_ds, data_variable
+                aoi_hour_ds = hour_ds.rio.clip([aoi_shape], drop=True, all_touched=True)
+                yield aoi_hour_ds, data_variable
         current_dt += datetime.timedelta(hours=1)
+
+
+def convert_temperature_dataset(data: xr.Dataset, output_unit: str) -> xr.Dataset:
+    data_unit = data[NOAADataVariable.TMP.value].units
+    if data_unit != "K":
+        raise ValueError(f"Expected temperature data in Kelvin, got measurement unit of {data_unit} instead")
+    if output_unit != "K":
+        data_shape = data[NOAADataVariable.TMP.value].shape
+        c_degrees_difference = np.full(data_shape, 273.15)
+        if output_unit == "DEG C":
+            data[NOAADataVariable.TMP.value] = np.subtract(data[NOAADataVariable.TMP.value], c_degrees_difference)
+        elif output_unit == "DEG F":
+            c_data = np.subtract(data[NOAADataVariable.TMP.value], c_degrees_difference)
+            scale_difference = np.full(data_shape, 9 / 5)
+            scale_data = np.multiply(c_data, scale_difference)
+            f_difference = np.full(data_shape, 32)
+            f_data = np.add(scale_data, f_difference)
+            data[NOAADataVariable.TMP.value] = f_data
+        else:
+            raise ValueError(
+                f"Temperature conversion only supported from Kelvin (K) to Celsius (DEG C) or Farenheit (DEG F); got output unit of {output_unit} instead"
+            )
+    return data

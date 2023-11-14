@@ -82,7 +82,11 @@ class DSSWriter:
 
     def __handle_inst_val_date_info(self, dt64: np.datetime64) -> Tuple[str, str]:
         start_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
-        path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
+        if start_dt.hour == 0 and start_dt.minute == 0:
+            start_dt -= timedelta(days=1)
+            path_d = start_dt.strftime("%d%b%Y:2400").upper()
+        else:
+            path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
         path_e = ""
         return path_d, path_e
 

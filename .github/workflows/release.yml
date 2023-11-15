@@ -30,28 +30,16 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: filter
-        uses: dorny/paths-filter@v2
-        id: filter
-        with:
-          filters: |
-            sst:
-              - 'stormcloud/plugins/sst/**'
-            temp_precip:
-              - 'stormcloud/plugins/temp_precip/**'
-
       # run only if 'sst' files are modified
-      - name: Build, tag, and push client docker image to Amazon ECR
-        if: steps.filter.outputs.sst == 'true'
+      - name: Build, tag, and push sst plugin docker image to Amazon ECR
         run: |
-          docker build . -f Dockerfile.sst --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{github.sha }} 
+          docker build . -f Dockerfile.sst --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{github.sha }}
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{ github.sha }}
           docker tag ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-${{ github.sha }} ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-latest
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:sst-latest
 
       # run only if 'temp_precip' files are modified
-      - name: Build, tag, and push API docker image to Amazon ECR
-        if: steps.filter.outputs.temp_precip == 'true'
+      - name: Build, tag, and push temp_precip plugin docker image to Amazon ECR
         run: |
           docker build  . -f Dockerfile.temp_precip --target prod -t ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha }}
           docker push ${{ secrets.AWS_ACCOUNT_NUMBER }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/stormcloud:temp_precip-${{ github.sha}}

@@ -87,9 +87,12 @@ def load_aoi(s3_bucket: str, s3_key: str, access_key_id: str, secret_access_key:
     return watershed_geometry
 
 
-def get_last_modification(s3: object, bucket: str, key: str) -> datetime.datetime:
+def get_last_modification(s3, bucket: str, key: str) -> datetime.datetime:
     print(f"Getting metadata from s3://{bucket}/{key}")
-    obj = s3.meta.client.head_object(Bucket=bucket, Key=key)
+    try:
+        obj = s3.meta.client.head_object(Bucket=bucket, Key=key)
+    except AttributeError:
+        obj = s3.head_object(Bucket=bucket, Key=key)
     last_modified = obj["LastModified"]
     return last_modified
 

@@ -1,0 +1,136 @@
+
+info:
+  version: '2023.12.5'
+  id: aorc-standardize-meta
+  title: AORC SST Metadata Standardization
+  description: Pulls metadata from existing SST products into a standardized format usable in GRID file creation
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "local"
+
+container:
+  image: stormcloud:standardize-meta-latest
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: watershed
+    title: end date
+    description: end date for extraction, in YYYY-mm-dd format (10-31-2023 for Oct. 31, 2023)
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: extent_geojson_uri
+    title: extent geojson uri
+    description: full s3 uri of geojson used as transposition region or extent of produced SST model
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: start_date
+    title: start date
+    description: start date in isoformat, ie 1994-10-26 00:00:00
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: duration
+    title: duration
+    description: duration in hours of storm of interest, defaults to 72 if not provided
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: storm_x
+    title: storm center x coordinate
+    description: x coordinate for center of storm submitted
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: storm_y
+    title: storm center y coordinate
+    description: y coordinate for center of storm submitted
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: overall_rank
+    title: overall rank
+    description: rank of storm submitted for processing out of all possible storms given applied filter
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: rank_within_year
+    title: rank within year
+    description: rank of storm submitted for processing out of year in which storm occurred
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: overall_limit
+    title: overall limit
+    description: limit of how many storms to select
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: top_year_limit
+    title: top year limit
+    description: limit of how many storms per year to select
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+
+outputs:
+  - id: results
+    title: results
+    description: dictionary containing s3 uri of standardized metadata JSON file produced for storm
+    output:
+      transmissionMode:
+      - value

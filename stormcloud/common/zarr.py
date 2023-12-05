@@ -1,52 +1,14 @@
 """ Script to isolate time periods of storms using meilisearch data and search NOAA s3 zarr data for data matching these time periods to save to DSS format """
 import datetime
-import enum
 import logging
 from typing import Iterator, List, Tuple, Union
+from .shared import NOAADataVariable
 
 import numpy as np
 import s3fs
 import xarray as xr
 from shapely.geometry import MultiPolygon, Polygon
 from zarr.errors import GroupNotFoundError
-
-
-class NOAADataVariable(enum.Enum):
-    """Class of potential NOAA data variables to extract zarr data for"""
-
-    APCP = "APCP_surface"
-    DLWRF = "DLWRF_surface"
-    DSWRF = "DSWRF_surface"
-    PRES = "PRES_surface"
-    SPFH = "SPFH_2maboveground"
-    TMP = "TMP_2maboveground"
-    UGRD = "UGRD_10maboveground"
-    VGRD = "VGRD_10maboveground"
-
-    @property
-    def dss_variable_title(self) -> str:
-        if self == NOAADataVariable.APCP:
-            return "PRECIPITATION"
-        elif self == NOAADataVariable.TMP:
-            return "TEMPERATURE"
-        else:
-            return self.value
-
-    @property
-    def measurement_type(self) -> str:
-        if self == NOAADataVariable.APCP:
-            return "per-cum"
-        else:
-            return "inst-val"
-
-    @property
-    def measurement_unit(self) -> str:
-        if self == NOAADataVariable.APCP:
-            return "MM"
-        elif self == NOAADataVariable.TMP:
-            return "DEG C"
-        else:
-            raise NotImplementedError(f"Unit unknown for data variable {self.__repr__}")
 
 
 def load_zarr(

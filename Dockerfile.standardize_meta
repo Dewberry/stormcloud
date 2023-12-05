@@ -1,4 +1,4 @@
-# Dockerfile supporting plugin for temperature and precipitation extraction and conversion to DSS format
+# Dockerfile supporting plugin for metadata standardization used in GRID file generation
 FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
@@ -25,19 +25,18 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-# copy scripts called by temperature and precipitation extraction script
-COPY stormcloud/common/. common/.
+# install plugin packages
+COPY stormcloud/plugins/standardize_meta/requirements.txt .
+RUN pip3 install -r requirements.txt
+
+# copy scripts called by GRID generation script
+COPY stormcloud/common/ common/.
 
 # copy main script and plugin scripts
-COPY stormcloud/write_aorc_zarr_to_dss.py .
 COPY stormcloud/construct_meta.py .
-COPY stormcloud/plugins/temp_precip/entrypoint.sh .
-COPY stormcloud/plugins/temp_precip/main.py .
-COPY stormcloud/plugins/temp_precip/temp_precip_plugin.py .
-
-# install plugin packages
-COPY stormcloud/plugins/temp_precip/requirements.txt .
-RUN pip3 install -r requirements.txt
+COPY stormcloud/plugins/standardize_meta/entrypoint.sh .
+COPY stormcloud/plugins/standardize_meta/main.py .
+COPY stormcloud/plugins/standardize_meta/standardize_meta_plugin.py .
 
 # # run entrypoint
 # RUN chmod +x /plugin/entrypoint.sh

@@ -3,7 +3,7 @@ import datetime
 import logging
 import os
 from io import TextIOWrapper
-from typing import Tuple, Union
+from typing import Union
 
 from .shared import DSSPathnameMeta, DSSVariable, decode_data_variable
 

@@ -11,8 +11,8 @@ import xarray as xr
 from jsonschema import validate
 from meilisearch import Client
 
-from common.cloud import split_s3_path
-from common.zarr import NOAADataVariable, load_watershed, load_zarr, trim_dataset
+from common.cloud import split_s3_path, load_aoi
+from common.zarr import NOAADataVariable, load_zarr, trim_dataset
 from common.dss import write_dss
 from ms.identify import get_time_windows
 
@@ -95,9 +95,7 @@ def extract_zarr_top_storms(
     secret_access_key: str,
     ms_host: str,
     ms_api_key: str,
-) -> Generator[
-    Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None
-]:
+) -> Generator[Tuple[xr.Dataset, datetime.datetime, datetime.datetime, int], None, None]:
     """Extracts zarr data from for a specified watershed in a specified year with a specified transposition region, coordinating which storms to select using data on meilisearch
 
     Args:
@@ -121,15 +119,9 @@ def extract_zarr_top_storms(
     """
     logging.info("Starting extraction process")
     ms_client = Client(ms_host, ms_api_key)
-    zarr_ds = load_zarr(
-        zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables
-    )
-    watershed_geom = load_watershed(
-        geojson_bucket, geojson_key, access_key_id, secret_access_key
-    )
-    for start_dt, end_dt, rank in get_time_windows(
-        year, watershed_name, domain_name, n_storms, declustered, ms_client
-    ):
+    zarr_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key, data_variables)
+    watershed_geom = load_aoi(geojson_bucket, geojson_key, access_key_id, secret_access_key)
+    for start_dt, end_dt, rank in get_time_windows(year, watershed_name, domain_name, n_storms, declustered, ms_client):
         t_diff = end_dt - start_dt
         hours_diff = int(t_diff.total_seconds() / 60 / 60)
         trimmed = trim_dataset(zarr_ds, start_dt, end_dt, watershed_geom)

@@ -26,9 +26,10 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 RUN ( cd pydsstools && python3 -m pip install . )
 
 # copy over script utility packages
-COPY stormcloud/common/cloud.py common/cloud.py
-COPY stormcloud/common/zarr.py common/zarr.py
-COPY stormcloud/common/dss.py common/dss.py
+COPY stormcloud/common/cloud.py common/.
+COPY stormcloud/common/zarr.py common/.
+COPY stormcloud/common/dss.py common/.
+COPY stormcloud/common/shared.py common/.
 COPY stormcloud/ms/. ms/.
 
 # copy over script and install packages used in top storm extraction to DSS format

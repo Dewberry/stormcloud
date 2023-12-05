@@ -1,7 +1,8 @@
+import datetime
 import json
 import logging
-import re
 import os
+import re
 from typing import Tuple, Union
 
 import boto3
@@ -84,3 +85,21 @@ def load_aoi(s3_bucket: str, s3_key: str, access_key_id: str, secret_access_key:
     geometry_attribute = features[0]["geometry"]
     watershed_geometry = shape(geometry_attribute)
     return watershed_geometry
+
+
+def get_last_modification(s3: object, bucket: str, key: str) -> datetime.datetime:
+    print(f"Getting metadata from s3://{bucket}/{key}")
+    obj = s3.meta.client.head_object(Bucket=bucket, Key=key)
+    last_modified = obj["LastModified"]
+    return last_modified
+
+
+def create_session(aws_access_key_id: str, aws_secret_access_key: str, region_name: str) -> object:
+    print("Creating session")
+    session = boto3.Session(
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=region_name,
+    )
+    s3 = session.resource("s3")
+    return s3

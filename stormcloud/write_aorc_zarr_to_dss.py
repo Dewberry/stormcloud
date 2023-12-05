@@ -76,6 +76,8 @@ class ZarrExtractionInput:
         self.end_dt = datetime.datetime.strptime(self.end_date, "%Y-%m-%d")
 
 
+# TODO: add resolution as input
+# TODO: add metadata creation
 def generate_dss_from_zarr(
     output_dir: str,
     aoi_name: str,

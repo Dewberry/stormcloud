@@ -2,10 +2,10 @@
 import datetime
 import logging
 import os
-from dataclasses import dataclass
-from enum import Enum
 from io import TextIOWrapper
-from typing import Union
+from typing import Tuple, Union
+
+from .shared import DSSPathnameMeta, DSSVariable, decode_data_variable
 
 GRID_FILE_HEADER_TEMPLATE = """Grid Manager: {initial} Transpose
      Version: 4.11
@@ -65,28 +65,13 @@ MONTH_LIST = [
 ]
 
 
-class GridVariable(Enum):
-    TEMPERATURE = "Temperature"
-    PRECIPITATION = "Precipitation"
-
-
-@dataclass
-class DSSMeta:
-    resolution: int
-    watershed: str
-    start_dt: datetime.datetime
-    end_dt: Union[datetime.datetime, None]
-    source: str
-    grid_variable: GridVariable
-
-
 class GridWriter:
     def __init__(
         self,
         grid_filename: str,
         watershed: Union[str, None] = None,
-        top_year_limit: Union[int, None] = None,
-        overall_limit: Union[int, None] = None,
+        top_year_limit: int = 100,
+        overall_limit: int = 1000,
         dry: bool = False,
     ) -> None:
         self.grid_filename = grid_filename
@@ -138,7 +123,7 @@ class GridWriter:
                     f"No dss file found at provided path {dss_relative_path} relative to grid parent directory {self.parent_dir}"
                 )
             meta = decode_pathname(pathname)
-            if meta.grid_variable == GridVariable.TEMPERATURE:
+            if meta.grid_variable == DSSVariable.TEMPERATURE:
                 formatted_header_template = GRID_UNRANKED_RECORD_HEADER_TEMPLATE.format(
                     top_date=meta.start_dt.strftime("%Y-%m-%d"),
                     grid_type=meta.grid_variable.value,
@@ -177,13 +162,18 @@ class GridWriter:
             self.file.write(formatted_template)
 
 
-def format_rank(rank: int, limit: int) -> str:
+def prepare_structure(base_dir: str) -> None:
+    dss_dir = os.path.join(base_dir, "dss")
+    os.makedirs(dss_dir, exist_ok=True)
+
+
+def format_rank(rank: int) -> str:
     limit_digits = len(str(limit))
     rank_str = str(rank).zfill(limit_digits)
     return rank_str
 
 
-def decode_pathname(pathname: str) -> DSSMeta:
+def decode_pathname(pathname: str) -> DSSPathnameMeta:
     """Decodes dss path name to yield metadata
 
     Args:
@@ -195,15 +185,12 @@ def decode_pathname(pathname: str) -> DSSMeta:
     _, shg, watershed, var_name, start_str, end_str, source, _ = pathname.split("/")
     resolution = int(shg[3])
     start_dt = handle_dss_date(start_str)
-    if var_name == "PRECIPITATION":
-        grid_variable = GridVariable.PRECIPITATION
+    grid_variable = decode_data_variable(var_name)
+    if grid_variable == DSSVariable.PRECIPITATION:
         end_dt = handle_dss_date(end_str)
-    elif var_name == "TEMPERATURE":
-        grid_variable = GridVariable.TEMPERATURE
-        end_dt = None
     else:
-        raise ValueError(f"Unexpected variable {var_name} found in path {pathname}")
-    meta = DSSMeta(resolution, watershed, start_dt, end_dt, source, grid_variable)
+        end_dt = None
+    meta = DSSPathnameMeta(resolution, watershed, start_dt, end_dt, source, grid_variable)
     return meta
 
 

@@ -1,19 +1,19 @@
+import datetime
+import json
 import logging
 import os
 import sys
 import warnings
-from datetime import datetime, timedelta
-from typing import Dict, Tuple
+from typing import Callable, Dict, List, Tuple, Union
 
 import numpy as np
 from affine import Affine
 from pydsstools.heclib.dss.HecDss import Open
-from pydsstools.heclib.utils import (
-    SHG_WKT,
-    dss_logging,
-    gridInfo,
-    lower_left_xy_from_transform,
-)
+from pydsstools.heclib.utils import SHG_WKT, dss_logging, gridInfo, lower_left_xy_from_transform
+from shapely.geometry import Point
+from shapely.ops import transform
+
+from .shared import decode_data_variable
 
 warnings.filterwarnings("ignore")
 
@@ -25,6 +25,86 @@ import xarray as xr
 logging.root.setLevel(logging.ERROR)
 dss_logging.config(level="Error")
 logging.root.setLevel(logging.INFO)
+
+
+# TODO: add sample dss parameter for init
+# TODO: add year rank limit from query for init
+# TODO: add overall rank limit from query for init
+class DSSProductMeta:
+    def __init__(
+        self,
+        watershed: str,
+        watershed_s3_uri: str,
+        transposition_domain: str,
+        transposition_domain_s3_uri: str,
+        dss_s3_uri: str,
+        start_dt: datetime.datetime,
+        end_dt: datetime.datetime,
+        last_modification: datetime.datetime,
+        data_variables: List[str],
+        storm_point: Union[Point, None] = None,
+        shg_reproj: Union[Callable, None] = None,
+        overall_rank: Union[int, None] = None,
+        rank_within_year: Union[int, None] = None,
+        shg_x: Union[float, None] = None,
+        shg_y: Union[float, None] = None,
+    ) -> None:
+        self.watershed = watershed
+        self.watershed_s3_uri = watershed_s3_uri
+        self.transposition_domain = transposition_domain
+        self.transposition_domain_s3_uri = transposition_domain_s3_uri
+        self.dss_s3_uri = dss_s3_uri
+        self.start_dt = start_dt
+        self.end_dt = end_dt
+        self.last_modification = last_modification
+
+        self.shg_x, self.shg_y = self.__get_shg_coords(shg_reproj, storm_point, shg_x, shg_y)
+        self.overall_rank = overall_rank
+        self.rank_within_year = rank_within_year
+        self.data_variables = [decode_data_variable(v) for v in data_variables]
+
+    @staticmethod
+    def __get_shg_coords(
+        reproj: Union[Callable, None],
+        storm_point: Union[Point, None],
+        shg_x: Union[float, None],
+        shg_y: Union[float, None],
+    ) -> Tuple[float, float]:
+        if shg_x and shg_y:
+            logging.debug(f"shg x and y provided, bypassing projection of storm center")
+            return shg_x, shg_y
+        elif reproj and storm_point:
+            logging.debug(f"storm point and reprojection function provided, reprojecting")
+            shg_point = transform(reproj, storm_point)
+            return shg_point.x, shg_point.y
+        else:
+            raise ValueError(
+                f"No valid combinations of parameters submitted for calculating or assigning SHG coordinates"
+            )
+
+    @property
+    def json(self) -> dict:
+        json_output = {
+            "watershed": self.watershed,
+            "watershed_s3_uri": self.watershed_s3_uri,
+            "transposition_domain": self.transposition_domain,
+            "transposition_domain_s3_uri": self.transposition_domain_s3_uri,
+            "dss_s3_uri": self.dss_s3_uri,
+            "start_date": self.start_dt.isoformat(),
+            "end_date": self.end_dt.isoformat(),
+            "last_modification": self.last_modification.isoformat(),
+            "shg_x": self.shg_x,
+            "shg_y": self.shg_y,
+            "overall_rank": self.overall_rank,
+            "rank_within_year": self.rank_within_year,
+            "data_variables": [v.name for v in self.data_variables],
+        }
+        return json_output
+
+    @property
+    def as_bytes(self) -> bytes:
+        json_bytes = json.dumps(self.json).encode("utf-8")
+        return json_bytes
 
 
 class DSSWriter:
@@ -71,8 +151,10 @@ class DSSWriter:
             sys.stdout = sys.__stdout__
 
     def __handle_per_cum_date_info(self, dt64: np.datetime64) -> Tuple[str, str]:
-        end_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
-        start_dt = end_dt - timedelta(hours=1)
+        end_dt = datetime.datetime.utcfromtimestamp(
+            (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
+        )
+        start_dt = end_dt - datetime.timedelta(hours=1)
         path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
         if end_dt.hour == 0 and end_dt.minute == 0:
             path_e = start_dt.strftime("%d%b%Y:2400").upper()
@@ -81,9 +163,11 @@ class DSSWriter:
         return path_d, path_e
 
     def __handle_inst_val_date_info(self, dt64: np.datetime64) -> Tuple[str, str]:
-        start_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
+        start_dt = datetime.datetime.utcfromtimestamp(
+            (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
+        )
         if start_dt.hour == 0 and start_dt.minute == 0:
-            start_dt -= timedelta(days=1)
+            start_dt -= datetime.timedelta(days=1)
             path_d = start_dt.strftime("%d%b%Y:2400").upper()
         else:
             path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
@@ -170,6 +254,38 @@ class DSSWriter:
 
         self.dss_file.put_grid(path, data, grid_info)
         self.records += 1
+
+
+def decode_dss_meta_json(input_json: dict) -> DSSProductMeta:
+    watershed = input_json["watershed"]
+    watershed_s3_uri = input_json["watershed_s3_uri"]
+    transposition_domain = input_json["transposition_domain"]
+    transposition_domain_s3_uri = input_json["transposition_domain_s3_uri"]
+    dss_s3_uri = input_json["dss_s3_uri"]
+    start_dt = datetime.datetime.fromisoformat(input_json["start_date"])
+    end_dt = datetime.datetime.fromisoformat(input_json["end_date"])
+    last_modification = datetime.datetime.fromisoformat(input_json["last_modification"])
+    data_variables = [decode_data_variable(v) for v in input_json["data_variables"]]
+    shg_x = input_json["shg_x"]
+    shg_y = input_json["shg_y"]
+    overall_rank = input_json["overall_rank"]
+    rank_within_year = input_json["rank_within_year"]
+    meta = DSSProductMeta(
+        watershed,
+        watershed_s3_uri,
+        transposition_domain,
+        transposition_domain_s3_uri,
+        dss_s3_uri,
+        start_dt,
+        end_dt,
+        last_modification,
+        data_variables,
+        overall_rank=overall_rank,
+        rank_within_year=rank_within_year,
+        shg_x=shg_x,
+        shg_y=shg_y,
+    )
+    return meta
 
 
 def write_dss(

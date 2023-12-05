@@ -6,7 +6,7 @@ import re
 import shutil
 from typing import Generator, List, Tuple
 
-import boto3
+from common.cloud import create_session, get_last_modification
 from common.grid import GridWriter, MONTH_LIST
 from pydsstools.heclib.dss.HecDss import Open
 from pydsstools.heclib.utils import dss_logging
@@ -34,24 +34,6 @@ def upper_case_month(datetime_string: str) -> str:
     for month in MONTH_LIST:
         datetime_string = datetime_string.replace(month.capitalize(), month)
     return datetime_string
-
-
-def create_session(aws_access_key_id: str, aws_secret_access_key: str, region_name: str) -> object:
-    print("Creating session")
-    session = boto3.Session(
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        region_name=region_name,
-    )
-    s3 = session.resource("s3")
-    return s3
-
-
-def get_last_modification(s3: object, bucket: str, key: str) -> datetime.datetime:
-    print(f"Getting metadata from s3://{bucket}/{key}")
-    obj = s3.meta.client.head_object(Bucket=bucket, Key=key)
-    last_modified = obj["LastModified"]
-    return last_modified
 
 
 def get_precip_pathnames(precip_dss_dir: str) -> List[Tuple[str, str]]:
@@ -125,17 +107,6 @@ class TemperatureInserter:
                         self.failed_inserts.append(temperature_pathname)
 
 
-def append_grid_record(
-    grid_file_path: str,
-    temperature_pathname: str,
-    dss_filename: str,
-    last_modification: datetime.datetime,
-    dry: bool = False,
-) -> None:
-    with GridWriter(grid_file_path, dry) as grid_writer:
-        grid_writer.append_record(dss_filename, temperature_pathname, last_modification)
-
-
 if __name__ == "__main__":
     import argparse
 
@@ -182,11 +153,7 @@ if __name__ == "__main__":
     precip_fn_pathnames = get_precip_pathnames(args.destination_directory)
     temperature_inserter = TemperatureInserter()
     for pathname, fn in temperature_inserter.insert_grid(args.temperature_dss, precip_fn_pathnames):
-        append_grid_record(
-            os.path.join(args.destination_directory, grid_file),
-            pathname,
-            fn,
-            temperature_last_modification,
-        )
+        with GridWriter(os.path.join(args.destination_directory, grid_file)) as grid_writer:
+            grid_writer.append_record(fn, pathname, temperature_last_modification)
     print(f"Failed inserts: {', '.join(temperature_inserter.failed_inserts)}")
     print(f"Number of failures: {len(temperature_inserter.failed_inserts)}")

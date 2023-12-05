@@ -12,7 +12,7 @@ host:
   type: "local"
 
 container:
-  image: stormcloud:sst-latest
+  image: stormcloud:temp-precip-latest
   command:
     - python
     - -m
@@ -97,7 +97,7 @@ inputs:
     minOccurs: 1
     maxOccurs: 1
   - id: output_s3_prefix
-    title: output_s3_prefix
+    title: output s3 prefix
     description: prefix which comes between s3 bucket and dss file basename
     input:
       literalDataDomain:
@@ -116,11 +116,71 @@ inputs:
           anyValue: true
     minOccurs: 0
     maxOccurs: 1
+  - id: shg_x
+    title: shg x coordinate
+    description: x coordinate for center of storm submitted for processing in SHG WKT
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: shg_y
+    title: shg y coordinate
+    description: y coordinate for center of storm submitted for processing in SHG WKT
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: overall_rank
+    title: overall rank
+    description: rank of storm submitted for processing out of all possible storms given applied filter
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: rank_within_year
+    title: rank within year
+    description: rank of storm submitted for processing out of year in which storm occurred
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: overall_limit
+    title: overall limit
+    description: limit of how many storms to select
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: top_year_limit
+    title: top year limit
+    description: limit of how many storms per year to select
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
 
 outputs:
   - id: results
     title: results
-    description: list of s3 dss output files created by the plugin
+    description: dictionary of s3 dss output files created by the plugin
     output:
       transmissionMode:
       - value

@@ -55,7 +55,7 @@ inputs:
         valueDefinition:
           anyValue: true
     minOccurs: 1
-    maxOccurs: 8
+    maxOccurs: 1
   - id: watershed_name
     title: watershed name
     description: watershed name to use in DSS output

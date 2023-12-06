@@ -40,7 +40,7 @@ GRID_RECORD_BODY_TEMPLATE = """     Last Modified Date: {modification_date}
 
 GRID_RECORD_STORM_BODY_TEMPLATE = (
     GRID_RECORD_BODY_TEMPLATE
-    + """    Storm Center X: {storm_center_x}
+    + """     Storm Center X: {storm_center_x}
      Storm Center Y: {storm_center_y}"""
 )
 
@@ -72,6 +72,7 @@ class GridWriter:
         watershed: Union[str, None] = None,
         top_year_limit: int = 100,
         overall_limit: int = 1000,
+        dss_file_root: str = r"C:\Data",
         dry: bool = False,
     ) -> None:
         self.grid_filename = grid_filename
@@ -81,6 +82,7 @@ class GridWriter:
         self.parent_dir = os.path.dirname(self.grid_filename)
         self.top_year_limit = top_year_limit
         self.overall_limit = overall_limit
+        self.dss_file_root = dss_file_root
 
     def __enter__(self):
         if not self.dry:
@@ -94,13 +96,20 @@ class GridWriter:
         if len(args) > 0:
             print(f"Grid writer exited with errors: {args}")
 
+    def __modify_relative_dss(self, relative_dss: str) -> str:
+        file_parts = relative_dss.split(os.sep)
+        modified_relative_dss = chr(92).join([self.dss_file_root, os.path.basename(self.parent_dir), *file_parts])
+        return modified_relative_dss
+
     def prep_file(self) -> Union[TextIOWrapper, None]:
         logging.info(f"Writing header to {self.grid_filename}")
         if not self.dry:
-            f = open(self.grid_filename, "a")
             if os.path.exists(self.grid_filename):
                 logging.warning(f"{self.grid_filename} already exists; not adding GRID header")
+                f = open(self.grid_filename, "a")
+                return f
             else:
+                f = open(self.grid_filename, "a")
                 formatted_header = GRID_FILE_HEADER_TEMPLATE.format(initial=self.watershed[0].upper())
                 f.write(formatted_header)
             return f
@@ -122,6 +131,7 @@ class GridWriter:
                 raise FileNotFoundError(
                     f"No dss file found at provided path {dss_relative_path} relative to grid parent directory {self.parent_dir}"
                 )
+            modified_dss_relative_path = self.__modify_relative_dss(dss_relative_path)
             meta = decode_pathname(pathname)
             if meta.grid_variable == DSSVariable.TEMPERATURE:
                 formatted_header_template = GRID_UNRANKED_RECORD_HEADER_TEMPLATE.format(
@@ -131,7 +141,7 @@ class GridWriter:
                 formatted_body_template = GRID_RECORD_BODY_TEMPLATE.format(
                     modification_date=last_modification.strftime("%d %B %Y"),
                     modification_time=last_modification.strftime("%H:%M:%S"),
-                    relative_dss_fn=dss_relative_path,
+                    relative_dss_fn=modified_dss_relative_path,
                     pathname=pathname,
                 )
             else:
@@ -151,7 +161,7 @@ class GridWriter:
                 formatted_body_template = GRID_RECORD_STORM_BODY_TEMPLATE.format(
                     modification_date=last_modification.strftime("%d %B %Y"),
                     modification_time=last_modification.strftime("%H:%M:%S"),
-                    relative_dss_fn=dss_relative_path,
+                    relative_dss_fn=modified_dss_relative_path,
                     pathname=pathname,
                     storm_center_x=storm_x,
                     storm_center_y=storm_y,
@@ -167,7 +177,7 @@ def prepare_structure(base_dir: str) -> None:
     os.makedirs(dss_dir, exist_ok=True)
 
 
-def format_rank(rank: int) -> str:
+def format_rank(rank: int, limit: int) -> str:
     limit_digits = len(str(limit))
     rank_str = str(rank).zfill(limit_digits)
     return rank_str

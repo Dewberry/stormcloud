@@ -3,7 +3,7 @@ info:
   version: '2023.10.2'
   id: aorc-temp-precip-dss
   title: AORC Temperature and Precipitation DSS Extraction
-  description: Extracts temperature and precipitation data from .zarr datasets on s3 and saves them to s3
+  description: Extracts temperature and precipitation data from .zarr datasets on s3 and saves them to s3 along with standardized metadata
   jobControlOptions:
     - async-execute
   outputTransmission:

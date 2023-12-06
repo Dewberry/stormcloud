@@ -253,7 +253,7 @@ class DSSWriter:
         self.records += 1
 
 
-def decode_dss_meta_json(input_json: dict) -> DSSProductMeta:
+def decode_dss_meta_json(input_json) -> DSSProductMeta:
     model_extent_name = input_json["model_extent_name"]
     model_extent_geojson_s3_uri = input_json["model_extent_geojson_s3_uri"]
     dss_s3_uri = input_json["dss_s3_uri"]
@@ -261,7 +261,7 @@ def decode_dss_meta_json(input_json: dict) -> DSSProductMeta:
     end_dt = datetime.datetime.fromisoformat(input_json["end_date"])
     last_modification = datetime.datetime.fromisoformat(input_json["last_modification"])
     sample_pathnames = input_json["sample_pathnames"]
-    data_variables = [decode_data_variable(v) for v in input_json["data_variables"]]
+    data_variables = input_json["data_variables"]
     shg_x = input_json["shg_x"]
     shg_y = input_json["shg_y"]
     overall_rank = input_json["overall_rank"]
@@ -275,8 +275,8 @@ def decode_dss_meta_json(input_json: dict) -> DSSProductMeta:
         start_dt,
         end_dt,
         last_modification,
-        sample_pathnames,
         data_variables,
+        sample_pathnames,
         shg_x,
         shg_y,
         overall_rank,

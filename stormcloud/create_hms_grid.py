@@ -1,3 +1,5 @@
+import json
+import logging
 import os
 from typing import Iterator, List
 
@@ -10,7 +12,8 @@ def load_dss_product_metadata(s3_uris: List[str], s3_client) -> Iterator[DSSProd
     for s3_uri in s3_uris:
         bucket, key = split_s3_path(s3_uri)
         result = s3_client.get_object(Bucket=bucket, Key=key)
-        meta_dict = result["Body"].read().decode("utf-8")
+        meta_data = result["Body"].read().decode("utf-8")
+        meta_dict = json.loads(meta_data)
         meta_object = decode_dss_meta_json(meta_dict)
         yield meta_object
 
@@ -21,7 +24,7 @@ def write_meta_to_grid(grid_directory: str, grid_file_basename: str, s3_uris: Li
     meta_items = load_dss_product_metadata(s3_uris, s3_client)
     meta_header = next(meta_items)
     with GridWriter(
-        grid_filename, meta_header.watershed, meta_header.top_year_limit, meta_header.overall_limit
+        grid_filename, meta_header.model_extent_name, meta_header.top_year_limit, meta_header.overall_limit
     ) as grid_writer:
         insert_meta_into_grid(grid_writer, meta_header, s3_client)
         for meta in meta_items:

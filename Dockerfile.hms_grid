@@ -30,10 +30,7 @@ COPY stormcloud/plugins/hms_grid/requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # copy scripts called by GRID generation script
-COPY stormcloud/common/grid.py common/.
-COPY stormcloud/common/cloud.py common/.
-COPY stormcloud/common/dss.py common/.
-COPY stormcloud/common/shared.py common/.
+COPY stormcloud/common/ common/.
 
 # copy main script and plugin scripts
 COPY stormcloud/create_hms_grid.py .

@@ -18,6 +18,14 @@ services:
     env_file:
       - ./stormcloud/plugins/temp_precip/.env
 
+  stormcloud-ms-update:
+    container_name: stormcloud-ms-update
+    build:
+      context: .
+      dockerfile: Dockerfile.ms_update
+    env_file:
+      - ./stormcloud/plugins/ms_update/.env
+
   # stormcloud-etl-temp-transfer:
   #   container_name: stormcloud-temp-transfer
   #   build:

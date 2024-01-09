@@ -1,0 +1,19 @@
+FROM python:3.11-slim-bullseye
+
+RUN apt-get update
+RUN pip install --upgrade pip
+
+WORKDIR /plugin
+
+COPY stormcloud/create_ms_docs.py .
+COPY stormcloud/plugins/ms_update/main.py .
+COPY stormcloud/plugins/ms_update/ms_update_plugin.py .
+COPY stormcloud/plugins/ms_update/requirements.txt .
+COPY stormcloud/plugins/ms_update/entrypoint.sh .
+
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# run entrypoint
+RUN chmod +x /plugin/entrypoint.sh
+CMD [ "./entrypoint.sh" ]

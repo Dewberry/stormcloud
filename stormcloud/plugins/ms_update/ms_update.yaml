@@ -1,0 +1,86 @@
+
+info:
+  version: '2024.1.9'
+  id: aorc-ms-update
+  title: StormViewer Meilisearch Document Creator
+  description: Creates JSON documents in a format compatible with Meilisearch from documents stored on s3 which are created during SST runs
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "local"
+
+container:
+  image: stormcloud:ms_update-latest
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: watershed_name
+    title: watershed name
+    description: name of watershed with which output is labeled when creating documentation
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: transposition_domain
+    title: transposition domain
+    description: name of region over which watershed will be transposed when modeling
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: hours_duration
+    title: duration in hours
+    description: the length of temporal window over which precipitation data is summarized when calculating accumulation statistics
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: s3_bucket
+    title: s3 bucket
+    description: s3 bucket which holds output dss, png, and json documentation resulting from SST model runs
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: tropical_storm_json_s3_uri
+    title: tropical storm json s3 uri
+    description: the s3 uri of the JSON document containing tropical storm duration and identifiers used to find tropical storms which overlap in temporal extent with SST model runs
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: meilisearch_documents
+    title: meilisearch_documents
+    description: list of JSON-serializable dictionaries which are suitable for insertion into the StormViewer meilisearch database
+    output:
+      transmissionMode:
+      - value

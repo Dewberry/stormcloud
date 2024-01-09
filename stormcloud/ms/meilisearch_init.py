@@ -38,6 +38,8 @@ def assign_attributes(client: Client):
             "categories.lv10",
             "categories.lv11",
             "stats.mean",
+            "tropical_storm.name",
+            "tropical_storm.nature",
         ]
     )
 

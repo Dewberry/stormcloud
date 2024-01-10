@@ -18,8 +18,8 @@ services:
     env_file:
       - ./stormcloud/plugins/temp_precip/.env
 
-  stormcloud-ms-update:
-    container_name: stormcloud-ms-update
+  stormcloud-doc-rank:
+    container_name: stormcloud-doc-rank
     build:
       context: .
       dockerfile: Dockerfile.doc_rank

@@ -14,9 +14,10 @@ PLUGIN_PARAMS = {
         "duration",
         "s3_bucket",
         "tropical_storm_json_s3_uri",
+    ],
+    "optional": [
         "ranked_events_json_s3_uri",
     ],
-    "optional": [],
 }
 
 
@@ -37,10 +38,24 @@ def main(params: dict) -> str:
     tropical_storms_json = load_json(s3_client, tropical_bucket, tropical_key)
     ms_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
     ms_dict_list = [dict(m) for m in ms_docs]
-    ranked_bucket, ranked_key = split_uri(params["ranked_events_json_s3_uri"])
+    output_s3_uri = params.get(
+        "ranked_events_json_s3_uri",
+        create_default_output_uri(
+            params["s3_bucket"], params["watershed_name"], params["transposition_domain"], params["duration"]
+        ),
+    )
+    ranked_bucket, ranked_key = split_uri(output_s3_uri)
     logging.info(f"Uploading ranked documents to s3 at uri {params['ranked_events_json_s3_uri']}")
     json_str = upload_json(s3_client, ranked_bucket, ranked_key, ms_dict_list)
     return json_str
+
+
+def create_default_output_uri(bucket: str, watershed_name: str, transposition_domain: str, duration: int) -> str:
+    logging.info(f"creating default output s3 uri based on bucket, watershed, transposition domain, and duration")
+    watershed_clean = sanitize_for_s3(watershed_name)
+    transposition_clean = sanitize_for_s3(transposition_domain)
+    default_uri = f"s3://{bucket}/watersheds/{watershed_clean}/{watershed_clean}-transpo-area-{transposition_clean}/{duration}h/{watershed_clean}-{transposition_clean}-ranked-events.json"
+    return default_uri
 
 
 def split_uri(uri: str) -> Tuple[str, str]:

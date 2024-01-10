@@ -27,7 +27,7 @@ def main(params: dict) -> str:
     session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
     s3_client = session.client("s3")
     logging.info(f"getting tropical storm data from s3")
-    tropical_storms_json = create_tropical_storms_json(params.get("tropical_storm_json_s3_uri"))
+    tropical_storms_json = create_tropical_storms_json(s3_client, params.get("tropical_storm_json_s3_uri"))
     logging.info(
         f"retrieving s3 documents associated with SST run for watershed {params['watershed_name']} and domain {params['transposition_domain']}"
     )
@@ -44,7 +44,7 @@ def main(params: dict) -> str:
         ),
     )
     ranked_bucket, ranked_key = split_uri(output_s3_uri)
-    logging.info(f"Uploading ranked documents to s3 at uri {params['ranked_events_json_s3_uri']}")
+    logging.info(f"Uploading ranked documents to s3 at uri {output_s3_uri}")
     json_str = upload_json(s3_client, ranked_bucket, ranked_key, ms_dict_list)
     return json_str
 

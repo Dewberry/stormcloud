@@ -35,11 +35,16 @@ Creates datasets for hydrologic modeling in the cloud.
 
 ## Plugins -- Process API support
 
-Process API plugins exist which support both SST modeling runs and DSS file extraction from zarr data
+Process API plugins exist which support:
+- SST modeling runs
+- DSS file extraction from zarr data
+- Ranked document creation from SST modeling run output
 
 [SST plugin directory](stormcloud/plugins/sst/)
 
 [Temperature and precipitation directory](stormcloud/plugins/temp_precip/)
+
+[Ranked document plugin directory](stormcloud/plugins/doc_rank/)
 
 ---
 

@@ -68,5 +68,5 @@ def get_s3_docs(
                 SSTMeta(**data["metadata"]),
                 SSTGeom(**data["geom"]),
             )
-            logging.debug(f"parsed: {sst_doc}")
             sst_s3_docs.append(sst_doc)
+    return sst_s3_docs

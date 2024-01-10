@@ -1,7 +1,8 @@
 import datetime
+import logging
 from dataclasses import dataclass
 from types import NoneType
-from typing import List, Tuple, Union
+from typing import Any, Iterator, List, Tuple, Union
 
 import numpy as np
 from scipy.stats import rankdata
@@ -52,6 +53,17 @@ class SSTS3Document:
     metadata: SSTMeta
     geom: SSTGeom
 
+    def __iter__(self) -> Iterator[Tuple[str, Any]]:
+        d = {
+            "start": self.start.__dict__,
+            "duration": self.duration,
+            "stats": self.stats.__dict__,
+            "metadata": self.metadata.__dict__,
+            "geom": self.geom.__dict__,
+        }
+        for k, v in d.items():
+            yield k, v
+
 
 @dataclass
 class TropicalStorm:
@@ -72,9 +84,9 @@ class SSTMSDocument:
         self.start_dt = datetime.datetime.strptime(self.start.datetime, "%Y-%m-%d %H:%M:%S")
         self.end_dt = self.start_dt + datetime.timedelta(hours=self.duration)
         self.id = self._create_id(s3_document.metadata)
-        self.categories = self._create_categories()
+        self.categories = self._create_categories(s3_document.metadata)
         self.rank_dict = self._create_ranks(true_rank, declustered_rank)
-        self.tropical_storm_names, self.tropical_storm_natures = self._get_tropical_storm_attributes(storm_json)
+        self.tropical_storms = self._get_tropical_storm_attributes(storm_json)
         self.metadata = self._add_png_meta(s3_document.metadata, png_bucket)
 
     def _create_id(self, s3_meta: SSTMeta) -> str:
@@ -93,11 +105,10 @@ class SSTMSDocument:
         ranks = {"true_rank": true_rank, "declustered_rank": declustered_rank}
         return ranks
 
-    def _get_tropical_storm_attributes(self, storm_json: dict) -> Tuple[List[str], List[str]]:
+    def _get_tropical_storm_attributes(self, storm_json: List[dict]) -> List[dict]:
         ts_list = lookup_storms(self.start_dt, self.end_dt, storm_json)
-        ts_names = [t.name for t in ts_list]
-        ts_natures = [t.nature for t in ts_list]
-        return ts_names, ts_natures
+        ts_dict_list = [ts.__dict__ for ts in ts_list]
+        return ts_dict_list
 
     def _add_png_meta(self, s3_meta: SSTMeta, png_bucket: str) -> dict:
         meta_dict = s3_meta.__dict__
@@ -106,7 +117,7 @@ class SSTMSDocument:
         ] = f"https://{png_bucket}.s3.amazonaws.com/watersheds/{sanitize_for_s3(s3_meta.watershed_name)}/{sanitize_for_s3(s3_meta.watershed_name)}-transpo-area-{sanitize_for_s3(s3_meta.transposition_domain_name)}/{self.duration}h/pngs/{self.start_dt.strftime('%Y%m%d')}"
         return meta_dict
 
-    def __dict__(self) -> dict:
+    def __iter__(self) -> Iterator[Tuple[str, Any]]:
         d = {
             "id": self.id,
             "start": self.start.__dict__,
@@ -114,23 +125,29 @@ class SSTMSDocument:
             "stats": self.stats.__dict__,
             "metadata": self.metadata,
             "categories": self.categories,
-            "tropical_storm_names": self.tropical_storm_names,
-            "tropical_storm_natures": self.tropical_storm_natures,
+            "tropical_storms": self.tropical_storms,
             "rank": self.rank_dict,
         }
-        return d
+        for k, v in d.items():
+            yield k, v
 
 
-def lookup_storms(start_dt: datetime.datetime, end_dt: datetime.datetime, storm_json: dict) -> List[TropicalStorm]:
+def lookup_storms(
+    start_dt: datetime.datetime, end_dt: datetime.datetime, storm_json: List[dict]
+) -> List[TropicalStorm]:
+    logging.debug(f"searching for storms between {start_dt} and {end_dt}")
     ts_list = []
-    ts = TropicalStorm(**storm_json)
-    ts_start_dt = datetime.datetime.strptime("%Y-%m-%d", ts.start)
-    ts_end_dt = datetime.datetime.strptime("%Y-%m-%d", ts.end)
-    latest_start = max(ts_start_dt, start_dt)
-    earliest_end = min(ts_end_dt, end_dt)
-    delta = earliest_end - latest_start
-    if delta.total_seconds() > 0:
-        ts_list.append(ts)
+    for storm in storm_json:
+        ts = TropicalStorm(**storm)
+        ts_start_dt = datetime.datetime.strptime(ts.start, "%Y-%m-%d")
+        ts_end_dt = datetime.datetime.strptime(ts.end, "%Y-%m-%d")
+        latest_start = max(ts_start_dt, start_dt)
+        earliest_end = min(ts_end_dt, end_dt)
+        delta = earliest_end - latest_start
+        if delta.total_seconds() > 0:
+            ts_list.append(ts)
+        if ts_list:
+            logging.info(f"{len(ts_list)} storm found between {start_dt} and {end_dt}: {ts_list}")
     return ts_list
 
 
@@ -138,10 +155,10 @@ def sanitize_for_s3(original_str: str) -> str:
     return original_str.replace(" ", "-").lower()
 
 
-def create_ms_documents(data: List[SSTS3Document], png_bucket: str, storm_json: dict) -> List[SSTMSDocument]:
-    # get mean ranks for docs overall
+def create_ms_documents(data: List[SSTS3Document], png_bucket: str, storm_json: List[dict]) -> List[SSTMSDocument]:
+    # get values for attributes of interest for docs overall
     docs = np.array([dict(d) for d in data])
-    starts = np.array([datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
+    starts = np.array([datetime.datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
     means = np.array([d["stats"]["mean"] for d in docs])
     mean_ranks = rankdata(means * -1, method="ordinal")
 
@@ -186,6 +203,6 @@ def create_ms_documents(data: List[SSTS3Document], png_bucket: str, storm_json: 
                 SSTMeta(**doc["metadata"]),
                 SSTGeom(**doc["geom"]),
             )
-            ms_doc = SSTMSDocument(s3_doc, png_bucket, true_rank, int(decluster_rank), storm_json)
+            ms_doc = SSTMSDocument(s3_doc, png_bucket, int(true_rank), int(decluster_rank), storm_json)
             ranked_docs.append(ms_doc)
     return ranked_docs

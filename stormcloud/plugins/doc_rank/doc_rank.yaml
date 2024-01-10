@@ -2,8 +2,8 @@
 info:
   version: '2024.1.9'
   id: aorc-ms-update
-  title: StormViewer Meilisearch Document Creator
-  description: Creates JSON documents in a format compatible with Meilisearch from documents stored on s3 which are created during SST runs
+  title: Ranked event document creator
+  description: Creates JSON documents from s3 documents containing SST run metadata with additional attributes including rank within the year of the event by mean precipitation, s3 png URL, and potentially information on tropical storms which coincide with the SST run
   jobControlOptions:
     - async-execute
   outputTransmission:
@@ -12,7 +12,7 @@ host:
   type: "local"
 
 container:
-  image: stormcloud:ms_update-latest
+  image: stormcloud:doc_rank-latest
   command:
     - python
     - -m
@@ -88,8 +88,8 @@ inputs:
     maxOccurs: 1
 
 outputs:
-  - id: meilisearch_json_string
-    title: meilisearch_json_string
+  - id: json_string
+    title: json_string
     description: JSON-serialized list of dictionaries mirroring the JSON data which was uploaded to s3
     output:
       transmissionMode:

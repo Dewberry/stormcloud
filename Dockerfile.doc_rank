@@ -5,11 +5,11 @@ RUN pip install --upgrade pip
 
 WORKDIR /plugin
 
-COPY stormcloud/create_ms_docs.py .
-COPY stormcloud/plugins/ms_update/main.py .
-COPY stormcloud/plugins/ms_update/ms_update_plugin.py .
-COPY stormcloud/plugins/ms_update/requirements.txt .
-COPY stormcloud/plugins/ms_update/entrypoint.sh .
+COPY stormcloud/create_ranked_docs.py .
+COPY stormcloud/plugins/doc_rank/main.py .
+COPY stormcloud/plugins/doc_rank/doc_rank_plugin.py .
+COPY stormcloud/plugins/doc_rank/requirements.txt .
+COPY stormcloud/plugins/doc_rank/entrypoint.sh .
 
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt

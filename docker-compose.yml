@@ -22,9 +22,9 @@ services:
     container_name: stormcloud-ms-update
     build:
       context: .
-      dockerfile: Dockerfile.ms_update
+      dockerfile: Dockerfile.doc_rank
     env_file:
-      - ./stormcloud/plugins/ms_update/.env
+      - ./stormcloud/plugins/doc_rank/.env
 
   # stormcloud-etl-temp-transfer:
   #   container_name: stormcloud-temp-transfer

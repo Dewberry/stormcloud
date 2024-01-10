@@ -5,8 +5,7 @@ from types import NoneType
 from typing import Any, List, Tuple, Union
 
 import boto3
-from botocore.exceptions import HTTPClientError
-from create_ms_docs import SSTGeom, SSTMeta, SSTS3Document, SSTStart, SSTStats, create_ms_documents, sanitize_for_s3
+from create_ranked_docs import SSTGeom, SSTMeta, SSTS3Document, SSTStart, SSTStats, create_ms_documents, sanitize_for_s3
 
 PLUGIN_PARAMS = {
     "required": [

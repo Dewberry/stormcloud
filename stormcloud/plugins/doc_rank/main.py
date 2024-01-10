@@ -1,6 +1,6 @@
 import sys
 
-from ms_update_plugin import PLUGIN_PARAMS, main
+from doc_rank_plugin import PLUGIN_PARAMS, main
 from papipyplug import parse_input, plugin_logger, print_results
 
 if __name__ == "__main__":

@@ -71,10 +71,20 @@ def split_uri(uri: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def load_json(client: Any, bucket: str, key: str) -> dict:
+def load_json(client: Any, bucket: str, key: str, **kwargs) -> dict:
     res = client.get_object(Bucket=bucket, Key=key)
     text = res.get("Body").read().decode()
-    data = json.loads(text)
+    data: dict = json.loads(text)
+    meta: dict = data["metadata"]
+    # override missing metadata with kwargs
+    meta_copy = meta.copy()
+    for k, v in meta.items():
+        if not v and kwargs.get(k) != None:
+            logging.warning(
+                f"s3 doc s3://{bucket}/{key} had a blank for metadata property {k} - overwriting with keyword argument {kwargs[k]}"
+            )
+            meta_copy[k] = kwargs[k]
+    data["metadata"] = meta_copy
     return data
 
 
@@ -99,7 +109,9 @@ def get_s3_docs(
         for content in contents:
             key = content.get("Key")
             logging.info(f"parsing s3 document with key {key}")
-            data = load_json(client, bucket, key)
+            data = load_json(
+                client, bucket, key, watershed_name=watershed_name, transposition_domain=transposition_domain
+            )
             sst_doc = SSTS3Document(
                 SSTStart(**data["start"]),
                 data["duration"],

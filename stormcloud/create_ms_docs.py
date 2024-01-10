@@ -157,7 +157,7 @@ def lookup_storms(
         if delta.total_seconds() > 0:
             ts_list.append(ts)
         if ts_list:
-            logging.info(f"{len(ts_list)} storm found between {start_dt} and {end_dt}: {ts_list}")
+            logging.debug(f"{len(ts_list)} storm found between {start_dt} and {end_dt}: {ts_list}")
     return ts_list
 
 

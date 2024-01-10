@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from types import NoneType
 from typing import Any, List, Tuple, Union
 
 import boto3
@@ -13,9 +14,9 @@ PLUGIN_PARAMS = {
         "transposition_domain",
         "duration",
         "s3_bucket",
-        "tropical_storm_json_s3_uri",
     ],
     "optional": [
+        "tropical_storm_json_s3_uri",
         "ranked_events_json_s3_uri",
     ],
 }
@@ -25,9 +26,8 @@ def main(params: dict) -> str:
     logging.info(f"creating s3 client")
     session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
     s3_client = session.client("s3")
-    tropical_bucket, tropical_key = split_uri(params["tropical_storm_json_s3_uri"])
-    # check that JSON for tropical storms exists before beginning processing
-    s3_client.head_object(Bucket=tropical_bucket, Key=tropical_key)
+    logging.info(f"getting tropical storm data from s3")
+    tropical_storms_json = create_tropical_storms_json(params.get("tropical_storm_json_s3_uri"))
     logging.info(
         f"retrieving s3 documents associated with SST run for watershed {params['watershed_name']} and domain {params['transposition_domain']}"
     )
@@ -35,7 +35,6 @@ def main(params: dict) -> str:
         s3_client, params["s3_bucket"], params["watershed_name"], params["transposition_domain"], params["duration"]
     )
     logging.info(f"loading tropical storm data from s3 uri {params['tropical_storm_json_s3_uri']}")
-    tropical_storms_json = load_json(s3_client, tropical_bucket, tropical_key)
     ms_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
     ms_dict_list = [dict(m) for m in ms_docs]
     output_s3_uri = params.get(
@@ -48,6 +47,15 @@ def main(params: dict) -> str:
     logging.info(f"Uploading ranked documents to s3 at uri {params['ranked_events_json_s3_uri']}")
     json_str = upload_json(s3_client, ranked_bucket, ranked_key, ms_dict_list)
     return json_str
+
+
+def create_tropical_storms_json(client: Any, uri: Union[str, NoneType]) -> Union[dict, NoneType]:
+    if uri:
+        tropical_bucket, tropical_key = split_uri(uri)
+        tropical_storms_json = load_json(client, tropical_bucket, tropical_key)
+        return tropical_storms_json
+    logging.info(f"no s3 uri provided for JSON with tropical storm data, defaulting to None")
+    return None
 
 
 def create_default_output_uri(bucket: str, watershed_name: str, transposition_domain: str, duration: int) -> str:

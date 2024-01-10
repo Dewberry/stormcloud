@@ -76,7 +76,12 @@ class TropicalStorm:
 
 class SSTMSDocument:
     def __init__(
-        self, s3_document: SSTS3Document, png_bucket: str, true_rank: int, declustered_rank: int, storm_json: str
+        self,
+        s3_document: SSTS3Document,
+        png_bucket: str,
+        true_rank: int,
+        declustered_rank: int,
+        storm_json: Union[List[dict], NoneType],
     ) -> None:
         self.start = s3_document.start
         self.duration = s3_document.duration
@@ -86,7 +91,7 @@ class SSTMSDocument:
         self.id = self._create_id(s3_document.metadata)
         self.categories = self._create_categories(s3_document.metadata)
         self.rank_dict = self._create_ranks(true_rank, declustered_rank)
-        self.tropical_storms = self._get_tropical_storm_attributes(storm_json)
+        self.tropical_storms = self._get_tropical_storm_dicts(storm_json)
         self.metadata = self._add_png_meta(s3_document.metadata, png_bucket)
 
     def _create_id(self, s3_meta: SSTMeta) -> str:
@@ -105,10 +110,12 @@ class SSTMSDocument:
         ranks = {"true_rank": true_rank, "declustered_rank": declustered_rank}
         return ranks
 
-    def _get_tropical_storm_attributes(self, storm_json: List[dict]) -> List[dict]:
-        ts_list = lookup_storms(self.start_dt, self.end_dt, storm_json)
-        ts_dict_list = [ts.__dict__ for ts in ts_list]
-        return ts_dict_list
+    def _get_tropical_storm_dicts(self, storm_json: Union[List[dict], NoneType]) -> Union[List[dict], NoneType]:
+        if storm_json:
+            ts_list = lookup_storms(self.start_dt, self.end_dt, storm_json)
+            ts_dict_list = [ts.__dict__ for ts in ts_list]
+            return ts_dict_list
+        return None
 
     def _add_png_meta(self, s3_meta: SSTMeta, png_bucket: str) -> dict:
         meta_dict = s3_meta.__dict__
@@ -129,7 +136,10 @@ class SSTMSDocument:
             "rank": self.rank_dict,
         }
         for k, v in d.items():
-            yield k, v
+            if k == "tropical_storms" and v == None:
+                continue
+            else:
+                yield k, v
 
 
 def lookup_storms(
@@ -155,7 +165,9 @@ def sanitize_for_s3(original_str: str) -> str:
     return original_str.replace(" ", "-").lower()
 
 
-def create_ms_documents(data: List[SSTS3Document], png_bucket: str, storm_json: List[dict]) -> List[SSTMSDocument]:
+def create_ms_documents(
+    data: List[SSTS3Document], png_bucket: str, storm_json: Union[List[dict], NoneType]
+) -> List[SSTMSDocument]:
     # get values for attributes of interest for docs overall
     docs = np.array([dict(d) for d in data])
     starts = np.array([datetime.datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])

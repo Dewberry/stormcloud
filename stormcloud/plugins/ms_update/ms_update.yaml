@@ -78,9 +78,9 @@ inputs:
     maxOccurs: 1
 
 outputs:
-  - id: meilisearch_documents
-    title: meilisearch_documents
-    description: list of JSON-serializable dictionaries which are suitable for insertion into the StormViewer meilisearch database
+  - id: meilisearch_json_string
+    title: meilisearch_json_string
+    description: JSON-serialized list of dictionaries which are suitable for insertion into the StormViewer meilisearch database
     output:
       transmissionMode:
       - value

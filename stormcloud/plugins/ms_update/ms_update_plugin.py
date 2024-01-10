@@ -18,7 +18,7 @@ PLUGIN_PARAMS = {
 }
 
 
-def main(params: dict) -> List[dict]:
+def main(params: dict) -> str:
     logging.info(f"creating s3 client")
     session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
     s3_client = session.client("s3")
@@ -34,7 +34,8 @@ def main(params: dict) -> List[dict]:
     tropical_storms_json = load_json(s3_client, bucket, key)
     ms_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
     ms_dict_list = [dict(m) for m in ms_docs]
-    return ms_dict_list
+    ms_json_str = json.dumps(ms_dict_list)
+    return ms_json_str
 
 
 def load_json(client: Any, bucket: str, key: str) -> dict:

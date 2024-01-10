@@ -1,7 +1,7 @@
 import datetime
 from dataclasses import dataclass
 from types import NoneType
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import numpy as np
 from scipy.stats import rankdata
@@ -74,7 +74,7 @@ class SSTMSDocument:
         self.id = self._create_id(s3_document.metadata)
         self.categories = self._create_categories()
         self.rank_dict = self._create_ranks(true_rank, declustered_rank)
-        self.tropical_storms = self._create_tropical_storms(storm_json)
+        self.tropical_storm_names, self.tropical_storm_natures = self._get_tropical_storm_attributes(storm_json)
         self.metadata = self._add_png_meta(s3_document.metadata, png_bucket)
 
     def _create_id(self, s3_meta: SSTMeta) -> str:
@@ -93,10 +93,11 @@ class SSTMSDocument:
         ranks = {"true_rank": true_rank, "declustered_rank": declustered_rank}
         return ranks
 
-    def _create_tropical_storms(self, storm_json: dict) -> list[dict]:
+    def _get_tropical_storm_attributes(self, storm_json: dict) -> Tuple[List[str], List[str]]:
         ts_list = lookup_storms(self.start_dt, self.end_dt, storm_json)
-        ts_dict_list = [dict(t) for t in ts_list]
-        return ts_dict_list
+        ts_names = [t.name for t in ts_list]
+        ts_natures = [t.nature for t in ts_list]
+        return ts_names, ts_natures
 
     def _add_png_meta(self, s3_meta: SSTMeta, png_bucket: str) -> dict:
         meta_dict = s3_meta.__dict__
@@ -113,7 +114,8 @@ class SSTMSDocument:
             "stats": self.stats.__dict__,
             "metadata": self.metadata,
             "categories": self.categories,
-            "tropical_storms": self.tropical_storms,
+            "tropical_storm_names": self.tropical_storm_names,
+            "tropical_storm_natures": self.tropical_storm_natures,
             "rank": self.rank_dict,
         }
         return d

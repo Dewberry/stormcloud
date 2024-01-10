@@ -48,4 +48,4 @@ Process API plugins exist which support:
 
 ---
 
-To test plugins, run [build_and_run.sh](build_and_run.sh) followed by either 'sst' or 'temp_precip', depending on which plugin you would like to test. Be aware that these tests result in outputs being written to s3, so test with caution
+To test plugins, run [build_and_run.sh](build_and_run.sh) followed by either 'sst', 'temp_precip', or 'doc_rank', depending on which plugin you would like to test. Be aware that these tests result in outputs being written to s3, so test with caution

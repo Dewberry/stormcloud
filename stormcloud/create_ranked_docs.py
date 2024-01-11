@@ -179,6 +179,7 @@ def sanitize_for_s3(original_str: str) -> str:
 def create_ms_documents(
     data: List[SSTS3Document], png_bucket: str, storm_json: Union[List[dict], NoneType]
 ) -> List[SSTRankedDocument]:
+    logging.info(f"beginning ranking of s3 documents")
     # get values for attributes of interest for docs overall
     docs = np.array([dict(d) for d in data])
     starts = np.array([datetime.datetime.strptime(d["start"]["datetime"], "%Y-%m-%d %H:%M:%S") for d in docs])
@@ -220,12 +221,13 @@ def create_ms_documents(
                 decluster_rank = -1
             true_rank = idx + 1
             s3_doc = SSTS3Document(
-                SSTStart(**doc["start"]),
+                SSTStart.from_dict(doc["start"]),
                 doc["duration"],
-                SSTStats(**doc["stats"]),
-                SSTMeta(**doc["metadata"]),
-                SSTGeom(**doc["geom"]),
+                SSTStats.from_dict(doc["stats"]),
+                SSTMeta.from_dict(doc["metadata"]),
+                SSTGeom.from_dict(doc["geom"]),
             )
+            logging.info(f"created meilisearch")
             ms_doc = SSTRankedDocument(s3_doc, png_bucket, int(true_rank), int(decluster_rank), storm_json)
             ranked_docs.append(ms_doc)
     return ranked_docs

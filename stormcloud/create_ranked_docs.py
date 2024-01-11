@@ -1,15 +1,26 @@
 import datetime
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from types import NoneType
-from typing import Any, Iterator, List, Tuple, Union
+from typing import Any, Callable, Iterator, List, Tuple, Union
 
 import numpy as np
 from scipy.stats import rankdata
 
 
+class FlexibleDataclass:
+    @classmethod
+    def from_dict(cls: Callable, dict_: dict):
+        dict_fields = {k for k in dict_.keys()}
+        class_fields = [f.name for f in fields(cls)]
+        diff = dict_fields.difference(class_fields)
+        if diff:
+            logging.warning(f"Creating instance of {cls.__name__} with unused attributes provided: {diff}")
+        return cls(**{k: v for k, v in dict_.items() if k in class_fields})
+
+
 @dataclass
-class SSTStart:
+class SSTStart(FlexibleDataclass):
     datetime: str
     timestamp: int
     calendar_year: int
@@ -18,7 +29,7 @@ class SSTStart:
 
 
 @dataclass
-class SSTStats:
+class SSTStats(FlexibleDataclass):
     count: int
     mean: float
     max: float
@@ -28,7 +39,7 @@ class SSTStats:
 
 
 @dataclass
-class SSTGeom:
+class SSTGeom(FlexibleDataclass):
     x_delta: int
     y_delta: int
     center_x: float
@@ -36,7 +47,7 @@ class SSTGeom:
 
 
 @dataclass
-class SSTMeta:
+class SSTMeta(FlexibleDataclass):
     source: str
     watershed_name: str
     transposition_domain_name: str
@@ -46,7 +57,7 @@ class SSTMeta:
 
 
 @dataclass
-class SSTS3Document:
+class SSTS3Document(FlexibleDataclass):
     start: SSTStart
     duration: int
     stats: SSTStats

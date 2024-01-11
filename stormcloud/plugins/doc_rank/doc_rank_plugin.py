@@ -146,11 +146,11 @@ def get_s3_docs(
                     data, watershed_name=watershed_name.capitalize(), transposition_domain=transposition_domain.lower()
                 )
                 sst_doc = SSTS3Document(
-                    SSTStart(**data["start"]),
+                    SSTStart.from_dict(data["start"]),
                     data["duration"],
-                    SSTStats(**data["stats"]),
-                    SSTMeta(**data["metadata"]),
-                    SSTGeom(**data["geom"]),
+                    SSTStats.from_dict(data["stats"]),
+                    SSTMeta.from_dict(**data["metadata"]),
+                    SSTGeom.from_dict(**data["geom"]),
                 )
                 sst_s3_docs.append(sst_doc)
     return sst_s3_docs

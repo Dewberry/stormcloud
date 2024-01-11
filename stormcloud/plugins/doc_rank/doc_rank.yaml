@@ -86,6 +86,26 @@ inputs:
           anyValue: true
     minOccurs: 0
     maxOccurs: 1
+  - id: start_date
+    title: start date
+    description: the start date which, along with the end date parameter, will inform the filter applied to s3 document keys before parsing; should be in %Y%m%d format such as '19790201' for February 1st, 1979; if none provided, s3 documents will not be filtered and all documents for the SST run will be ranked
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: end_date
+    title: end date
+    description: the end date which, along with the start date parameter, will inform the filter applied to s3 document keys before parsing; should be in %Y%m%d format such as '19790201' for February 1st, 1979; if none provided, s3 documents will not be filtered and all documents for the SST run will be ranked
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
 
 outputs:
   - id: json_string

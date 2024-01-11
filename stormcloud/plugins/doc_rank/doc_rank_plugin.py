@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os
@@ -17,6 +18,8 @@ PLUGIN_PARAMS = {
     "optional": [
         "tropical_storm_json_s3_uri",
         "ranked_events_json_s3_uri",
+        "start_date",
+        "end_date",
     ],
 }
 
@@ -30,10 +33,17 @@ def main(params: dict) -> str:
     logging.info(
         f"retrieving s3 documents associated with SST run for watershed {params['watershed_name']} and domain {params['transposition_domain']}"
     )
+    start_dt = decode_datetime(params.get("start_date"))
+    end_dt = decode_datetime(params.get("end_date"))
     s3_docs = get_s3_docs(
-        s3_client, params["s3_bucket"], params["watershed_name"], params["transposition_domain"], params["duration"]
+        s3_client,
+        params["s3_bucket"],
+        params["watershed_name"],
+        params["transposition_domain"],
+        params["duration"],
+        start_dt,
+        end_dt,
     )
-    logging.info(f"loading tropical storm data from s3 uri {params['tropical_storm_json_s3_uri']}")
     ms_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
     ms_dict_list = [dict(m) for m in ms_docs]
     output_s3_uri = params.get(
@@ -46,6 +56,12 @@ def main(params: dict) -> str:
     logging.info(f"Uploading ranked documents to s3 at uri {output_s3_uri}")
     json_str = upload_json(s3_client, ranked_bucket, ranked_key, ms_dict_list)
     return json_str
+
+
+def decode_datetime(dt_string: Union[str, NoneType]) -> Union[datetime.datetime, NoneType]:
+    if dt_string != None:
+        return datetime.datetime.strptime(dt_string, "%Y%m%d")
+    return None
 
 
 def create_tropical_storms_json(client: Any, uri: Union[str, NoneType]) -> Union[dict, NoneType]:
@@ -99,7 +115,13 @@ def upload_json(client: Any, bucket: str, key: str, data: Union[dict, list]) -> 
 
 
 def get_s3_docs(
-    client: Any, bucket: str, watershed_name: str, transposition_domain: str, duration: int
+    client: Any,
+    bucket: str,
+    watershed_name: str,
+    transposition_domain: str,
+    duration: int,
+    start_dt: Union[datetime.datetime, NoneType],
+    end_dt: Union[datetime.datetime, NoneType],
 ) -> List[SSTS3Document]:
     sst_s3_docs = []
     watershed_clean = sanitize_for_s3(watershed_name)
@@ -112,17 +134,34 @@ def get_s3_docs(
         contents = page.get("Contents", [])
         for content in contents:
             key = content.get("Key")
-            logging.info(f"parsing s3 document with key {key}")
-            data = load_json(client, bucket, key)
-            override_missing_metadata(
-                data, watershed_name=watershed_name.capitalize(), transposition_domain=transposition_domain.lower()
-            )
-            sst_doc = SSTS3Document(
-                SSTStart(**data["start"]),
-                data["duration"],
-                SSTStats(**data["stats"]),
-                SSTMeta(**data["metadata"]),
-                SSTGeom(**data["geom"]),
-            )
-            sst_s3_docs.append(sst_doc)
+            if filter_key(key, duration, start_dt, end_dt):
+                logging.info(f"parsing s3 document with key {key}")
+                data = load_json(client, bucket, key)
+                override_missing_metadata(
+                    data, watershed_name=watershed_name.capitalize(), transposition_domain=transposition_domain.lower()
+                )
+                sst_doc = SSTS3Document(
+                    SSTStart(**data["start"]),
+                    data["duration"],
+                    SSTStats(**data["stats"]),
+                    SSTMeta(**data["metadata"]),
+                    SSTGeom(**data["geom"]),
+                )
+                sst_s3_docs.append(sst_doc)
     return sst_s3_docs
+
+
+def filter_key(
+    key: str, duration: int, start_dt: Union[datetime.datetime, NoneType], end_dt: Union[datetime.datetime, NoneType]
+) -> bool:
+    if start_dt != None and end_dt != None:
+        key_basename = os.path.basename(key)
+        key_start_dt = datetime.datetime.strptime(key_basename, "%Y%m%d.json")
+        key_end_dt = key_start_dt + datetime.timedelta(hours=duration)
+        if key_start_dt >= start_dt and key_end_dt <= end_dt:
+            logging.debug(f"key passed filter, returning true")
+            return True
+        logging.debug(f"key failed filter, returning false")
+        return False
+    logging.debug(f"insufficient datetime filters given to apply filter, returning all as true")
+    return True

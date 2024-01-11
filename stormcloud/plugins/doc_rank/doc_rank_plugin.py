@@ -71,17 +71,21 @@ def split_uri(uri: str) -> Tuple[str, str]:
     return bucket, key
 
 
-def load_json(client: Any, bucket: str, key: str, **kwargs) -> dict:
+def load_json(client: Any, bucket: str, key: str) -> Union[List[dict], dict]:
     res = client.get_object(Bucket=bucket, Key=key)
     text = res.get("Body").read().decode()
-    data: dict = json.loads(text)
+    data: Union[List[dict], dict] = json.loads(text)
+    return data
+
+
+def override_missing_metadata(data: dict, **kwargs) -> dict:
+    logging.debug("override missing metadata with kwargs")
     meta: dict = data["metadata"]
-    # override missing metadata with kwargs
     meta_copy = meta.copy()
     for k, v in meta.items():
         if not v and kwargs.get(k) != None:
             logging.warning(
-                f"s3 doc s3://{bucket}/{key} had a blank for metadata property {k} - overwriting with keyword argument {kwargs[k]}"
+                f"s3 doc had a blank for metadata property {k} - overwriting with keyword argument {kwargs[k]}"
             )
             meta_copy[k] = kwargs[k]
     data["metadata"] = meta_copy
@@ -109,8 +113,9 @@ def get_s3_docs(
         for content in contents:
             key = content.get("Key")
             logging.info(f"parsing s3 document with key {key}")
-            data = load_json(
-                client, bucket, key, watershed_name=watershed_name, transposition_domain=transposition_domain
+            data = load_json(client, bucket, key)
+            override_missing_metadata(
+                data, watershed_name=watershed_name.capitalize(), transposition_domain=transposition_domain.lower()
             )
             sst_doc = SSTS3Document(
                 SSTStart(**data["start"]),

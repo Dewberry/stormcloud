@@ -103,6 +103,7 @@ class SSTRankedDocument:
         self.categories = self._create_categories(s3_document.metadata)
         self.rank_dict = self._create_ranks(true_rank, declustered_rank)
         self.tropical_storms = self._get_tropical_storm_dicts(storm_json)
+        self.geom = s3_document.geom
         self.metadata = self._add_png_meta(s3_document.metadata, png_bucket)
 
     def _create_id(self, s3_meta: SSTMeta) -> str:
@@ -132,7 +133,7 @@ class SSTRankedDocument:
         meta_dict = s3_meta.__dict__
         meta_dict[
             "png"
-        ] = f"https://{png_bucket}.s3.amazonaws.com/watersheds/{sanitize_for_s3(s3_meta.watershed_name)}/{sanitize_for_s3(s3_meta.watershed_name)}-transpo-area-{sanitize_for_s3(s3_meta.transposition_domain_name)}/{self.duration}h/pngs/{self.start_dt.strftime('%Y%m%d')}"
+        ] = f"https://{png_bucket}.s3.amazonaws.com/watersheds/{sanitize_for_s3(s3_meta.watershed_name)}/{sanitize_for_s3(s3_meta.watershed_name)}-transpo-area-{sanitize_for_s3(s3_meta.transposition_domain_name)}/{self.duration}h/pngs/{self.start_dt.strftime('%Y%m%d')}.png"
         return meta_dict
 
     def __iter__(self) -> Iterator[Tuple[str, Any]]:
@@ -142,9 +143,9 @@ class SSTRankedDocument:
             "duration": self.duration,
             "stats": self.stats.__dict__,
             "metadata": self.metadata,
+            "geom": self.geom.__dict__,
             "categories": self.categories,
             "tropical_storms": self.tropical_storms,
-            "rank": self.rank_dict,
         }
         for k, v in d.items():
             if k == "tropical_storms" and v == None:
@@ -227,7 +228,7 @@ def create_ms_documents(
                 SSTMeta.from_dict(doc["metadata"]),
                 SSTGeom.from_dict(doc["geom"]),
             )
-            logging.info(f"created meilisearch")
-            ms_doc = SSTRankedDocument(s3_doc, png_bucket, int(true_rank), int(decluster_rank), storm_json)
-            ranked_docs.append(ms_doc)
+            ranked_doc = SSTRankedDocument(s3_doc, png_bucket, int(true_rank), int(decluster_rank), storm_json)
+            logging.info(f"created ranked document with identifier {ranked_doc.id}")
+            ranked_docs.append(ranked_doc)
     return ranked_docs

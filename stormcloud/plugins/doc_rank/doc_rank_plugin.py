@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from types import NoneType
-from typing import Any, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import boto3
 from create_ranked_docs import SSTGeom, SSTMeta, SSTS3Document, SSTStart, SSTStats, create_ms_documents, sanitize_for_s3
@@ -24,7 +24,7 @@ PLUGIN_PARAMS = {
 }
 
 
-def main(params: dict) -> str:
+def main(params: dict) -> Dict[str, str]:
     logging.info(f"creating s3 client")
     session = boto3.session.Session(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"])
     s3_client = session.client("s3")
@@ -44,8 +44,8 @@ def main(params: dict) -> str:
         start_dt,
         end_dt,
     )
-    ms_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
-    ms_dict_list = [dict(m) for m in ms_docs]
+    ranked_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
+    ranked_dict_list = [dict(m) for m in ranked_docs]
     output_s3_uri = params.get(
         "ranked_events_json_s3_uri",
         create_default_output_uri(
@@ -54,8 +54,9 @@ def main(params: dict) -> str:
     )
     ranked_bucket, ranked_key = split_uri(output_s3_uri)
     logging.info(f"Uploading ranked documents to s3 at uri {output_s3_uri}")
-    json_str = upload_json(s3_client, ranked_bucket, ranked_key, ms_dict_list)
-    return json_str
+    upload_json(s3_client, ranked_bucket, ranked_key, ranked_dict_list)
+    sample_json_str = {"first": json.dumps(ranked_dict_list[0]), "last": json.dumps(ranked_dict_list[-1])}
+    return sample_json_str
 
 
 def decode_datetime(dt_string: Union[str, NoneType]) -> Union[datetime.datetime, NoneType]:

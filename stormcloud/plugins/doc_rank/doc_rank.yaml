@@ -108,9 +108,9 @@ inputs:
     maxOccurs: 1
 
 outputs:
-  - id: json_string
-    title: json_string
-    description: JSON-serialized list of dictionaries mirroring the JSON data which was uploaded to s3
+  - id: sample_json
+    title: sample_json
+    description: Sample dictionary containing the first and last JSON-serialized dictionaries mirroring the JSON data which was uploaded to s3
     output:
       transmissionMode:
-      - str
+      - value

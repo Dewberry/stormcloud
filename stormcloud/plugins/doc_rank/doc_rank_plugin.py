@@ -55,8 +55,12 @@ def main(params: dict) -> Dict[str, str]:
     ranked_bucket, ranked_key = split_uri(output_s3_uri)
     logging.info(f"Uploading ranked documents to s3 at uri {output_s3_uri}")
     upload_json(s3_client, ranked_bucket, ranked_key, ranked_dict_list)
-    sample_json_str = {"first": json.dumps(ranked_dict_list[0]), "last": json.dumps(ranked_dict_list[-1])}
-    return sample_json_str
+    results_json = {
+        "first": json.dumps(ranked_dict_list[0]),
+        "last": json.dumps(ranked_dict_list[-1]),
+        "s3_uri": output_s3_uri,
+    }
+    return results_json
 
 
 def decode_datetime(dt_string: Union[str, NoneType]) -> Union[datetime.datetime, NoneType]:

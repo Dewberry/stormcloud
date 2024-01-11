@@ -108,9 +108,19 @@ inputs:
     maxOccurs: 1
 
 outputs:
-  - id: sample_json
-    title: sample_json
-    description: Sample dictionary containing the first and last JSON-serialized dictionaries mirroring the JSON data which was uploaded to s3
+  - id: first
+    title: first
+    description: JSON-serialized dictionary containing ranked document information from the first s3 document parsed
     output:
       transmissionMode:
-      - value
+      - str
+  - id: last
+    title: last
+    description: JSON-serialized dictionary containing ranked document information from the last s3 document parsed
+    output:
+      transmissionMode:
+  - id: s3_uri
+    title: s3_uri
+    description: s3 URI of the uploaded JSON file containing all ranked document information
+    output:
+      transmissionMode:

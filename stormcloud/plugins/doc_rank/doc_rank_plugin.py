@@ -6,7 +6,15 @@ from types import NoneType
 from typing import Any, Dict, List, Tuple, Union
 
 import boto3
-from create_ranked_docs import SSTGeom, SSTMeta, SSTS3Document, SSTStart, SSTStats, create_ms_documents, sanitize_for_s3
+from create_ranked_docs import (
+    SSTGeom,
+    SSTMeta,
+    SSTS3Document,
+    SSTStart,
+    SSTStats,
+    create_ranked_documents,
+    sanitize_for_s3,
+)
 
 PLUGIN_PARAMS = {
     "required": [
@@ -44,8 +52,8 @@ def main(params: dict) -> Dict[str, str]:
         start_dt,
         end_dt,
     )
-    ranked_docs = create_ms_documents(s3_docs, params["s3_bucket"], tropical_storms_json)
-    ranked_dict_list = [dict(m) for m in ranked_docs]
+    ranked_dict_list = [dict(m) for m in create_ranked_documents(s3_docs, params["s3_bucket"], tropical_storms_json)]
+    print(len(ranked_dict_list))
     output_s3_uri = params.get(
         "ranked_events_json_s3_uri",
         create_default_output_uri(
@@ -146,11 +154,12 @@ def get_s3_docs(
                     data, watershed_name=watershed_name.capitalize(), transposition_domain=transposition_domain.lower()
                 )
                 sst_doc = SSTS3Document(
+                    f"s3://{bucket}/{key}",
                     SSTStart.from_dict(data["start"]),
                     data["duration"],
                     SSTStats.from_dict(data["stats"]),
-                    SSTMeta.from_dict(**data["metadata"]),
-                    SSTGeom.from_dict(**data["geom"]),
+                    SSTMeta.from_dict(data["metadata"]),
+                    SSTGeom.from_dict(data["geom"]),
                 )
                 sst_s3_docs.append(sst_doc)
     return sst_s3_docs

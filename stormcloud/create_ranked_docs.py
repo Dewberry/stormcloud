@@ -144,8 +144,8 @@ class SSTRankedDocument:
             "stats": self.stats.__dict__,
             "metadata": self.metadata,
             "geom": self.geom.__dict__,
+            "ranks": self.rank_dict,
             "categories": self.categories,
-            "tropical_storms": self.tropical_storms,
         }
         for k, v in d.items():
             if k == "tropical_storms" and v == None:

@@ -58,6 +58,7 @@ class SSTMeta(FlexibleDataclass):
 
 @dataclass
 class SSTS3Document(FlexibleDataclass):
+    s3_uri: str
     start: SSTStart
     duration: int
     stats: SSTStats
@@ -66,6 +67,7 @@ class SSTS3Document(FlexibleDataclass):
 
     def __iter__(self) -> Iterator[Tuple[str, Any]]:
         d = {
+            "s3_uri": self.s3_uri,
             "start": self.start.__dict__,
             "duration": self.duration,
             "stats": self.stats.__dict__,
@@ -94,17 +96,15 @@ class SSTRankedDocument:
         declustered_rank: int,
         storm_json: Union[List[dict], NoneType],
     ) -> None:
-        self.start = s3_document.start
         self.duration = s3_document.duration
-        self.stats = s3_document.stats
-        self.start_dt = datetime.datetime.strptime(self.start.datetime, "%Y-%m-%d %H:%M:%S")
+        self.start_dt = datetime.datetime.strptime(s3_document.start.datetime, "%Y-%m-%d %H:%M:%S")
         self.end_dt = self.start_dt + datetime.timedelta(hours=self.duration)
         self.id = self._create_id(s3_document.metadata)
+        self.parent_s3_uri = s3_document.s3_uri
         self.categories = self._create_categories(s3_document.metadata)
         self.rank_dict = self._create_ranks(true_rank, declustered_rank)
         self.tropical_storms = self._get_tropical_storm_dicts(storm_json)
-        self.geom = s3_document.geom
-        self.metadata = self._add_png_meta(s3_document.metadata, png_bucket)
+        self.png = self._create_png_url(s3_document.metadata, png_bucket)
 
     def _create_id(self, s3_meta: SSTMeta) -> str:
         meta_id = f"{sanitize_for_s3(s3_meta.watershed_name)}_{sanitize_for_s3(s3_meta.transposition_domain_name)}_{self.duration}h_{self.start_dt.strftime('%Y%m%d')}"
@@ -129,23 +129,16 @@ class SSTRankedDocument:
             return ts_dict_list
         return None
 
-    def _add_png_meta(self, s3_meta: SSTMeta, png_bucket: str) -> dict:
-        meta_dict = s3_meta.__dict__
-        meta_dict[
-            "png"
-        ] = f"https://{png_bucket}.s3.amazonaws.com/watersheds/{sanitize_for_s3(s3_meta.watershed_name)}/{sanitize_for_s3(s3_meta.watershed_name)}-transpo-area-{sanitize_for_s3(s3_meta.transposition_domain_name)}/{self.duration}h/pngs/{self.start_dt.strftime('%Y%m%d')}.png"
-        return meta_dict
+    def _create_png_url(self, s3_meta: SSTMeta, png_bucket: str) -> dict:
+        return f"https://{png_bucket}.s3.amazonaws.com/watersheds/{sanitize_for_s3(s3_meta.watershed_name)}/{sanitize_for_s3(s3_meta.watershed_name)}-transpo-area-{sanitize_for_s3(s3_meta.transposition_domain_name)}/{self.duration}h/pngs/{self.start_dt.strftime('%Y%m%d')}.png"
 
     def __iter__(self) -> Iterator[Tuple[str, Any]]:
         d = {
             "id": self.id,
-            "start": self.start.__dict__,
-            "duration": self.duration,
-            "stats": self.stats.__dict__,
-            "metadata": self.metadata,
-            "geom": self.geom.__dict__,
+            "parent_s3_uri": self.parent_s3_uri,
             "ranks": self.rank_dict,
             "categories": self.categories,
+            "tropical_storms": self.tropical_storms,
         }
         for k, v in d.items():
             if k == "tropical_storms" and v == None:
@@ -177,9 +170,9 @@ def sanitize_for_s3(original_str: str) -> str:
     return original_str.replace(" ", "-").lower()
 
 
-def create_ms_documents(
+def create_ranked_documents(
     data: List[SSTS3Document], png_bucket: str, storm_json: Union[List[dict], NoneType]
-) -> List[SSTRankedDocument]:
+) -> Iterator[SSTRankedDocument]:
     logging.info(f"beginning ranking of s3 documents")
     # get values for attributes of interest for docs overall
     docs = np.array([dict(d) for d in data])
@@ -203,16 +196,18 @@ def create_ms_documents(
                 decluster = True
             decluster_mask = np.append(decluster_mask, decluster)
             starts_by_mean = np.append(starts_by_mean, dt)
-    year_range = np.array([dt.year for dt in starts])
+    years = np.array([dt.year for dt in starts])
+    min_year = int(np.min(years))
+    max_year = int(np.max(years))
     years_by_mean = np.array([dt.year for dt in starts_by_mean])
 
     # get true ranks and declustered rank within each year of interest
-    ranked_docs = []
-    for year in year_range:
-        yr_decluster_mask = decluster_mask[years_by_mean == year]
-        yr_starts_by_mean = starts_by_mean[years_by_mean == year]
-        yr_starts = starts[year_range == year]
-        yr_docs = docs[year_range == year]
+    current_year = min_year
+    while current_year <= max_year:
+        yr_decluster_mask = decluster_mask[years_by_mean == current_year]
+        yr_starts_by_mean = starts_by_mean[years_by_mean == current_year]
+        yr_starts = starts[years == current_year]
+        yr_docs = docs[years == current_year]
 
         for doc, start in zip(yr_docs, yr_starts):
             idx = np.where(yr_starts_by_mean == start)[0][0]
@@ -222,6 +217,7 @@ def create_ms_documents(
                 decluster_rank = -1
             true_rank = idx + 1
             s3_doc = SSTS3Document(
+                doc["s3_uri"],
                 SSTStart.from_dict(doc["start"]),
                 doc["duration"],
                 SSTStats.from_dict(doc["stats"]),
@@ -229,6 +225,8 @@ def create_ms_documents(
                 SSTGeom.from_dict(doc["geom"]),
             )
             ranked_doc = SSTRankedDocument(s3_doc, png_bucket, int(true_rank), int(decluster_rank), storm_json)
-            logging.info(f"created ranked document with identifier {ranked_doc.id}")
-            ranked_docs.append(ranked_doc)
-    return ranked_docs
+            logging.info(
+                f"created ranked document with identifier {ranked_doc.id} and ranks {true_rank} (true), {decluster_rank} (declustered)"
+            )
+            yield ranked_doc
+        current_year += 1

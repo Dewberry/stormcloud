@@ -67,11 +67,7 @@ def construct_key(
         )
 
 
-def get_ranked_docs(
-    bucket: str,
-    s3_client: Any,
-    **kwargs
-) -> Iterator[dict]:
+def get_ranked_docs(bucket: str, s3_client: Any, **kwargs) -> Iterator[dict]:
     json_key = construct_key(**kwargs)
     logging.info(f"getting ranked document information from s3://{bucket}/{json_key}")
     res = s3_client.get_object(Bucket=bucket, Key=json_key)
@@ -121,7 +117,8 @@ class DocumentHandler:
             r = {}
         return r
 
-def main(ms_client: Client, s3_client: Any, index: str, s3_bucket: str, update: bool, **kwargs)
+
+def main(ms_client: Client, s3_client: Any, index: str, s3_bucket: str, update: bool, **kwargs):
     with DocumentHandler(ms_client, index, update) as document_handler:
         for d in get_ranked_docs(s3_bucket, s3_client, **kwargs):
             d = reconstruct_ranked_doc(d, s3_client)
@@ -181,7 +178,11 @@ if __name__ == "__main__":
         args.s3_bucket = os.environ["S3_BUCKET"]
 
     if args.subparser_name == "j":
-        kwargs={"json_key": args.json_key}
+        kwargs = {"json_key": args.json_key}
     else:
-        kwargs={"watershed_name": args.watershed_name, "transposition_domain_name": args.transposition_domain_name, "duration": args.duration}
+        kwargs = {
+            "watershed_name": args.watershed_name,
+            "transposition_domain_name": args.transposition_domain_name,
+            "duration": args.duration,
+        }
     main(ms_client, s3_client, INDEX, args.s3_bucket, args.update, **kwargs)

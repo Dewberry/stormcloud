@@ -1,12 +1,43 @@
 import json
 import logging
+from dataclasses import dataclass
 from types import NoneType
-from typing import Any, Iterator, List, Union
+from typing import Any, Iterator, List, Tuple, Union
 
 from meilisearch import Client
 
 
-def reconstruct_ranked_doc(ranked_doc_metadata: dict, s3_client: Any) -> dict:
+@dataclass
+class StormViewerDocument:
+    id: str
+    start: dict
+    duration: int
+    stats: dict
+    metadata: dict
+    geom: dict
+    ranks: dict
+    categories: dict
+    tropical_storms: Union[List[dict], NoneType]
+
+    def __iter__(self) -> Iterator[Tuple[str, Any]]:
+        d = {
+            "id": self.id,
+            "start": self.start,
+            "duration": self.duration,
+            "stats": self.stats,
+            "metadata": self.metadata,
+            "geom": self.geom,
+            "ranks": self.ranks,
+            "categories": self.categories,
+            "tropical_storms": self.tropical_storms,
+        }
+        for k, v in d.items():
+            if k == "tropical_storms" and v == None:
+                continue
+            yield k, v
+
+
+def reconstruct_ranked_doc(ranked_doc_metadata: dict, s3_client: Any) -> StormViewerDocument:
     # load parent s3 doc
     parent_meta_uri = ranked_doc_metadata["parent_s3_uri"]
     bucket, *parts = parent_meta_uri.replace("s3://", "").split("/")
@@ -14,37 +45,30 @@ def reconstruct_ranked_doc(ranked_doc_metadata: dict, s3_client: Any) -> dict:
     res = s3_client.get_object(Bucket=bucket, Key=key)
     text = res.get("Body").read().decode()
     s3_data: dict = json.loads(text)
-    reconstructed_dict = {}
-    # add id
-    reconstructed_dict["id"] = ranked_doc_metadata["id"]
-    # copy start
-    reconstructed_dict["start"] = s3_data["start"]
-    # copy duration
-    reconstructed_dict["duration"] = s3_data["duration"]
-    # copy stats
-    reconstructed_dict["stats"] = s3_data["stats"]
-    # insert png url into metadata properties
+    # insert png url into s3 metadata properties
     meta_copy = s3_data["metadata"].copy()
     meta_copy["png"] = ranked_doc_metadata["png_url"]
-    reconstructed_dict["metadata"] = meta_copy
-    # copy geom
-    reconstructed_dict["geom"] = s3_data["geom"]
-    # add ranks
-    reconstructed_dict["ranks"] = ranked_doc_metadata["ranks"]
-    # add categories
-    reconstructed_dict["categories"] = ranked_doc_metadata["categories"]
-    # if tropical storms attribute is in ranked_doc_metadata, put in as attribute
+    # format tropical storms as appropriate
     ts = ranked_doc_metadata.get("tropical_storms")
-    format_tropical_storms(reconstructed_dict, ts)
+    ts_formatted = format_tropical_storms(ts)
+    # construct storm viewer doc from properties from s3 doc and ranked doc
+    doc = StormViewerDocument(
+        ranked_doc_metadata["id"],
+        s3_data["start"],
+        s3_data["duration"],
+        s3_data["stats"],
+        meta_copy,
+        s3_data["geom"],
+        ranked_doc_metadata["ranks"],
+        ranked_doc_metadata["categories"],
+        ts_formatted,
+    )
     logging.info(f"successfully reconstructed meilisearch formatted document from ranked document metadata")
-    return reconstructed_dict
+    return doc
 
 
-def format_tropical_storms(metadata_dict: dict, tropical_storms: Union[List[dict], NoneType]) -> dict:
-    if tropical_storms == None:
-        return metadata_dict
-    metadata_dict["tropical_storms"] = tropical_storms
-    return metadata_dict
+def format_tropical_storms(tropical_storms: Union[List[dict], NoneType]) -> Any:
+    return tropical_storms
 
 
 def construct_key(
@@ -121,8 +145,8 @@ class DocumentHandler:
 def main(ms_client: Client, s3_client: Any, index: str, s3_bucket: str, update: bool, **kwargs):
     with DocumentHandler(ms_client, index, update) as document_handler:
         for d in get_ranked_docs(s3_bucket, s3_client, **kwargs):
-            d = reconstruct_ranked_doc(d, s3_client)
-            document_handler.queue_document(d)
+            stormviewer_doc = reconstruct_ranked_doc(d, s3_client)
+            document_handler.queue_document(dict(stormviewer_doc))
 
 
 if __name__ == "__main__":

@@ -33,12 +33,18 @@ def reconstruct_ranked_doc(ranked_doc_metadata: dict, s3_client: Any) -> dict:
     reconstructed_dict["ranks"] = ranked_doc_metadata["ranks"]
     # add categories
     reconstructed_dict["categories"] = ranked_doc_metadata["categories"]
-    # if tropical storms attribute is in ranked_doc_metadat, put in
+    # if tropical storms attribute is in ranked_doc_metadata, put in as attribute
     ts = ranked_doc_metadata.get("tropical_storms")
-    if ts != None:
-        reconstructed_dict["tropical_storms"] = ts
+    format_tropical_storms(reconstructed_dict, ts)
     logging.info(f"successfully reconstructed meilisearch formatted document from ranked document metadata")
     return reconstructed_dict
+
+
+def format_tropical_storms(metadata_dict: dict, tropical_storms: Union[List[dict], NoneType]) -> dict:
+    if tropical_storms == None:
+        return metadata_dict
+    metadata_dict["tropical_storms"] = tropical_storms
+    return metadata_dict
 
 
 def construct_key(

@@ -70,12 +70,9 @@ def construct_key(
 def get_ranked_docs(
     bucket: str,
     s3_client: Any,
-    json_key: Union[str, NoneType] = None,
-    watershed_name: Union[str, NoneType] = None,
-    transposition_domain_name: Union[str, NoneType] = None,
-    duration: Union[int, NoneType] = None,
+    **kwargs
 ) -> Iterator[dict]:
-    json_key = construct_key(json_key, watershed_name, transposition_domain_name, duration)
+    json_key = construct_key(**kwargs)
     logging.info(f"getting ranked document information from s3://{bucket}/{json_key}")
     res = s3_client.get_object(Bucket=bucket, Key=json_key)
     text = res.get("Body").read().decode()
@@ -91,6 +88,15 @@ class DocumentHandler:
         self.batch_size = batch_size
         self.update = update
         self.queue: List[dict] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args) -> None:
+        self.handle_queue()
+        non_null_args = [a for a in filter(args)]
+        if len(non_null_args) > 0:
+            logging.error(f"exited with error message: {', '.join(non_null_args)}")
 
     def queue_document(self, doc: dict) -> None:
         logging.info(f"queueing document")
@@ -114,6 +120,12 @@ class DocumentHandler:
             logging.info(f"no documents left in queue")
             r = {}
         return r
+
+def main(ms_client: Client, s3_client: Any, index: str, s3_bucket: str, update: bool, **kwargs)
+    with DocumentHandler(ms_client, index, update) as document_handler:
+        for d in get_ranked_docs(s3_bucket, s3_client, **kwargs):
+            d = reconstruct_ranked_doc(d, s3_client)
+            document_handler.queue_document(d)
 
 
 if __name__ == "__main__":
@@ -168,20 +180,8 @@ if __name__ == "__main__":
     if not args.s3_bucket:
         args.s3_bucket = os.environ["S3_BUCKET"]
 
-    doc_handler = DocumentHandler(ms_client, INDEX, args.update)
-
     if args.subparser_name == "j":
-        for d in get_ranked_docs(args.s3_bucket, s3_client, args.json_key):
-            d = reconstruct_ranked_doc(d, s3_client)
-            doc_handler.queue_document(d)
+        kwargs={"json_key": args.json_key}
     else:
-        for d in get_ranked_docs(
-            args.s3_bucket,
-            s3_client,
-            watershed_name=args.watershed_name,
-            transposition_domain_name=args.transposition_domain_name,
-            duration=args.duration,
-        ):
-            d = reconstruct_ranked_doc(d, s3_client)
-            doc_handler.queue_document(d)
-    doc_handler.handle_queue()
+        kwargs={"watershed_name": args.watershed_name, "transposition_domain_name": args.transposition_domain_name, "duration": args.duration}
+    main(ms_client, s3_client, INDEX, args.s3_bucket, args.update, **kwargs)

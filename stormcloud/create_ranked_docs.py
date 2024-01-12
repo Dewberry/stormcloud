@@ -136,6 +136,7 @@ class SSTRankedDocument:
         d = {
             "id": self.id,
             "parent_s3_uri": self.parent_s3_uri,
+            "png_url": self.png,
             "ranks": self.rank_dict,
             "categories": self.categories,
             "tropical_storms": self.tropical_storms,

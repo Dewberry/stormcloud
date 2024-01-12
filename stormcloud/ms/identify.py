@@ -36,9 +36,7 @@ def get_time_windows(
     logging.info(
         f"Finding time windows aligning with top {n} storms in year {year} for watershed {watershed_name}, transposition region version {domain_name} using {search_method_name} rank"
     )
-    for hit in query_ms(
-        ms_client, INDEX, watershed_name, domain_name, 0, n, declustered, n, year
-    ):
+    for hit in query_ms(ms_client, INDEX, watershed_name, domain_name, 0, n, declustered, n, year):
         rank = hit["ranks"]["true_rank"]
         if declustered:
             rank = hit["ranks"]["declustered_rank"]

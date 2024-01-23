@@ -1,0 +1,126 @@
+
+info:
+  version: '2024.1.9'
+  id: aorc-ms-update
+  title: Ranked event document creator
+  description: Creates JSON documents from s3 documents containing SST run metadata with additional attributes including rank within the year of the event by mean precipitation, s3 png URL, and potentially information on tropical storms which coincide with the SST run
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "local"
+
+container:
+  image: stormcloud:doc_rank-latest
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: watershed_name
+    title: watershed name
+    description: name of watershed with which output is labeled when creating documentation
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: transposition_domain
+    title: transposition domain
+    description: name of region over which watershed will be transposed when modeling
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: hours_duration
+    title: duration in hours
+    description: the length of temporal window over which precipitation data is summarized when calculating accumulation statistics
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: s3_bucket
+    title: s3 bucket
+    description: s3 bucket which holds output dss, png, and json documentation resulting from SST model runs
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: tropical_storm_json_s3_uri
+    title: tropical storm json s3 uri
+    description: the s3 uri of the JSON document containing tropical storm duration and identifiers used to find tropical storms which overlap in temporal extent with SST model runs; if none provided, a 'tropical_storms' attribute will not be present in the output document and no tropical storms will be searched
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: ranked_events_json_s3_uri
+    title: ranked events json s3 uri
+    description: the s3 uri to use when saving created JSON documents containing event data with additional information including rank and png metadata; if none provided, an s3 uri will be created for output based on provided watershed, transposition domain, and duration parameters
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: start_date
+    title: start date
+    description: the start date which, along with the end date parameter, will inform the filter applied to s3 document keys before parsing; should be in %Y%m%d format such as '19790201' for February 1st, 1979; if none provided, s3 documents will not be filtered and all documents for the SST run will be ranked
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+  - id: end_date
+    title: end date
+    description: the end date which, along with the start date parameter, will inform the filter applied to s3 document keys before parsing; should be in %Y%m%d format such as '19790201' for February 1st, 1979; if none provided, s3 documents will not be filtered and all documents for the SST run will be ranked
+    input:
+      literalDataDomain:
+        dataType: str
+        valueDefinition:
+          anyValue: true
+    minOccurs: 0
+    maxOccurs: 1
+
+outputs:
+  - id: first
+    title: first
+    description: JSON-serialized dictionary containing ranked document information from the first s3 document parsed
+    output:
+      transmissionMode:
+      - str
+  - id: last
+    title: last
+    description: JSON-serialized dictionary containing ranked document information from the last s3 document parsed
+    output:
+      transmissionMode:
+  - id: s3_uri
+    title: s3_uri
+    description: s3 URI of the uploaded JSON file containing all ranked document information
+    output:
+      transmissionMode:

@@ -10,6 +10,10 @@ elif [[ $PLUGIN == "temp_precip" ]]; then
     echo building $PLUGIN
     docker build . -t temp-precip-plugin -f Dockerfile.temp_precip
     docker run --rm -it --env-file stormcloud/plugins/temp_precip/.env temp-precip-plugin:latest
+elif [[ $PLUGIN == "doc_rank" ]]; then
+    echo building $PLUGIN
+    docker build . -t doc-rank-plugin -f Dockerfile.doc_rank
+    docker run --rm -it --env-file stormcloud/plugins/doc_rank/.env doc-rank-plugin:latest
 elif [[ $PLUGIN == "hms_grid" ]]; then
     echo building $PLUGIN
     docker build . -t hms-grid-plugin -f Dockerfile.hms_grid
@@ -19,6 +23,6 @@ elif [[ $PLUGIN == "standardize_meta" ]]; then
     docker build . -t standardize-meta-plugin -f Dockerfile.standardize_meta
     docker run --rm -it --env-file stormcloud/plugins/standardize_meta/.env standardize-meta-plugin:latest
 else
-  echo "plugin arg must be one of [sst, temp_precip, identify_sst_results, hms_grid, standardize_meta]"
+  echo "plugin arg must be one of [sst, temp_precip, doc_rank, hms_grid, standardize_meta]"
 fi
 

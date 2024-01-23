@@ -1,0 +1,19 @@
+FROM python:3.11-slim-bullseye
+
+RUN apt-get update
+RUN pip install --upgrade pip
+
+WORKDIR /plugin
+
+COPY stormcloud/create_ranked_docs.py .
+COPY stormcloud/plugins/doc_rank/main.py .
+COPY stormcloud/plugins/doc_rank/doc_rank_plugin.py .
+COPY stormcloud/plugins/doc_rank/requirements.txt .
+COPY stormcloud/plugins/doc_rank/entrypoint.sh .
+
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
+
+# run entrypoint
+RUN chmod +x /plugin/entrypoint.sh
+CMD [ "./entrypoint.sh" ]

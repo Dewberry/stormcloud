@@ -56,7 +56,7 @@ def main(params: dict) -> dict:
     results_dict = {"png": png_s3_uri, "dss": dss_s3_uri, "metadata": doc_s3_uri}
     ref_links = []
 
-    # Add presigne urls
+    # Add presigned urls
     for key, value in results_dict.items():
         bucket, s3_key = split_s3_path(value)
         exp_url = create_presigned_url(bucket, s3_key)

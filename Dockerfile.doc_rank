@@ -14,6 +14,6 @@ COPY stormcloud/plugins/doc_rank/entrypoint.sh .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# run entrypoint
-RUN chmod +x /plugin/entrypoint.sh
-CMD [ "./entrypoint.sh" ]
+# # run entrypoint
+# RUN chmod +x /plugin/entrypoint.sh
+# CMD [ "./entrypoint.sh" ]

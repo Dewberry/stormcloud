@@ -14,3 +14,6 @@ WATERSHED_FILE_LOCATION = (
 
 
 URL_ROOT = "https://thredds.rda.ucar.edu/thredds/dodsC/files/g/ds559.0"
+
+TRINITY_IBTRACS_JSON = "trinity_ibtracs_1.json"
+RANKED_EVENTS_JSON = "trinity-v01-ranked-events.json"

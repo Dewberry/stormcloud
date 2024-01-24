@@ -2,7 +2,8 @@ import io
 import logging
 from datetime import datetime, timedelta
 from typing import List, Callable, Dict, Any
-
+import os
+import json
 import boto3
 import matplotlib.pyplot as plt
 import xarray as xr
@@ -17,6 +18,7 @@ from constants import (
     URL_ROOT,
     WEST_EAST_DIM,
     WEST_EAST_DIM_3D,
+    TRINITY_IBTRACS_JSON,
 )
 from conus404_utils import calc_geopot_at_press_lvl, calculate_slp, destagger_grid
 
@@ -78,6 +80,37 @@ def process_date(date_str: str):
     water_year = year + 1 if date_obj.month > 9 else year
 
     return year, month, day, hour, water_year
+
+
+def search_tropical_events(start_date_str, duration):
+    """
+    Given a start date and a duration, finds tropical storm tracks within the time period.
+    Uses data from JSON that has been filtered to just Trinity Basin.
+    """
+    with open(TRINITY_IBTRACS_JSON, "r") as f:
+        tropical_storms_data = json.load(f)
+    start_date = datetime.strptime(start_date_str, "%Y/%m/%d-%HZ")
+    date_list = [start_date + timedelta(hours=i) for i in range(duration + 1)]
+    date_list = list(set([date.date() for date in date_list]))
+    storm_data = {}
+    for event in tropical_storms_data:
+        event_start_date = datetime.strptime(event["start"], "%Y-%m-%d").date()
+        event_end_date = datetime.strptime(event["end"], "%Y-%m-%d").date()
+
+        # Generate a list of dates within the event's duration
+        event_date_list = [
+            event_start_date + timedelta(days=i)
+            for i in range((event_end_date - event_start_date).days + 1)
+        ]
+
+        # Check for any overlap between date_list and event_date_list
+        if any(date in event_date_list for date in date_list):
+            storm_data[event["name"]] = {
+                "start_date": event_start_date.strftime("%Y-%m-%d"),
+                "end_date": event_end_date.strftime("%Y-%m-%d"),
+            }
+
+    return storm_data
 
 
 def get_2d_dataset(variable: str, date: str) -> xr.Dataset:
@@ -162,10 +195,15 @@ def get_precip_dataset(
     return datasets
 
 
-def create_gif(param_plots: List[plt.Figure], timestamp: str, var_name: str) -> str:
+def create_gif(
+    param_plots: List[plt.Figure], timestamp: str, var_name: str, gif_folder="gifs"
+) -> str:
     """
     Create an animated GIF from a list of matplotlib plots.
     """
+    if not os.path.exists(f"notebooks/{gif_folder}"):
+        os.makedirs(f"notebooks/{gif_folder}")
+
     # Convert figures to PIL Images
     images = []
     for fig in param_plots:
@@ -180,7 +218,8 @@ def create_gif(param_plots: List[plt.Figure], timestamp: str, var_name: str) -> 
     images.append(last_image)
 
     # Save PIL images as GIF
-    gif_filename = f"{var_name}_animation_{timestamp}.gif"
+    gif_filename = f"notebooks/{gif_folder}/{var_name}_animation_{timestamp}.gif"
+    gif_location = f"{gif_folder}/{var_name}_animation_{timestamp}.gif"
     images[0].save(
         gif_filename,
         save_all=True,
@@ -188,7 +227,7 @@ def create_gif(param_plots: List[plt.Figure], timestamp: str, var_name: str) -> 
         duration=1200,  # Duration in ms per frame
         loop=0,
     )
-    return gif_filename
+    return gif_location
 
 
 def precip_plotter(
@@ -250,3 +289,29 @@ def alt_plotter(
 
     # Display the GIF in the notebook
     return HTML(f'<img src="{gif_filename}" />')
+
+
+def storm_type_analysis(df):
+    """
+    Function to analyze storm type scores.
+    """
+    # Check if each parameter has values entered
+    var_sums = df.sum(axis=0)
+    for var, sum in var_sums.items():
+        if sum == 0:
+            print(f"No values were entered for {var}.\n")
+
+    # Print total scores for each storm type
+    storm_type_sums = df.sum(axis=1)
+    print("Total scores by category:\n")
+    for storm_type, score in storm_type_sums.items():
+        if storm_type != "notes":
+            print(f"{storm_type}: {score}")
+
+    max_score = storm_type_sums.max()
+    top_storm_types = storm_type_sums[storm_type_sums == max_score]
+    # Print most likely storm type based on total scores
+    if len(top_storm_types) > 1:
+        print("A hybrid storm type is most likely.")
+    else:
+        print(f"The most likely storm type is {top_storm_types.idxmax()}.")

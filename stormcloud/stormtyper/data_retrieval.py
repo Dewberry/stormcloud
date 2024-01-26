@@ -207,7 +207,10 @@ def create_gif(
 
     # Convert figures to PIL Images
     images = []
-    for fig in param_plots:
+    total_plots = len(param_plots)
+    for idx, fig in enumerate(param_plots, start=1):
+        # Add slide number to each plot
+        fig.text(0.1, 0.95, f"{idx}/{total_plots}", fontsize=12, ha="right", va="top")
         buf = io.BytesIO()
         fig.savefig(buf, format="png")
         buf.seek(0)

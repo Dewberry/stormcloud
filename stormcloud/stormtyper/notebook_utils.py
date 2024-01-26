@@ -1,6 +1,9 @@
 import ipywidgets as widgets
 from IPython.display import display
 import pandas as pd
+import os
+import scrapbook as sb
+import pandas as pd
 
 # List of storm types
 storm_types = ["mid_latitude_cyclone", "mesoscale_storm", "tropical", "local_storm"]
@@ -51,6 +54,7 @@ def create_select_widget(parameter, summary_stats):
         disabled=False,
     )
 
+    # Update summary_stats dict based on widget input
     def update_dict(change):
         for storm_type in storm_types:
             summary_stats[parameter][storm_type] = (
@@ -73,6 +77,7 @@ def create_notes_widget(parameter, summary_stats):
         disabled=False,
     )
 
+    # Update summary_stats dict based on notes widget input
     def update_notes(change):
         summary_stats[parameter]["notes"] = change["new"]
 
@@ -106,3 +111,66 @@ def storm_type_analysis(df: pd.DataFrame):
         print("A hybrid storm type is most likely.")
     else:
         print(f"The most likely storm type is {top_storm_types.idxmax()}.")
+
+
+def get_notebook_paths(notebooks_folder_path):
+    """Gets path for every notebook within given folder."""
+    notebook_paths = []
+    for file_name in os.listdir(notebooks_folder_path):
+        if file_name.endswith(".ipynb"):
+            file_path = notebooks_folder_path + "/" + file_name
+            notebook_paths.append(file_path)
+    return notebook_paths
+
+
+def determine_storm_type(row):
+    """Takes column name with the highest score as storm type"""
+    max_value = row.max()
+    max_columns = row[row == max_value].index.tolist()
+    if len(max_columns) > 1:
+        return "hybrid"
+    else:
+        return max_columns[0]
+
+
+def process_notebooks(notebook_paths):
+    """Loops through jupyter notebooks and uses scrapbook to gather stats from each one, converting the stats to a dataframe"""
+
+    all_data = pd.DataFrame()
+    for path in notebook_paths:
+        storm_date = path.split("/")[-1].split(".")[0].split("-")[-1]
+        nb = sb.read_notebook(path)
+        scraps = nb.scraps
+        stats_df = pd.DataFrame(scraps["summary_stats"].data)
+
+        # Extract 'notes' row and adds them, then drop the row
+        if "notes" in stats_df.index:
+            notes_row = stats_df.loc["notes"]
+            notes = " ".join(notes_row.dropna().astype(str))
+            stats_df = stats_df.drop("notes")
+        else:
+            notes = ""
+
+        storm_type_sums = stats_df.sum(axis=1)
+        df = storm_type_sums.to_frame().T
+        df.insert(0, "storm_start_date", storm_date)
+        df["likely_storm_type"] = df.drop("storm_start_date", axis=1).apply(
+            determine_storm_type, axis=1
+        )
+
+        # Add notes to df
+        df["notes"] = notes
+
+        all_data = pd.concat([all_data, df], ignore_index=True)
+    return all_data
+
+
+def convert_paths_to_html_links(data_frame, notebook_paths):
+    """Add HTML hyperlinks to dataframe"""
+
+    html_paths = [path.replace(".ipynb", ".html") for path in notebook_paths]
+    data_frame["HTML_Link"] = html_paths
+    data_frame["HTML_Link"] = data_frame["HTML_Link"].apply(
+        lambda x: f"<a href='{x}'>{x}</a>"
+    )
+    return data_frame

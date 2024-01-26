@@ -1,8 +1,13 @@
 import papermill as pm
 from datetime import datetime
 
+storm_dates = [
+    "2017/08/28-00z",
+    "2015/10/24-00z",
+    "1989/05/14-00z",
+    "1986/03/11-00z",
+]
 
-storm_dates = ["2015/10/24-00z", "1989/05/14-00z", "1986/03/11-00z", "1998/01/05-00z"]
 
 for date in storm_dates:
     print(date)
@@ -26,12 +31,3 @@ for date in storm_dates:
         f"notebooks/storm-{output_date}.ipynb",
         parameters={"storm_params": storm_params},
     )
-
-# import scrapbook as sb
-
-# # read a notebook and get previously recorded scraps
-# nb = sb.read_notebook("stormtyper.ipynb")
-# scraps = nb.scraps
-
-
-# scraps['summary_stats'].data

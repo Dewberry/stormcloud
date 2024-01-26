@@ -1,6 +1,6 @@
 import logging
 
-# import wrf
+import wrf
 import xarray as xr
 from scipy.interpolate import interp1d
 

@@ -42,7 +42,7 @@ def random_select_dates(dates, num_dates=200):
 
     if num_dates > len(dates):
         raise ValueError(
-            "Number of dates to select cant be greater than the total number of dates."
+            "Number of dates to select cannot be greater than the total number of dates."
         )
     return random.sample(dates, num_dates)
 

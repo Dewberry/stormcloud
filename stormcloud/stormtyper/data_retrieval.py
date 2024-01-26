@@ -5,6 +5,7 @@ from typing import List, Callable, Dict, Any
 import os
 import json
 import boto3
+import pandas as pd
 import matplotlib.pyplot as plt
 import xarray as xr
 from dotenv import find_dotenv, load_dotenv
@@ -289,29 +290,3 @@ def alt_plotter(
 
     # Display the GIF in the notebook
     return HTML(f'<img src="{gif_filename}" />')
-
-
-def storm_type_analysis(df):
-    """
-    Function to analyze storm type scores.
-    """
-    # Check if each parameter has values entered
-    var_sums = df.sum(axis=0)
-    for var, sum in var_sums.items():
-        if sum == 0:
-            print(f"No values were entered for {var}.\n")
-
-    # Print total scores for each storm type
-    storm_type_sums = df.sum(axis=1)
-    print("Total scores by category:\n")
-    for storm_type, score in storm_type_sums.items():
-        if storm_type != "notes":
-            print(f"{storm_type}: {score}")
-
-    max_score = storm_type_sums.max()
-    top_storm_types = storm_type_sums[storm_type_sums == max_score]
-    # Print most likely storm type based on total scores
-    if len(top_storm_types) > 1:
-        print("A hybrid storm type is most likely.")
-    else:
-        print(f"The most likely storm type is {top_storm_types.idxmax()}.")

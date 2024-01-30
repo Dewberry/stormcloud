@@ -11,3 +11,7 @@ pillow==10.0.1
 xarray==2022.11.0
 numpy==1.26.3
 pandas==1.5.3
+papermill==2.4.0
+ipywidgets==8.1.1
+ipython==8.20.0
+scrapbook==0.5.0

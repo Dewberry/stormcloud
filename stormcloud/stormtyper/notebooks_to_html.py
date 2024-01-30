@@ -1,6 +1,4 @@
 import os
-from nbconvert import HTMLExporter
-import nbformat
 import subprocess
 
 
@@ -27,4 +25,6 @@ def convert_notebooks_to_html(directory):
             print(f"Converted {filename} to HTML")
 
 
-convert_notebooks_to_html("notebooks")
+if __name__ == "__main__":
+    notebooks_dir = "notebooks"
+    convert_notebooks_to_html(notebooks_dir)

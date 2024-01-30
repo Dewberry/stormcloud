@@ -56,8 +56,9 @@ def convert_dates_to_json(dates, output_path="input_dates.json"):
         json.dump(dates, file, indent=4)
 
 
-ranked_dates = get_top_event_dates()
-filtered_dates = filter_dates_by_window(ranked_dates)
-random_dates = random_select_dates(filtered_dates)
-final_dates = add_time_to_dates(random_dates)
-convert_dates_to_json(final_dates)
+if __name__ == "__main__":
+    ranked_dates = get_top_event_dates()
+    filtered_dates = filter_dates_by_window(ranked_dates)
+    random_dates = random_select_dates(filtered_dates)
+    final_dates = add_time_to_dates(random_dates)
+    convert_dates_to_json(final_dates)

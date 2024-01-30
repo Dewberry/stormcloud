@@ -162,14 +162,29 @@ def get_3d_dataset(z_var: str, date: str) -> xr.Dataset:
     return ds
 
 
+import xarray as xr
+from datetime import datetime
+from typing import List
+
+
+import xarray as xr
+from datetime import datetime
+from typing import List
+
+
 def get_precip_dataset(
     dates: List[str], precip_accum_interval: int
-) -> List[xr.Dataset]:
+) -> (List[tuple], List[tuple]):
     """
     Fetch and accumulate precipitation datasets over a given interval.
+    Returns two lists of datasets:
+    1. Cumulative list: Each dataset is a sum of the current and the last cumulative dataset.
+    2. Simple list: Each dataset is added as it is, without summation.
+    Each dataset in both lists is paired with its associated end date.
     """
     prec_acc_nc_data = []
-    datasets = []  # List to hold the datasets
+    cumulative_datasets = []  # List to hold the tuples of cumulative datasets and dates
+    rolling_datasets = []  # List to hold the tuples of simple datasets and dates
 
     for date in dates:
         # Extract date vars for URL
@@ -182,18 +197,31 @@ def get_precip_dataset(
         if "PREC_ACC_NC" in ds.data_vars:
             # Append the 'PREC_ACC_NC' data array to the list
             prec_acc_nc_data.append(ds["PREC_ACC_NC"])
-            # Once length of data arrays list gets to desired interval, sum them
-            if len(prec_acc_nc_data) == precip_accum_interval:
-                # Concatenate along the time dimension and add to datasets list
-                accumulated_prec = (
-                    xr.concat(prec_acc_nc_data, dim="Time").sum(dim="Time").to_dataset()
-                )
-                # Append end_time with datasets for output plot titles
-                end_time = datetime.strptime(date, "%Y-%m-%d_%H")
-                datasets.append((accumulated_prec, end_time))
-                prec_acc_nc_data = []  # Reset the list for the next batch
 
-    return datasets
+            if len(prec_acc_nc_data) == precip_accum_interval:
+                # Concatenate along the time dimension
+                accumulated_prec = xr.concat(prec_acc_nc_data, dim="Time").sum(
+                    dim="Time"
+                )
+                new_dataset = accumulated_prec.to_dataset()
+
+                # Format the end time for this dataset
+                end_time = datetime.strptime(date, "%Y-%m-%d_%H")
+
+                # For cumulative list, add the last dataset if it exists
+                if cumulative_datasets:
+                    new_cumulative_dataset = new_dataset + cumulative_datasets[-1][0]
+                    cumulative_datasets.append((new_cumulative_dataset, end_time))
+                else:
+                    cumulative_datasets.append((new_dataset, end_time))
+
+                # For simple list, just add the new dataset
+                rolling_datasets.append((new_dataset, end_time))
+
+                # Reset the list for the next batch
+                prec_acc_nc_data = []
+
+    return cumulative_datasets, rolling_datasets
 
 
 def create_gif(
@@ -210,7 +238,7 @@ def create_gif(
     total_plots = len(param_plots)
     for idx, fig in enumerate(param_plots, start=1):
         # Add slide number to each plot
-        fig.text(0.1, 0.95, f"{idx}/{total_plots}", fontsize=12, ha="right", va="top")
+        fig.text(0.15, 0.90, f"{idx}/{total_plots}", fontsize=12, ha="right", va="top")
         buf = io.BytesIO()
         fig.savefig(buf, format="png")
         buf.seek(0)
@@ -248,10 +276,21 @@ def precip_plotter(
     if var in vars_dates:
         dates = vars_dates[var]
         first_date = dates[0]  # used for gif output naming
-        datasets = data_getter(dates, storm_params["precip_accum_interval"])
+        cumulative_datasets, rolling_datasets = data_getter(
+            dates, storm_params["precip_accum_interval"]
+        )
 
-    for ds, end_time in datasets:
-        plotter(ds, var, end_time, storm_params["precip_accum_interval"])
+    for (cumulative_ds, cumulative_end_time), (
+        rolling_ds,
+        rolling_end_time,
+    ) in zip(cumulative_datasets, rolling_datasets):
+        plotter(
+            rolling_ds,
+            cumulative_ds,
+            var,
+            rolling_end_time,
+            storm_params["precip_accum_interval"],
+        )
         fig = plt.gcf()
         plt.close(fig)
         param_plots.append(fig)

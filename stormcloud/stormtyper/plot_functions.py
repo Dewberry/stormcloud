@@ -56,12 +56,17 @@ def setup_plot(ax, lon, lat, lon_step=50, lat_step=50):
     ax.add_feature(cartopy.feature.BORDERS, linestyle="-", alpha=0.5)
     ax.add_feature(cartopy.feature.STATES, linestyle="-", alpha=0.2)
     ax.coastlines(resolution="50m")
+
     lon_labels = lon[0, ::lon_step].values
     lat_labels = lat[::lat_step, 0].values
-    plt.xticks(lon[0, ::lon_step].values, [round(label, 2) for label in lon_labels])
-    plt.yticks(lat[::lat_step, 0].values, [round(label, 2) for label in lat_labels])
-    plt.ylabel("Latitude (degrees north)")
-    plt.xlabel("Longitude (degrees east)")
+
+    ax.set_xticks(lon[0, ::lon_step].values, crs=cartopy.crs.PlateCarree())
+    ax.set_xticklabels([round(label, 2) for label in lon_labels])
+    ax.set_yticks(lat[::lat_step, 0].values, crs=cartopy.crs.PlateCarree())
+    ax.set_yticklabels([round(label, 2) for label in lat_labels])
+
+    ax.set_ylabel("Latitude (degrees north)")
+    ax.set_xlabel("Longitude (degrees east)")
 
 
 def plot_SLP(ds: xr.Dataset, var: str):
@@ -147,37 +152,55 @@ def plot_PWAT(ds: xr.Dataset, var: str):
 
 
 def plot_PREC_ACC_NC(
-    ds: xr.Dataset, var: str, end_time: datetime.datetime, precip_accum_interval: int
+    ds_roll: xr.Dataset,
+    ds_accum: xr.Dataset,
+    var: str,
+    end_time: datetime.datetime,
+    precip_accum_interval: int,
 ):
     "Plots accumulated precipitation"
-    plt.figure(figsize=(12, 6))
-    var_array = ds[var][:, :]
-    lon = var_array["XLONG"]
-    lat = var_array["XLAT"]
-    # convert mm to inches
-    data_values = var_array.values / MM_TO_IN_FACTOR
-    formatted_end_time = end_time.strftime("%Y-%m-%d_%Hz")
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    setup_plot(ax, lon, lat)
-    colors = [
-        (0.0, "blue"),
-        (0.05, "green"),
-        (0.15, "yellow"),
-        (0.40, "orange"),
-        (0.7, "red"),
-        (1, "purple"),
+    fig, axs = plt.subplots(
+        1, 2, figsize=(24, 6), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
+    datasets = [ds_roll, ds_accum]
+    titles = [
+        f"{precip_accum_interval}hr Accumulated Precip",
+        "Total Accumulated Precip",
     ]
+    for ax, ds, title in zip(axs, datasets, titles):
+        var_array = ds[var][:, :]
+        lon = var_array["XLONG"]
+        lat = var_array["XLAT"]
+        data_values = (
+            var_array.values / MM_TO_IN_FACTOR
+        )  # Assuming MM_TO_IN_FACTOR is defined elsewhere
+        formatted_end_time = end_time.strftime("%Y-%m-%d_%Hz")
 
-    custom_cmap = LinearSegmentedColormap.from_list("custom_colormap", colors)
+        setup_plot(ax, lon, lat)
+        ax.set_title(f"{title} @ {formatted_end_time}")
 
-    levels = [0.001, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20]
-    cf = plt.contourf(lon, lat, data_values, levels=levels, cmap=custom_cmap)
-    for geom in watershed_poly:
-        ax.add_geometries(
-            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
-        )
-    plt.colorbar(cf, label=f"{precip_accum_interval}hr Accumulated Precip (in)")
-    plt.title(f"{precip_accum_interval}hr Summed {var} @ {formatted_end_time}")
+        colors = [
+            (0.0, "blue"),
+            (0.05, "green"),
+            (0.15, "yellow"),
+            (0.40, "orange"),
+            (0.7, "red"),
+            (1, "purple"),
+        ]
+        custom_cmap = LinearSegmentedColormap.from_list("custom_colormap", colors)
+        levels = [0.001, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20]
+        cf = ax.contourf(lon, lat, data_values, levels=levels, cmap=custom_cmap)
+
+        for geom in watershed_poly:
+            ax.add_geometries(
+                [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+            )
+
+    fig.colorbar(
+        cf,
+        ax=axs.ravel().tolist(),
+        label=f"{precip_accum_interval}hr Accumulated Precip (in)",
+    )
 
 
 def plot_SRH03(ds: xr.Dataset, var: str):

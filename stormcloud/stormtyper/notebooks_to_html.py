@@ -12,7 +12,7 @@ def convert_notebooks_to_html(directory):
     if not os.path.isdir(directory):
         raise ValueError(f"The provided directory '{directory}' does not exist.")
 
-    # Iterate through all files in the directory
+    # Loops through all jupyter notebook files in the directory
     for filename in os.listdir(directory):
         if filename.endswith(".ipynb"):
             # Construct the full file path

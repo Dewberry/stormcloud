@@ -4,14 +4,14 @@ import random
 from constants import RANKED_EVENTS_JSON
 
 
-def get_top_event_dates(top_events_num=25):
+def get_top_event_dates(top_events_num=20):
     """Selects top events per year from json"""
 
     with open(RANKED_EVENTS_JSON, "r") as f:
         ranked_events = json.load(f)
     dates = []
     for event in ranked_events:
-        if event["ranks"]["true_rank"] < top_events_num:
+        if event["ranks"]["true_rank"] <= top_events_num:
             # Extract date portion from "id" field
             date_from_id = event["id"].split("_")[-1]
             date = datetime.strptime(date_from_id, "%Y%m%d").date()
@@ -21,7 +21,7 @@ def get_top_event_dates(top_events_num=25):
     return dates
 
 
-def filter_dates_by_window(dates, start_date="1979/09/01", end_date="2022/09/01"):
+def filter_dates_by_window(dates, start_date="1979/10/01", end_date="2022/09/30"):
     """Filtered dates so that they are within a given range"""
 
     start_date_obj = datetime.strptime(start_date, "%Y/%m/%d")

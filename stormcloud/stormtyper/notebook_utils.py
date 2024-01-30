@@ -114,7 +114,7 @@ def storm_type_analysis(df: pd.DataFrame):
 
 
 def get_notebook_paths(notebooks_folder_path):
-    """Gets path for every notebook within given folder."""
+    """Gets path for every jupyter notebook within given folder."""
     notebook_paths = []
     for file_name in os.listdir(notebooks_folder_path):
         if file_name.endswith(".ipynb"):
@@ -124,7 +124,7 @@ def get_notebook_paths(notebooks_folder_path):
 
 
 def determine_storm_type(row):
-    """Takes column name with the highest score as storm type"""
+    """Takes dataframe column name with the highest score as the storm type"""
     max_value = row.max()
     max_columns = row[row == max_value].index.tolist()
     if len(max_columns) > 1:
@@ -136,7 +136,7 @@ def determine_storm_type(row):
 def process_notebooks(notebook_paths):
     """Loops through jupyter notebooks and uses scrapbook to gather stats from each one, converting the stats to a dataframe"""
 
-    all_data = pd.DataFrame()
+    all_data_df = pd.DataFrame()
     for path in notebook_paths:
         storm_date = path.split("/")[-1].split(".")[0].split("-")[-1]
         nb = sb.read_notebook(path)
@@ -158,11 +158,11 @@ def process_notebooks(notebook_paths):
             determine_storm_type, axis=1
         )
 
-        # Add notes to df
+        # Add notes back to df
         df["notes"] = notes
 
         all_data = pd.concat([all_data, df], ignore_index=True)
-    return all_data
+    return all_data_df
 
 
 def convert_paths_to_html_links(data_frame, notebook_paths):

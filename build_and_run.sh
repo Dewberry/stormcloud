@@ -14,7 +14,15 @@ elif [[ $PLUGIN == "doc_rank" ]]; then
     echo building $PLUGIN
     docker build . -t doc-rank-plugin -f Dockerfile.doc_rank
     docker run --rm -it --env-file stormcloud/plugins/doc_rank/.env doc-rank-plugin:latest
+elif [[ $PLUGIN == "hms_grid" ]]; then
+    echo building $PLUGIN
+    docker build . -t hms-grid-plugin -f Dockerfile.hms_grid
+    docker run --rm -it --env-file stormcloud/plugins/hms_grid/.env hms-grid-plugin:latest
+elif [[ $PLUGIN == "standardize_meta" ]]; then
+    echo building $PLUGIN
+    docker build . -t standardize-meta-plugin -f Dockerfile.standardize_meta
+    docker run --rm -it --env-file stormcloud/plugins/standardize_meta/.env standardize-meta-plugin:latest
 else
-  echo "plugin arg must be one of [sst, temp_precip, doc_rank]"
+  echo "plugin arg must be one of [sst, temp_precip, doc_rank, hms_grid, standardize_meta]"
 fi
 

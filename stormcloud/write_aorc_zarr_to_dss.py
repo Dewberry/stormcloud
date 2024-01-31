@@ -7,7 +7,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from tempfile import TemporaryDirectory
-from typing import Iterator, List, Tuple
+from typing import Iterator, List
 from zipfile import ZipFile
 
 from common.cloud import load_aoi, split_s3_path
@@ -88,7 +88,27 @@ def generate_dss_from_zarr(
     access_key_id: str,
     secret_access_key: str,
     write_interval: SpecifiedInterval = SpecifiedInterval.MONTH,
-) -> Iterator[Tuple[str, str]]:
+    output_resolution_km: int = 1,
+) -> Iterator[str]:
+    """Generates dss dataset for a given period using appropriate zarr data, trimmed to a given aoi and written out at a specified interval
+
+    Args:
+        output_dir (str): directory to which dss output is saved
+        aoi_name (str): name of AOI to use in pathnames in dss file creation
+        start_dt (datetime.datetime): start of period of interest to use when searching for zarr data
+        end_dt (datetime.datetime): end of period of interest to use when searching for zarr data
+        data_variables (List[NOAADataVariable]): list of data variables available from AORC data
+        zarr_bucket (str): bucket containing zarr data
+        geojson_bucket (str): bucket containing aoi geojson
+        geojson_key (str): key of aoi geojson
+        access_key_id (str): AWS access key id
+        secret_access_key (str): AWS secret access key
+        write_interval (SpecifiedInterval, optional): interval at which records are flushed to a complete file. Defaults to SpecifiedInterval.MONTH.
+        output_resolution_km (int): kilometer resolution to use when writing out dss files
+
+    Yields:
+        Iterator[Tuple[str, str]]: yields the filepath of the dss file created
+    """
     aoi_shape = load_aoi(geojson_bucket, geojson_key, access_key_id, secret_access_key)
     current_dt = start_dt
     while current_dt < end_dt:
@@ -105,7 +125,9 @@ def generate_dss_from_zarr(
         outpath_basename = f"{aoi_name.lower().replace(' ', '_')}_{current_dt.strftime('%Y%m%d')}_{current_dt_next.strftime('%Y%m%d')}.dss"
         logging.debug(f"Current: {current_dt}; Next: {current_dt_next}; End: {end_dt}")
         outpath = os.path.join(output_dir, outpath_basename)
-        with DSSWriter(outpath, "SHG1K", aoi_name.upper(), "AORC", 1000) as writer:
+        shg_res_name = f"SHG{output_resolution_km}K"
+        m_res = 1000 * output_resolution_km
+        with DSSWriter(outpath, shg_res_name, aoi_name.upper(), "AORC", m_res) as writer:
             for hour_ds, data_variable in extract_period_zarr(
                 current_dt,
                 current_dt_next,
@@ -128,7 +150,7 @@ def generate_dss_from_zarr(
                 writer.write_data(hour_ds, labeled_data_variable)
         current_dt = current_dt_next
         if writer.records > 0:
-            yield writer.filepath, outpath_basename
+            yield writer.filepath
 
 
 def validate_input(
@@ -159,10 +181,19 @@ def main(
     secret_access_key: str,
     write_interval: SpecifiedInterval,
 ) -> None:
+    """Validates input, generates dss files, and zips all to a zip file
+
+    Args:
+        input_json_path (str): JSON file with input parameters
+        out_zip (str): output zipfile path
+        access_key_id (str): AWS access key id
+        secret_access_key (str): AWS secret access key
+        write_interval (SpecifiedInterval): interval at which dss records are flushed to separate files
+    """
     validated_input = validate_input(input_json_path)
     with ZipFile(out_zip, "w") as zf:
         with TemporaryDirectory() as tmp_dir:
-            for dss_path, dss_basename in generate_dss_from_zarr(
+            for dss_path in generate_dss_from_zarr(
                 tmp_dir,
                 validated_input.watershed_name,
                 validated_input.start_dt,
@@ -175,6 +206,7 @@ def main(
                 secret_access_key,
                 write_interval,
             ):
+                dss_basename = os.path.basename(dss_path)
                 zf.write(dss_path, dss_basename)
 
 

@@ -1,9 +1,9 @@
-# Dockerfile supporting plugin for temperature and precipitation extraction and conversion to DSS format
+# Dockerfile supporting plugin for HMS GRID file generation
 FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio
-WORKDIR /misc
+WORKDIR /plugin
 
 # install pydsstools from source
 RUN apt-get install -y build-essential
@@ -25,13 +25,19 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-# copy over script utility packages
-COPY stormcloud/common/cloud.py common/.
-COPY stormcloud/common/zarr.py common/.
-COPY stormcloud/common/dss.py common/.
-COPY stormcloud/common/shared.py common/.
-COPY stormcloud/ms/. ms/.
-
-# copy over script and install packages used in top storm extraction to DSS format
-COPY stormcloud/etl/top_storms/. .
+# install plugin packages
+COPY stormcloud/plugins/hms_grid/requirements.txt .
 RUN pip3 install -r requirements.txt
+
+# copy scripts called by GRID generation script
+COPY stormcloud/common/ common/.
+
+# copy main script and plugin scripts
+COPY stormcloud/create_hms_grid.py .
+COPY stormcloud/plugins/hms_grid/entrypoint.sh .
+COPY stormcloud/plugins/hms_grid/main.py .
+COPY stormcloud/plugins/hms_grid/hms_grid_plugin.py .
+
+# # run entrypoint
+# RUN chmod +x /plugin/entrypoint.sh
+# CMD [ "./entrypoint.sh" ]

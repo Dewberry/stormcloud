@@ -1,19 +1,21 @@
+from dataclasses import dataclass
+import datetime
+import json
 import logging
 import os
 import sys
 import warnings
-from datetime import datetime, timedelta
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
+import pyproj
 from affine import Affine
 from pydsstools.heclib.dss.HecDss import Open
-from pydsstools.heclib.utils import (
-    SHG_WKT,
-    dss_logging,
-    gridInfo,
-    lower_left_xy_from_transform,
-)
+from pydsstools.heclib.utils import SHG_WKT, dss_logging, gridInfo, lower_left_xy_from_transform
+from shapely.geometry import Point
+from shapely.ops import transform
+
+from .shared import decode_data_variable, MSStormResult
 
 warnings.filterwarnings("ignore")
 
@@ -25,6 +27,81 @@ import xarray as xr
 logging.root.setLevel(logging.ERROR)
 dss_logging.config(level="Error")
 logging.root.setLevel(logging.INFO)
+
+
+class DSSProductMeta:
+    def __init__(
+        self,
+        model_extent_name: str,
+        model_extent_geojson_s3_uri: str,
+        dss_s3_uri: str,
+        start_dt: datetime.datetime,
+        end_dt: datetime.datetime,
+        last_modification: datetime.datetime,
+        data_variables: List[str],
+        sample_pathnames: Dict[str, str],
+        shg_x: Union[float, None] = None,
+        shg_y: Union[float, None] = None,
+        overall_rank: Union[int, None] = None,
+        rank_within_year: Union[int, None] = None,
+        overall_limit: Union[int, None] = None,
+        top_year_limit: Union[int, None] = None,
+        s3_output_prefix: Union[str, None] = None,
+    ) -> None:
+        self.model_extent_name = model_extent_name
+        self.model_extent_geojson_s3_uri = model_extent_geojson_s3_uri
+        self.dss_s3_uri = dss_s3_uri
+        self.start_dt = start_dt
+        self.end_dt = end_dt
+        self.last_modification = last_modification
+        self.sample_pathnames = sample_pathnames
+        self.overall_rank = overall_rank
+        self.rank_within_year = rank_within_year
+        self.top_year_limit = top_year_limit
+        self.overall_limit = overall_limit
+        self.shg_x, self.shg_y = shg_x, shg_y
+        self.s3_output_prefix = s3_output_prefix
+        self.data_variables = [decode_data_variable(v) for v in data_variables]
+        self.qualified_extent_name = self.__get_qualified_extent_name()
+
+    def __get_qualified_extent_name(self) -> str:
+        geojson_basename = os.path.basename(self.model_extent_geojson_s3_uri)
+        geojson_name = geojson_basename[: geojson_basename.rfind(".")]
+        return geojson_name
+
+    @property
+    def json(self) -> dict:
+        json_output = {
+            "model_extent_name": self.model_extent_name,
+            "model_extent_geojson_s3_uri": self.model_extent_geojson_s3_uri,
+            "dss_s3_uri": self.dss_s3_uri,
+            "start_date": self.start_dt.isoformat(),
+            "end_date": self.end_dt.isoformat(),
+            "last_modification": self.last_modification.isoformat(),
+            "sample_pathnames": self.sample_pathnames,
+            "shg_x": self.shg_x,
+            "shg_y": self.shg_y,
+            "overall_rank": self.overall_rank,
+            "rank_within_year": self.rank_within_year,
+            "overall_limit": self.overall_limit,
+            "top_year_limit": self.top_year_limit,
+            "data_variables": [v.name for v in self.data_variables],
+        }
+        return json_output
+
+    @property
+    def as_bytes(self) -> bytes:
+        json_bytes = json.dumps(self.json).encode("utf-8")
+        return json_bytes
+
+    @property
+    def s3_key(self):
+        prefix = self.s3_output_prefix
+        if not prefix:
+            prefix = f"watersheds/{self.model_extent_name.lower()}/{self.qualified_extent_name}/standardized_metadata"
+        key_basename = f"{self.start_dt.strftime('%Y%m%d')}_{self.end_dt.strftime('%Y%m%d')}_SST_metadata.json"
+        key = os.path.join(prefix, key_basename)
+        return key
 
 
 class DSSWriter:
@@ -71,8 +148,10 @@ class DSSWriter:
             sys.stdout = sys.__stdout__
 
     def __handle_per_cum_date_info(self, dt64: np.datetime64) -> Tuple[str, str]:
-        end_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
-        start_dt = end_dt - timedelta(hours=1)
+        end_dt = datetime.datetime.utcfromtimestamp(
+            (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
+        )
+        start_dt = end_dt - datetime.timedelta(hours=1)
         path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
         if end_dt.hour == 0 and end_dt.minute == 0:
             path_e = start_dt.strftime("%d%b%Y:2400").upper()
@@ -81,9 +160,11 @@ class DSSWriter:
         return path_d, path_e
 
     def __handle_inst_val_date_info(self, dt64: np.datetime64) -> Tuple[str, str]:
-        start_dt = datetime.utcfromtimestamp((dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s"))
+        start_dt = datetime.datetime.utcfromtimestamp(
+            (dt64 - np.datetime64("1970-01-01T00:00:00")) / np.timedelta64(1, "s")
+        )
         if start_dt.hour == 0 and start_dt.minute == 0:
-            start_dt -= timedelta(days=1)
+            start_dt -= datetime.timedelta(days=1)
             path_d = start_dt.strftime("%d%b%Y:2400").upper()
         else:
             path_d = start_dt.strftime("%d%b%Y:%H%M").upper()
@@ -170,6 +251,40 @@ class DSSWriter:
 
         self.dss_file.put_grid(path, data, grid_info)
         self.records += 1
+
+
+def decode_dss_meta_json(input_json) -> DSSProductMeta:
+    model_extent_name = input_json["model_extent_name"]
+    model_extent_geojson_s3_uri = input_json["model_extent_geojson_s3_uri"]
+    dss_s3_uri = input_json["dss_s3_uri"]
+    start_dt = datetime.datetime.fromisoformat(input_json["start_date"])
+    end_dt = datetime.datetime.fromisoformat(input_json["end_date"])
+    last_modification = datetime.datetime.fromisoformat(input_json["last_modification"])
+    sample_pathnames = input_json["sample_pathnames"]
+    data_variables = input_json["data_variables"]
+    shg_x = input_json["shg_x"]
+    shg_y = input_json["shg_y"]
+    overall_rank = input_json["overall_rank"]
+    rank_within_year = input_json["rank_within_year"]
+    overall_limit = input_json["overall_limit"]
+    top_year_limit = input_json["top_year_limit"]
+    meta = DSSProductMeta(
+        model_extent_name,
+        model_extent_geojson_s3_uri,
+        dss_s3_uri,
+        start_dt,
+        end_dt,
+        last_modification,
+        data_variables,
+        sample_pathnames,
+        shg_x,
+        shg_y,
+        overall_rank,
+        rank_within_year,
+        overall_limit,
+        top_year_limit,
+    )
+    return meta
 
 
 def write_dss(

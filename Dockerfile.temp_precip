@@ -30,6 +30,7 @@ COPY stormcloud/common/. common/.
 
 # copy main script and plugin scripts
 COPY stormcloud/write_aorc_zarr_to_dss.py .
+COPY stormcloud/construct_meta.py .
 COPY stormcloud/plugins/temp_precip/entrypoint.sh .
 COPY stormcloud/plugins/temp_precip/main.py .
 COPY stormcloud/plugins/temp_precip/temp_precip_plugin.py .

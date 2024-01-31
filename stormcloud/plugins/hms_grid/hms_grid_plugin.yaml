@@ -1,0 +1,66 @@
+
+info:
+  version: '2023.12.5'
+  id: aorc-hms-grid
+  title: AORC GRID File Generation
+  description: Utilizes metadata JSON documents on s3 to generate a zipped GRID package and upload it to s3
+  jobControlOptions:
+    - async-execute
+  outputTransmission:
+
+host:
+  type: "local"
+
+container:
+  image: stormcloud:hms-grid-latest
+  command:
+    - python
+    - -m
+    - main
+  envVars:
+    - AWS_ACCESS_KEY_ID
+    - AWS_SECRET_ACCESS_KEY
+    - AWS_REGION
+  maxResources:
+    cpus: 1
+    memory: 3072
+
+inputs:
+  - id: metadata_s3_uris
+    title: metadata s3 uri list
+    description: list of s3 uris corresponding to JSON metadata documentation of DSS data generated
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: watershed
+    title: watershed name
+    description: watershed name to use in DSS output and GRID file naming
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+  - id: output_zip_s3_uri
+    title: output zip file s3 uri
+    description: s3 uri to use when uploading zipped GRID file package
+    input:
+      literalDataDomain:
+        dataType: value
+        valueDefinition:
+          anyValue: true
+    minOccurs: 1
+    maxOccurs: 1
+
+outputs:
+  - id: results
+    title: results
+    description: dictionary of s3 uri of zip package generated
+    output:
+      transmissionMode:
+      - value

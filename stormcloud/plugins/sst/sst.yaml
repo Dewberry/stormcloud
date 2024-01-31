@@ -12,7 +12,7 @@ host:
   type: "local"
 
 container:
-  image: stormcloud:temp_precip-latest
+  image: stormcloud:sst-latest
   command:
     - python
     - -m

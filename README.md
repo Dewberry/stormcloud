@@ -1,4 +1,5 @@
 # stormcloud
+
 Creates datasets for hydrologic modeling in the cloud.
 
 ---
@@ -9,25 +10,21 @@ Creates datasets for hydrologic modeling in the cloud.
 
 ## Adding Temperature Data
 
-[Write AORC data for precipitation or temperature to DSS format](stormcloud/write_aorc_zarr_to_dss.py)
+[Write AORC data for precipitation, temperature, or both to DSS format](stormcloud/write_aorc_zarr_to_dss.py)
 
- - Requires use of docker container as specified in [Dockerfile.temp_precip](Dockerfile.temp_precip)
-
-[Adding local temperature data to local precipitation DSS from SST model run](stormcloud/etl/temp_transfer/temperature_transfer.py)
-
- - Requires use of docker container as specified in [Dockerfile.temp_transfer](Dockerfile.temp_transfer)
+- Requires use of docker container as specified in [Dockerfile.temp_precip](Dockerfile.temp_precip)
 
 ## Identifying storms of interest
 
-[Identify top ranked storms resulting from SST modeling runs for a specified watershed](stormcloud/etl/top_storms/extract_top_storms_dss.py)
+[Identify top ranked storms tracked in meilisearch database, rerun zarr to DSS conversion and save to local path](stormcloud/etl/top_storms/extract_top_storms_dss.py)
 
- - Requires use of docker container as specified in [Dockerfile.top_storms_dss](Dockerfile.top_storms_dss)
+- Requires use of docker container as specified in [Dockerfile.top_storms_dss](Dockerfile.top_storms_dss)
 
 ## Getting valid transposition geometry
 
 [Get the geometry defining all valid transposes within a transposition region for a given watershed and saves the geometry as a simple geojson polygon](stormcloud/etl/transpose_geom/get_valid_transpose_geom.py)
 
- - Requires use of docker container as specified in [Dockerfile.transpose_geom](Dockerfile.transpose_geom)
+- Requires use of docker container as specified in [Dockerfile.transpose_geom](Dockerfile.transpose_geom)
 
 ## Plugins -- Process API support
 
@@ -45,10 +42,17 @@ Meilisearch acts as a back end for the [StormViewer site](https://storms.dewberr
 
 [SST plugin directory](stormcloud/plugins/sst/)
 
-[Temperature and precipitation directory](stormcloud/plugins/temp_precip/)
+[Temperature and precipitation extraction plugin directory](stormcloud/plugins/temp_precip/)
+
+[Metadata standardization plugin directory](stormcloud/plugins/standardize_meta/)
+
+[HMS GRID package generation plugin directory](stormcloud/plugins/hms_grid/)
 
 [Ranked document plugin directory](stormcloud/plugins/doc_rank/)
 
 ---
 
-To test plugins, run [build_and_run.sh](build_and_run.sh) followed by either 'sst', 'temp_precip', or 'doc_rank', depending on which plugin you would like to test. Be aware that these tests result in outputs being written to s3, so test with caution
+To test plugins:
+
+- edit dockerfile of plugin of interest, uncommenting the entrypoint execution block
+- run [build_and_run.sh](build_and_run.sh) followed by either 'sst', 'temp_precip', 'standardize_meta', 'hms_grid', or 'doc_rank' depending on which plugin you would like to test. Be aware that these tests result in outputs being written to s3, so test with caution

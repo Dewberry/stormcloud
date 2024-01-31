@@ -1,13 +1,6 @@
 import papermill as pm
 from datetime import datetime
 
-storm_dates = [
-    "2017/08/27-12z",
-    "2015/10/23-12z",
-    "1989/05/13-12z",
-    "1986/03/12-12z",
-]
-
 
 def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
     """
@@ -24,7 +17,7 @@ def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
                 "PWAT": 6,
                 "PSFC": 6,
                 "SRH03": 6,
-                "Z_50000Pa": 24,
+                "Z_50000Pa": 12,
             },
             "precip_accum_interval": 6,
             "start_date_str": date,
@@ -44,4 +37,10 @@ def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
         )
 
 
-execute_storm_notebooks("stormtyper.ipynb", "notebooks", storm_dates)
+# storm_dates = [
+#     "2017/08/27-12z",
+#     "2015/10/23-12z",
+#     "1989/05/13-12z",
+# ]
+
+# execute_storm_notebooks("stormtyper.ipynb", "notebooks", storm_dates)

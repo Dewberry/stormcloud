@@ -162,29 +162,19 @@ def get_3d_dataset(z_var: str, date: str) -> xr.Dataset:
     return ds
 
 
-import xarray as xr
-from datetime import datetime
-from typing import List
-
-
-import xarray as xr
-from datetime import datetime
-from typing import List
-
-
 def get_precip_dataset(
     dates: List[str], precip_accum_interval: int
 ) -> (List[tuple], List[tuple]):
     """
     Fetch and accumulate precipitation datasets over a given interval.
     Returns two lists of datasets:
-    1. Cumulative list: Each dataset is a sum of the current and the last cumulative dataset.
-    2. Simple list: Each dataset is added as it is, without summation.
+    1. cumulative_datasets: Each dataset is a sum of the current and the last cumulative dataset. Creates total accumulation over the entire time period.
+    2. rolling_datasets: Each dataset is added as is for a given interval. Creates rolling accumulations that reset at given interval.
     Each dataset in both lists is paired with its associated end date.
     """
     prec_acc_nc_data = []
-    cumulative_datasets = []  # List to hold the tuples of cumulative datasets and dates
-    rolling_datasets = []  # List to hold the tuples of simple datasets and dates
+    cumulative_datasets = []  # List to store total accumulations datasets
+    rolling_datasets = []  # List for rolling accumulation datasets
 
     for date in dates:
         # Extract date vars for URL
@@ -215,7 +205,7 @@ def get_precip_dataset(
                 else:
                     cumulative_datasets.append((new_dataset, end_time))
 
-                # For simple list, just add the new dataset
+                # For rolling list, just add the new dataset
                 rolling_datasets.append((new_dataset, end_time))
 
                 # Reset the list for the next batch

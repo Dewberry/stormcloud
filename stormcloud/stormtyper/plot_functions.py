@@ -189,7 +189,9 @@ def plot_PREC_ACC_NC(
         ]
         custom_cmap = LinearSegmentedColormap.from_list("custom_colormap", colors)
         levels = [0.001, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20]
-        cf = ax.contourf(lon, lat, data_values, levels=levels, cmap=custom_cmap)
+        cf = ax.contourf(
+            lon, lat, data_values, levels=levels, cmap=custom_cmap, extend="max"
+        )
 
         for geom in watershed_poly:
             ax.add_geometries(
@@ -199,7 +201,7 @@ def plot_PREC_ACC_NC(
     fig.colorbar(
         cf,
         ax=axs.ravel().tolist(),
-        label=f"{precip_accum_interval}hr Accumulated Precip (in)",
+        label=f"Accumulated Precip (in)",
     )
 
 

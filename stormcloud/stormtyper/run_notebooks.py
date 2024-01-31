@@ -1,5 +1,12 @@
 import papermill as pm
 from datetime import datetime
+import json
+
+
+def read_json(json_str):
+    with open(json_str, "r") as file:
+        dates = json.load(file)
+    return dates
 
 
 def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
@@ -21,7 +28,7 @@ def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
             },
             "precip_accum_interval": 6,
             "start_date_str": date,
-            "duration_hours": 48,
+            "duration_hours": 72,
         }
 
         # Format the output date string
@@ -37,10 +44,5 @@ def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
         )
 
 
-# storm_dates = [
-#     "2017/08/27-12z",
-#     "2015/10/23-12z",
-#     "1989/05/13-12z",
-# ]
-
-# execute_storm_notebooks("stormtyper.ipynb", "notebooks", storm_dates)
+storm_dates = read_json("input_dates.json")
+execute_storm_notebooks("stormtyper.ipynb", "notebooks", storm_dates)

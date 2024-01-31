@@ -44,5 +44,11 @@ def execute_storm_notebooks(input_notebook_path, output_folder, storm_dates):
         )
 
 
-storm_dates = read_json("input_dates.json")
-execute_storm_notebooks("stormtyper.ipynb", "notebooks", storm_dates)
+if __name__ == "__main__":
+    input_json_str = "input_dates.json"
+    output_notebooks_location = "notebooks"
+    input_notebook = "stormtyper.ipynb"
+
+    storm_dates = read_json(input_json_str)
+
+    execute_storm_notebooks(input_notebook, output_notebooks_location, storm_dates)

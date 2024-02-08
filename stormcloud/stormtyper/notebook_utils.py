@@ -70,9 +70,11 @@ def create_notes_widget(parameter, summary_stats):
     Function to create notes widgit for each parameter
     """
     notes_widget = widgets.Textarea(
-        value=summary_stats[parameter]["notes"]
-        if summary_stats[parameter]["notes"] is not None
-        else "",
+        value=(
+            summary_stats[parameter]["notes"]
+            if summary_stats[parameter]["notes"] is not None
+            else ""
+        ),
         description="Notes:",
         disabled=False,
     )
@@ -110,7 +112,7 @@ def storm_type_analysis(df: pd.DataFrame):
     if len(top_storm_types) > 1:
         print("A hybrid storm type is most likely.")
     else:
-        print(f"The most likely storm type is {top_storm_types.idxmax()}.")
+        print(f"The most likely storm type is {top_storm_types.index[0]}.")
 
 
 def get_notebook_paths(notebooks_folder_path):

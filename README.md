@@ -17,9 +17,15 @@ Creates datasets for hydrologic modeling in the cloud.
 
 ## Getting valid transposition geometry
 
-[Get the geometry defining all valid transposes within a transposition region for a given watershed and saves the geometry as a simple geojson polygon](stormcloud/etl/transpose_geom/get_valid_transpose_geom.py)
+[Get the geometry defining all valid transposes within a transposition region for a given watershed and saves the geometry as a simple geojson polygon](stormcloud/etl/transpose_geom/README.md)
 
 - Requires use of docker container as specified in [Dockerfile.transpose_geom](Dockerfile.transpose_geom)
+
+## Creating a zipped GRID package using top n storm events per year
+
+[Use DSS files created during SST runs for a specified watershed and transposition region to create a zipped package with an HMS .grid file](stormcloud/etl/create_ranked_grid/README.md)
+
+- Requires use of docker container as specified in [Dockerfile.create_ranked_grid](Dockerfile.create_ranked_grid)
 
 ## Plugins -- Process API support
 

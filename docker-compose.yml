@@ -33,3 +33,12 @@ services:
   #   env_file:
   #     - ./stormcloud/etl/transpose_geom/.env
   #   tty: true
+
+  # stormcloud-etl-create-ranked-grid:
+  #   container_name: stormcloud-create-ranked-grid
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.create_ranked_grid
+  #   env_file:
+  #     - ./stormcloud/etl/create_ranked_grid/.env
+  #   tty: true

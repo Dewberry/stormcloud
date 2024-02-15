@@ -1,4 +1,4 @@
-# Dockerfile supporting temperature transfer from zarr datasets to existing DSS documents for SST model runs
+# Dockerfile supporting plugin for HMS GRID file generation
 FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
@@ -25,6 +25,22 @@ RUN cp -a heclib/heclib.a pydsstools/pydsstools/src/external/dss/linux64/heclib.
 # install
 RUN ( cd pydsstools && python3 -m pip install . )
 
-# copy over script and install packages used in temperature transfer
-COPY stormcloud/etl/temp_transfer/. .
+# install etl packages
+COPY stormcloud/etl/create_ranked_grid/requirements.txt .
 RUN pip3 install -r requirements.txt
+
+# copy scripts called by GRID generation script
+COPY stormcloud/common/ common/.
+
+# copy script called by metadata standardization process
+COPY stormcloud/construct_meta.py .
+
+# copy scripts to retrieve meilisearch documents
+COPY stormcloud/ms/storm_query.py ms/.
+COPY stormcloud/ms/constants.py ms/.
+
+# copy hms grid creation script
+COPY stormcloud/create_hms_grid.py .
+
+# copy etl scripts
+COPY stormcloud/etl/create_ranked_grid/create_ranked_grid.py .

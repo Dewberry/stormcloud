@@ -36,8 +36,8 @@ COPY stormcloud/common/ common/.
 COPY stormcloud/construct_meta.py .
 
 # copy scripts to retrieve meilisearch documents
-COPY stormcloud/ms/storm_query.py ms/.
-COPY stormcloud/ms/constants.py ms/.
+COPY stormcloud/ms/storm_query.py ms/storm_query.py
+COPY stormcloud/ms/constants.py ms/constants.py
 
 # copy hms grid creation script
 COPY stormcloud/create_hms_grid.py .

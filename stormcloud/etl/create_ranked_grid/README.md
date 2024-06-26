@@ -2,7 +2,7 @@
 
 ## Summary
 
-ETL which accesses the meilisearch database backing the StormViewer application and queries for top n storms per year, then formats this data and uses it to download and package DSS files generated from an SST run into a zipped package containing an HMS GRID file.
+ETL which accesses the meilisearch database backing the StormViewer application and queries for top n storms per year, then formats this data and uses it to download and package precipitation DSS files generated from an SST run into a zipped package containing an HMS GRID file.
 
 ## Usage
 

@@ -32,6 +32,9 @@ RUN pip3 install -r requirements.txt
 # copy scripts called by GRID generation script
 COPY stormcloud/common/ common/.
 
+# copy script to write AORC zarr to DSS
+COPY stormcloud/write_aorc_zarr_to_dss.py .
+
 # copy script called by metadata standardization process
 COPY stormcloud/construct_meta.py .
 

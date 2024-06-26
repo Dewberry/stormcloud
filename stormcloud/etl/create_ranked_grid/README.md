@@ -15,6 +15,6 @@ It is necessary to have a .env file in this directory in order for the docker co
 For help on parameters used in this etl, you can use the `-h` flag after the python command (example below). This will print what the parameters are and a short description.
 
 ```shell
-python get_valid_transpose_geom.py -h
+python create_ranked_grid.py -h
 ```
 

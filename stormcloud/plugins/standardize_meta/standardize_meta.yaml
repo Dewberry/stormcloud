@@ -27,8 +27,8 @@ container:
 
 inputs:
   - id: watershed
-    title: end date
-    description: end date for extraction, in YYYY-mm-dd format (10-31-2023 for Oct. 31, 2023)
+    title: watershed name
+    description: watershed name used to label DSS files generated
     input:
       literalDataDomain:
         dataType: value

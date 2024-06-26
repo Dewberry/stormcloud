@@ -4,6 +4,7 @@ ETL to query meilisearch for top storm (per year or overall) for a watershed and
 
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 from shutil import make_archive
@@ -20,6 +21,8 @@ from create_hms_grid import prepare_structure, insert_meta_into_grid, GridWriter
 from construct_meta import construct_dss_meta, guess_dss_uri
 from common.cloud import split_s3_path
 from common.dss import DSSProductMeta
+from common.shared import DSSVariable, NOAADataVariable
+from write_aorc_zarr_to_dss import SpecifiedInterval, generate_dss_from_zarr
 
 
 def create_grid_filename(watershed: str) -> str:
@@ -36,7 +39,7 @@ def create_transform(tgt_epsg: str = "EPSG:4326") -> Callable:
     return transform_function
 
 
-def get_ranked_documents(
+def get_ranked_documents_precip_only(
     ms_client: Client,
     s3_client: Any,
     watershed_name: str,
@@ -47,7 +50,14 @@ def get_ranked_documents(
     declustered: bool,
 ) -> Iterator[DSSProductMeta]:
     docs = query_ms(ms_client, INDEX, watershed_name, domain_name, mean_filter, limit, declustered, top_by_year)
-    for doc in docs:
+    for i, doc in enumerate(docs, 1):
+        if top_by_year != None:
+            if declustered:
+                year_rank = doc["ranks"]["declustered_rank"]
+            else:
+                year_rank = doc["ranks"]["true_rank"]
+        else:
+            year_rank = None
         dss_uri = guess_dss_uri(
             doc["metadata"]["transposition_domain_source"], doc["start"]["datetime"], doc["duration"]
         )
@@ -62,14 +72,90 @@ def get_ranked_documents(
             doc["duration"],
             doc["geom"]["center_x"],
             doc["geom"]["center_y"],
-            doc["ranks"]["true_rank"],
-            doc["ranks"]["declustered_rank"],
+            i,
+            year_rank,
             limit,
             top_by_year,
             s3_client,
             transform_function=transform_function,
         )
         yield meta
+
+
+def get_ranked_documents_temp_precip(
+    ms_client: Client,
+    s3_client: Any,
+    watershed_name: str,
+    domain_name: str,
+    top_by_year: int | None,
+    limit: int,
+    mean_filter: float,
+    declustered: bool,
+    zarr_bucket: str,
+    s3_output_prefix: str,
+    s3_output_bucket: str,
+    access_key_id: str,
+    secret_access_key: str,
+    output_resolution_km: int,
+) -> Iterator[DSSProductMeta]:
+    docs = query_ms(ms_client, INDEX, watershed_name, domain_name, mean_filter, limit, declustered, top_by_year)
+    transform_function = create_transform()
+    for i, doc in enumerate(docs, 1):
+        if top_by_year != None:
+            if declustered:
+                year_rank = doc["ranks"]["declustered_rank"]
+            else:
+                year_rank = doc["ranks"]["true_rank"]
+        else:
+            year_rank = None
+        with TemporaryDirectory() as tmp_dir:
+            interval = SpecifiedInterval.WEEK
+            start_dt = datetime.datetime.fromisoformat(doc["start"]["datetime"]) + datetime.timedelta(hours=1)
+            end_dt = start_dt + datetime.timedelta(hours=doc["duration"])
+            geojson_bucket, geojson_key = split_s3_path(doc["metadata"]["transposition_domain_source"])
+            for dss_path in generate_dss_from_zarr(
+                tmp_dir,
+                doc["metadata"]["watershed_name"],
+                start_dt,
+                end_dt,
+                [NOAADataVariable.APCP, NOAADataVariable.TMP],
+                zarr_bucket,
+                geojson_bucket,
+                geojson_key,
+                access_key_id,
+                secret_access_key,
+                interval,
+                output_resolution_km,
+            ):
+                # save dss to s3
+                dss_basename = os.path.basename(dss_path)
+                dss_s3_key = os.path.join(s3_output_prefix, dss_basename)
+                logging.info(f"Uploading DSS data to {dss_s3_key}")
+                s3_client.upload_file(dss_path, s3_output_bucket, dss_s3_key)
+                upload_dt = datetime.datetime.now()
+                dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
+
+                # construct and save metadata to s3
+                dss_vars = [DSSVariable.PRECIPITATION, DSSVariable.TEMPERATURE]
+                meta = construct_dss_meta(
+                    doc["metadata"]["watershed_name"],
+                    f"s3://{geojson_bucket}/{geojson_key}",
+                    dss_uri,
+                    doc["start"]["datetime"],
+                    None,
+                    upload_dt,
+                    doc["duration"],
+                    doc["geom"]["center_x"],
+                    doc["geom"]["center_y"],
+                    i,
+                    year_rank,
+                    limit,
+                    top_by_year,
+                    s3_client,
+                    [d.name for d in dss_vars],
+                    transform_function,
+                )
+                yield meta
 
 
 def write_meta_to_grid(
@@ -97,10 +183,56 @@ def main(
     mean_limit: float,
     declustered: bool,
     zip_s3_uri: str,
+    with_temp: bool,
+    zarr_bucket: str | None,
+    s3_output_prefix: str | None,
+    s3_output_bucket: str | None,
+    access_key_id: str | None,
+    secret_access_key: str | None,
+    output_resolution_km: int | None,
 ):
-    ranked_docs_iter = get_ranked_documents(
-        ms_client, s3_client, watershed_name, domain_name, top_by_year, limit, mean_limit, declustered
-    )
+    if with_temp:
+        if not all(
+            [
+                zarr_bucket,
+                s3_output_prefix,
+                s3_output_bucket,
+                access_key_id,
+                secret_access_key,
+                output_resolution_km,
+            ]
+        ):
+            reqs = [
+                "zarr_bucket",
+                "s3_output_prefix",
+                "s3_output_prefix",
+                "access_key_id",
+                "secret_access_key",
+                "output_resolution_km",
+            ]
+            raise ValueError(
+                f"Missing required inputs; when with_temp is set to true, the following become required: {reqs}"
+            )
+        ranked_docs_iter = get_ranked_documents_temp_precip(
+            ms_client,
+            s3_client,
+            watershed_name,
+            domain_name,
+            top_by_year,
+            limit,
+            mean_limit,
+            declustered,
+            zarr_bucket,
+            s3_output_prefix,
+            s3_output_bucket,
+            access_key_id,
+            secret_access_key,
+            output_resolution_km,
+        )
+    else:
+        ranked_docs_iter = get_ranked_documents_precip_only(
+            ms_client, s3_client, watershed_name, domain_name, top_by_year, limit, mean_limit, declustered
+        )
     grid_fn = create_grid_filename(watershed_name)
     with TemporaryDirectory() as tmp_dir:
         full_directory_path = os.path.join(tmp_dir, watershed_name)
@@ -150,14 +282,52 @@ if __name__ == "__main__":
         action="store_true",
         help="if declustered, storms will be filtered to limit storms selected to at most 1 storm from the same 72 hour window; defaults to False",
     )
+    parser.add_argument(
+        "--with_temp",
+        action="store_true",
+        help="if DSS files are to be recreated and saved to s3 with temperature included rather than using the DSS files created by the SST process, provide this flag, else DSS files from SST process will be used by default; defaults to False",
+    )
+    parser.add_argument(
+        "--zarr_bucket",
+        type=str,
+        required=False,
+        default="tempest",
+        help="s3 bucket to search for .zarr data to convert to DSS format; only required if with_temp is set to True; defaults to 'tempest'",
+    )
+    parser.add_argument(
+        "--s3_output_bucket",
+        type=str,
+        required=False,
+        default="tempest",
+        help="s3 bucket to which DSS files will be written; only required if with_temp is set to True; defaults to 'tempest'",
+    )
+    parser.add_argument(
+        "--s3_output_prefix",
+        type=str,
+        required=False,
+        default=None,
+        help="s3 prefix to which DSS files will be written; only required if with_temp is set to True; defaults to None",
+    )
+    parser.add_argument(
+        "--output_resolution_km",
+        type=int,
+        required=False,
+        default=1,
+        help="resolution in kilometers to use when converting .zarr data to DSS format; only required if with_temp is set to True; defaults to 1",
+    )
 
     session = boto3.session.Session(
         os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], region_name=os.environ["AWS_REGION"]
     )
+
     s3_client = session.client("s3")
     ms_client = Client(os.environ["REACT_APP_MEILI_HOST"], api_key=os.environ["REACT_APP_MEILI_MASTER_KEY"])
 
     args = parser.parse_args()
+
+    logging.basicConfig(handlers=[logging.StreamHandler()], level=logging.INFO)
+    botocore_logger = logging.getLogger("botocore")
+    botocore_logger.setLevel(logging.WARNING)
 
     main(
         ms_client,
@@ -169,4 +339,11 @@ if __name__ == "__main__":
         args.mean_limit,
         args.declustered,
         args.zip_s3_uri,
+        args.with_temp,
+        args.zarr_bucket,
+        args.s3_output_prefix,
+        args.s3_output_bucket,
+        os.environ["AWS_ACCESS_KEY_ID"],
+        os.environ["AWS_SECRET_ACCESS_KEY"],
+        args.output_resolution_km,
     )

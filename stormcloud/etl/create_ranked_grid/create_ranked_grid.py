@@ -110,6 +110,7 @@ def get_ranked_documents_temp_precip(
             year_rank = None
         with TemporaryDirectory() as tmp_dir:
             interval = SpecifiedInterval.WEEK
+            # adjust start date by 1 hour in order to make first precipitation record start at 12 am to 1 am instead of including precipitation from the previous day (11 pm to 12 am)
             start_dt = datetime.datetime.fromisoformat(doc["start"]["datetime"]) + datetime.timedelta(hours=1)
             end_dt = start_dt + datetime.timedelta(hours=doc["duration"])
             geojson_bucket, geojson_key = split_s3_path(doc["metadata"]["transposition_domain_source"])

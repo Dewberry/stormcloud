@@ -92,7 +92,6 @@ def get_ranked_documents_temp_precip(
     mean_filter: float,
     declustered: bool,
     zarr_bucket: str,
-    s3_output_prefix: str,
     s3_output_bucket: str,
     access_key_id: str,
     secret_access_key: str,
@@ -130,8 +129,8 @@ def get_ranked_documents_temp_precip(
             ):
                 # save dss to s3
                 dss_basename = os.path.basename(dss_path)
-                dss_s3_key = os.path.join(s3_output_prefix, dss_basename)
-                logging.info(f"Uploading DSS data to {dss_s3_key}")
+                dss_s3_key = os.path.join(geojson_key.replace(".geojson", ""), "with_temp", dss_basename)
+                logging.info(f"Uploading DSS data to s3://{s3_output_bucket}/{dss_s3_key}")
                 s3_client.upload_file(dss_path, s3_output_bucket, dss_s3_key)
                 upload_dt = datetime.datetime.now()
                 dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
@@ -186,7 +185,6 @@ def main(
     zip_s3_uri: str,
     with_temp: bool,
     zarr_bucket: str | None,
-    s3_output_prefix: str | None,
     s3_output_bucket: str | None,
     access_key_id: str | None,
     secret_access_key: str | None,
@@ -196,7 +194,6 @@ def main(
         if not all(
             [
                 zarr_bucket,
-                s3_output_prefix,
                 s3_output_bucket,
                 access_key_id,
                 secret_access_key,
@@ -205,8 +202,7 @@ def main(
         ):
             reqs = [
                 "zarr_bucket",
-                "s3_output_prefix",
-                "s3_output_prefix",
+                "s3_output_bucket",
                 "access_key_id",
                 "secret_access_key",
                 "output_resolution_km",
@@ -224,7 +220,6 @@ def main(
             mean_limit,
             declustered,
             zarr_bucket,
-            s3_output_prefix,
             s3_output_bucket,
             access_key_id,
             secret_access_key,
@@ -303,13 +298,6 @@ if __name__ == "__main__":
         help="s3 bucket to which DSS files will be written; only required if with_temp is set to True; defaults to 'tempest'",
     )
     parser.add_argument(
-        "--s3_output_prefix",
-        type=str,
-        required=False,
-        default=None,
-        help="s3 prefix to which DSS files will be written; only required if with_temp is set to True; defaults to None",
-    )
-    parser.add_argument(
         "--output_resolution_km",
         type=int,
         required=False,
@@ -342,7 +330,6 @@ if __name__ == "__main__":
         args.zip_s3_uri,
         args.with_temp,
         args.zarr_bucket,
-        args.s3_output_prefix,
         args.s3_output_bucket,
         os.environ["AWS_ACCESS_KEY_ID"],
         os.environ["AWS_SECRET_ACCESS_KEY"],

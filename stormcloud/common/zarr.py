@@ -1,4 +1,5 @@
 """ Script to isolate time periods of storms using meilisearch data and search NOAA s3 zarr data for data matching these time periods to save to DSS format """
+
 import datetime
 import logging
 from typing import Iterator, List, Tuple, Union
@@ -104,6 +105,7 @@ def extract_period_zarr(
                 )
 
             zarr_key = f"{zarr_key_prefix}/{current_dt.year}/{current_dt.strftime('%Y%m%d%H')}.zarr"
+            logging.debug(f"loading data from zarr s3 path s3://{zarr_bucket}/{zarr_key}")
             hour_ds = load_zarr(zarr_bucket, zarr_key, access_key_id, secret_access_key)
             if hour_ds:
                 hour_ds.rio.write_crs("epsg:4326", inplace=True)

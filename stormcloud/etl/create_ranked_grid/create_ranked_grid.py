@@ -19,7 +19,7 @@ from ms.storm_query import query_ms
 from ms.constants import INDEX
 from create_hms_grid import prepare_structure, insert_meta_into_grid, GridWriter
 from construct_meta import construct_dss_meta, guess_dss_uri
-from common.cloud import split_s3_path
+from common.cloud import get_last_modification, split_s3_path, check_if_exists
 from common.dss import DSSProductMeta
 from common.shared import DSSVariable, NOAADataVariable
 from write_aorc_zarr_to_dss import SpecifiedInterval, generate_dss_from_zarr
@@ -113,49 +113,62 @@ def get_ranked_documents_temp_precip(
             start_dt = datetime.datetime.fromisoformat(doc["start"]["datetime"]) + datetime.timedelta(hours=1)
             end_dt = start_dt + datetime.timedelta(hours=doc["duration"])
             geojson_bucket, geojson_key = split_s3_path(doc["metadata"]["transposition_domain_source"])
-            for dss_path in generate_dss_from_zarr(
-                tmp_dir,
-                doc["metadata"]["watershed_name"],
-                start_dt,
-                end_dt,
-                [NOAADataVariable.APCP, NOAADataVariable.TMP],
-                zarr_bucket,
-                geojson_bucket,
-                geojson_key,
-                access_key_id,
-                secret_access_key,
-                interval,
-                output_resolution_km,
-            ):
+            dss_basename = f'{doc["metadata"]["watershed_name"].lower()}_{start_dt.strftime("%Y%m%d")}_{end_dt.strftime("%Y%m%d")}.dss'
+            dss_s3_key = os.path.join(geojson_key.replace(".geojson", ""), "with_temp", dss_basename)
+            # skip creation of dss if it already exists on s3
+            if not check_if_exists(s3_client, s3_output_bucket, dss_s3_key):
+                logging.info(f"Generating DSS for data from {start_dt.isoformat()} to {end_dt.isoformat()}")
+                dss_paths = [
+                    p
+                    for p in generate_dss_from_zarr(
+                        tmp_dir,
+                        doc["metadata"]["watershed_name"],
+                        start_dt,
+                        end_dt,
+                        [NOAADataVariable.APCP, NOAADataVariable.TMP],
+                        zarr_bucket,
+                        geojson_bucket,
+                        geojson_key,
+                        access_key_id,
+                        secret_access_key,
+                        interval,
+                        output_resolution_km,
+                    )
+                ]
+                if len(dss_paths) != 1:
+                    raise ValueError(f"Expected 1 DSS file to be generated; got {len(dss_paths)}")
+                else:
+                    dss_path = dss_paths[0]
                 # save dss to s3
-                dss_basename = os.path.basename(dss_path)
-                dss_s3_key = os.path.join(geojson_key.replace(".geojson", ""), "with_temp", dss_basename)
                 logging.info(f"Uploading DSS data to s3://{s3_output_bucket}/{dss_s3_key}")
                 s3_client.upload_file(dss_path, s3_output_bucket, dss_s3_key)
                 upload_dt = datetime.datetime.now()
-                dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
+            else:
+                logging.info(f"{dss_s3_key} already exists as s3 key; skipping creation")
+                upload_dt = get_last_modification(s3_client, s3_output_bucket, dss_s3_key)
+            dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
 
-                # construct and save metadata to s3
-                dss_vars = [DSSVariable.PRECIPITATION, DSSVariable.TEMPERATURE]
-                meta = construct_dss_meta(
-                    doc["metadata"]["watershed_name"],
-                    f"s3://{geojson_bucket}/{geojson_key}",
-                    dss_uri,
-                    doc["start"]["datetime"],
-                    None,
-                    upload_dt,
-                    doc["duration"],
-                    doc["geom"]["center_x"],
-                    doc["geom"]["center_y"],
-                    i,
-                    year_rank,
-                    limit,
-                    top_by_year,
-                    s3_client,
-                    [d.name for d in dss_vars],
-                    transform_function,
-                )
-                yield meta
+            # construct and save metadata to s3
+            dss_vars = [DSSVariable.PRECIPITATION, DSSVariable.TEMPERATURE]
+            meta = construct_dss_meta(
+                doc["metadata"]["watershed_name"],
+                f"s3://{geojson_bucket}/{geojson_key}",
+                dss_uri,
+                doc["start"]["datetime"],
+                None,
+                upload_dt,
+                doc["duration"],
+                doc["geom"]["center_x"],
+                doc["geom"]["center_y"],
+                i,
+                year_rank,
+                limit,
+                top_by_year,
+                s3_client,
+                [d.name for d in dss_vars],
+                transform_function,
+            )
+            yield meta
 
 
 def write_meta_to_grid(

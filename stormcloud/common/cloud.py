@@ -10,6 +10,14 @@ from botocore.exceptions import ClientError
 from shapely.geometry import MultiPolygon, Polygon, shape
 
 
+def check_if_exists(s3, bucket: str, key: str) -> bool:
+    try:
+        s3.head_object(Bucket=bucket, Key=key)
+    except ClientError:
+        return False
+    return True
+
+
 def create_presigned_url(bucket_name, object_name, expiration=604800):
     """Generate a presigned URL to share an S3 object
 

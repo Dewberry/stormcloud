@@ -1,4 +1,4 @@
-from constants import RFC_INFO_LIST, FTP_HOST
+from .constants import RFC_INFO_LIST, FTP_HOST
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import boto3

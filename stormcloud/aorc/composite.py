@@ -11,7 +11,7 @@ import logging
 import xarray as xr
 import zarr.storage as storage
 import os
-from constants import RFC_INFO_LIST
+from .constants import RFC_INFO_LIST
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 

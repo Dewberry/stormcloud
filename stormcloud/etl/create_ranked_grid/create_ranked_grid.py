@@ -24,6 +24,8 @@ from common.dss import DSSProductMeta
 from common.shared import DSSVariable, NOAADataVariable
 from write_aorc_zarr_to_dss import SpecifiedInterval, generate_dss_from_zarr
 
+MISSING_DATA = False
+
 
 def create_grid_filename(watershed: str) -> str:
     initials = ""
@@ -97,6 +99,7 @@ def get_ranked_documents_temp_precip(
     secret_access_key: str,
     output_resolution_km: int,
 ) -> Iterator[DSSProductMeta]:
+    global MISSING_DATA
     docs = query_ms(ms_client, INDEX, watershed_name, domain_name, mean_filter, limit, declustered, top_by_year)
     transform_function = create_transform()
     for i, doc in enumerate(docs, 1):
@@ -115,75 +118,86 @@ def get_ranked_documents_temp_precip(
             geojson_bucket, geojson_key = split_s3_path(doc["metadata"]["transposition_domain_source"])
             dss_basename = f'{doc["metadata"]["watershed_name"].lower()}_{start_dt.strftime("%Y%m%d")}_{end_dt.strftime("%Y%m%d")}.dss'
             dss_s3_key = os.path.join(geojson_key.replace(".geojson", ""), "with_temp", dss_basename)
-            # skip creation of dss if it already exists on s3
-            if not check_if_exists(s3_client, s3_output_bucket, dss_s3_key):
-                logging.info(f"Generating DSS for data from {start_dt.isoformat()} to {end_dt.isoformat()}")
-                dss_paths = [
-                    p
-                    for p in generate_dss_from_zarr(
-                        tmp_dir,
-                        doc["metadata"]["watershed_name"],
-                        start_dt,
-                        end_dt,
-                        [NOAADataVariable.APCP, NOAADataVariable.TMP],
-                        zarr_bucket,
-                        geojson_bucket,
-                        geojson_key,
-                        access_key_id,
-                        secret_access_key,
-                        interval,
-                        output_resolution_km,
-                    )
-                ]
-                if len(dss_paths) != 1:
-                    raise ValueError(f"Expected 1 DSS file to be generated; got {len(dss_paths)}")
+            # try / except clause to allow missing data to register in global MISSING_DATA variable and continue processing of data
+            try:
+                # skip creation of dss if it already exists on s3
+                if not check_if_exists(s3_client, s3_output_bucket, dss_s3_key):
+                    logging.info(f"Generating DSS for data from {start_dt.isoformat()} to {end_dt.isoformat()}")
+                    dss_paths = [
+                        p
+                        for p in generate_dss_from_zarr(
+                            tmp_dir,
+                            doc["metadata"]["watershed_name"],
+                            start_dt,
+                            end_dt,
+                            [NOAADataVariable.APCP, NOAADataVariable.TMP],
+                            zarr_bucket,
+                            geojson_bucket,
+                            geojson_key,
+                            access_key_id,
+                            secret_access_key,
+                            interval,
+                            output_resolution_km,
+                        )
+                    ]
+                    if len(dss_paths) != 1:
+                        raise ValueError(f"Expected 1 DSS file to be generated; got {len(dss_paths)}")
+                    else:
+                        dss_path = dss_paths[0]
+                    # save dss to s3
+                    logging.info(f"Uploading DSS data to s3://{s3_output_bucket}/{dss_s3_key}")
+                    s3_client.upload_file(dss_path, s3_output_bucket, dss_s3_key)
+                    upload_dt = datetime.datetime.now()
                 else:
-                    dss_path = dss_paths[0]
-                # save dss to s3
-                logging.info(f"Uploading DSS data to s3://{s3_output_bucket}/{dss_s3_key}")
-                s3_client.upload_file(dss_path, s3_output_bucket, dss_s3_key)
-                upload_dt = datetime.datetime.now()
-            else:
-                logging.info(f"{dss_s3_key} already exists as s3 key; skipping creation")
-                upload_dt = get_last_modification(s3_client, s3_output_bucket, dss_s3_key)
-            dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
+                    logging.info(f"{dss_s3_key} already exists as s3 key; skipping creation")
+                    upload_dt = get_last_modification(s3_client, s3_output_bucket, dss_s3_key)
+                dss_uri = f"s3://{s3_output_bucket}/{dss_s3_key}"
 
-            # construct and save metadata to s3
-            dss_vars = [DSSVariable.PRECIPITATION, DSSVariable.TEMPERATURE]
-            meta = construct_dss_meta(
-                doc["metadata"]["watershed_name"],
-                f"s3://{geojson_bucket}/{geojson_key}",
-                dss_uri,
-                doc["start"]["datetime"],
-                None,
-                upload_dt,
-                doc["duration"],
-                doc["geom"]["center_x"],
-                doc["geom"]["center_y"],
-                i,
-                year_rank,
-                limit,
-                top_by_year,
-                s3_client,
-                [d.name for d in dss_vars],
-                transform_function,
-            )
-            yield meta
+                # construct and save metadata to s3
+                dss_vars = [DSSVariable.PRECIPITATION, DSSVariable.TEMPERATURE]
+                meta = construct_dss_meta(
+                    doc["metadata"]["watershed_name"],
+                    f"s3://{geojson_bucket}/{geojson_key}",
+                    dss_uri,
+                    doc["start"]["datetime"],
+                    None,
+                    upload_dt,
+                    doc["duration"],
+                    doc["geom"]["center_x"],
+                    doc["geom"]["center_y"],
+                    i,
+                    year_rank,
+                    limit,
+                    top_by_year,
+                    s3_client,
+                    [d.name for d in dss_vars],
+                    transform_function,
+                )
+                yield meta
+            except FileNotFoundError:
+                logging.error(
+                    f"Missing data in temperature, precipitation, or both from {start_dt.isoformat()} to {end_dt.isoformat()}"
+                )
+                MISSING_DATA = True
 
 
 def write_meta_to_grid(
     grid_directory: str, grid_file_basename: str, dss_meta_iterable: Iterable[DSSProductMeta], s3_client: Any
 ) -> str:
-    prepare_structure(grid_directory)
-    grid_filename = os.path.join(grid_directory, grid_file_basename)
-    meta_header = next(dss_meta_iterable)
-    with GridWriter(
-        grid_filename, meta_header.model_extent_name, meta_header.top_year_limit, meta_header.overall_limit
-    ) as grid_writer:
-        insert_meta_into_grid(grid_writer, meta_header, s3_client)
-        for meta in dss_meta_iterable:
-            insert_meta_into_grid(grid_writer, meta, s3_client)
-    return grid_writer.parent_dir
+    global MISSING_DATA
+    if not MISSING_DATA:
+        prepare_structure(grid_directory)
+        grid_filename = os.path.join(grid_directory, grid_file_basename)
+        meta_header = next(dss_meta_iterable)
+        with GridWriter(
+            grid_filename, meta_header.model_extent_name, meta_header.top_year_limit, meta_header.overall_limit
+        ) as grid_writer:
+            insert_meta_into_grid(grid_writer, meta_header, s3_client)
+            for meta in dss_meta_iterable:
+                insert_meta_into_grid(grid_writer, meta, s3_client)
+        return grid_writer.parent_dir
+    else:
+        raise FileNotFoundError(f"Stopped writing to GRID; missing DSS data -- check logs for dates of missing data")
 
 
 def main(
@@ -327,7 +341,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logging.basicConfig(handlers=[logging.StreamHandler()], level=logging.INFO)
+    logging.basicConfig(handlers=[logging.StreamHandler()], level=logging.INFO, force=True)
     botocore_logger = logging.getLogger("botocore")
     botocore_logger.setLevel(logging.WARNING)
 

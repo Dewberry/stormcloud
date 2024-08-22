@@ -1,5 +1,5 @@
 # Dockerfile supporting plugin for temperature and precipitation extraction and conversion to DSS format
-FROM osgeo/gdal:ubuntu-small-3.5.1 as prod
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.5.1 as prod
 RUN apt-get update && \
     apt-get install -y python3-pip && \
     pip3 install rasterio --no-binary rasterio

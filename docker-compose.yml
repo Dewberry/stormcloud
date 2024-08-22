@@ -26,26 +26,19 @@ services:
     env_file:
       - ./stormcloud/plugins/doc_rank/.env
 
-  # stormcloud-etl-temp-transfer:
-  #   container_name: stormcloud-temp-transfer
-  #   build:
-  #     dockerfile: Dockerfile.temp_transfer
-  #   env_file:
-  #     - ./stormcloud/etl/temp_transfer/.env
-  #   tty: true
-
-  # stormcloud-etl-top-storms-dss:
-  #   container_name: stormcloud-top-storms-dss
-  #   build:
-  #     dockerfile: Dockerfile.top_storms_dss
-  #   env_file:
-  #     - ./stormcloud/etl/top_storms/.env
-  #   tty: true
-
   # stormcloud-etl-transpose-geom:
   #   container_name: stormcloud-transpose-geom
   #   build:
   #     dockerfile: Dockerfile.transpose_geom
   #   env_file:
   #     - ./stormcloud/etl/transpose_geom/.env
+  #   tty: true
+
+  # stormcloud-etl-create-ranked-grid:
+  #   container_name: stormcloud-create-ranked-grid
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.create_ranked_grid
+  #   env_file:
+  #     - ./stormcloud/etl/create_ranked_grid/.env
   #   tty: true

@@ -1,0 +1,1 @@
+`extract_trinity_tifs.py` was last saved on 11/9/2023.  It was executed to export every 168 record paths within `trinity_precipitation.dss`. Since each record was 1 hour apart, this exports one tif per week.  Those exported tifs were spot-checked.

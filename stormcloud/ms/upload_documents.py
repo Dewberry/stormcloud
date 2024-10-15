@@ -92,7 +92,9 @@ def construct_key(
 
 
 def get_ranked_docs(bucket: str, s3_client: Any, **kwargs) -> Iterator[dict]:
-    json_key = construct_key(**kwargs)
+    json_key = kwargs.get("json_key", None)
+    if json_key == None:
+        json_key = construct_key(**kwargs)
     logging.info(f"getting ranked document information from s3://{bucket}/{json_key}")
     res = s3_client.get_object(Bucket=bucket, Key=json_key)
     text = res.get("Body").read().decode()
@@ -114,7 +116,7 @@ class DocumentHandler:
 
     def __exit__(self, *args) -> None:
         self.handle_queue()
-        non_null_args = [a for a in filter(args)]
+        non_null_args = [a for a in filter(None, args)]
         if len(non_null_args) > 0:
             logging.error(f"exited with error message: {', '.join(non_null_args)}")
 
@@ -153,9 +155,9 @@ if __name__ == "__main__":
     import argparse
     import os
 
-    from dotenv import load_dotenv
     from client_utils import create_meilisearch_client, create_s3_client
     from constants import INDEX
+    from dotenv import load_dotenv
 
     load_dotenv("stormcloud/ms/.env")
 

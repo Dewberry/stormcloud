@@ -1,7 +1,16 @@
 import datetime
+from dataclasses import dataclass
 
 import numpy as np
-from pystac import Catalog, CatalogType, Item
+from pystac import CatalogType, Collection, Item
+
+
+@dataclass
+class CollectionMetrics:
+    id_list: list[str]
+    mean_list: list[float]
+    start: datetime.datetime
+    end: datetime.datetime
 
 
 class Calendar:
@@ -33,6 +42,15 @@ class Calendar:
         mask = (self.datetime_array >= start) & (self.datetime_array < end)
         self.datetime_array[mask] = np.ma.masked
 
+    def block_if_available(self, start: datetime.datetime, end: datetime.datetime) -> bool:
+        unblocked = self.unblocked_dates()
+        np_start = np.datetime64(start)
+        np_end = np.datetime64(end)
+        if np_start in unblocked and np_end in unblocked:
+            self.block_window(np_start, np_end)
+            return True
+        return False
+
 
 def parse_item_time_range(item: Item) -> tuple[datetime.datetime, datetime.datetime]:
     item_start_dt = datetime.datetime.strptime(item.properties["start_datetime"], "%Y-%m-%dT%H:%M:%SZ")
@@ -42,13 +60,20 @@ def parse_item_time_range(item: Item) -> tuple[datetime.datetime, datetime.datet
     return item_start_dt, item_end_dt
 
 
-def rank_catalog(catalog_href: str, duration_hours: int) -> None:
-    catalog = Catalog.from_file(catalog_href)
+def rank_ids(id_list: list[str], mean_list: list[float]) -> list[str]:
+    id_array = np.array(id_list, dtype=np.dtypes.StrDType)
+    mean_array = np.array(mean_list, dtype=np.float64)
+    sorted_indexes = np.argsort(mean_array)[::-1]
+    sorted_id_array = id_array[sorted_indexes]
+    return sorted_id_array.tolist()
+
+
+def collect_collection_metrics(collection: Collection) -> CollectionMetrics:
     id_list: list[str] = []
     mean_list: list[float] = []
     start = None
     end = None
-    for item in catalog.get_items():
+    for item in collection.get_items():
         id_list.append(item.id)
         mean_list.append(item.properties["mean"])
         item_start_dt, item_end_dt = parse_item_time_range(item)
@@ -56,37 +81,44 @@ def rank_catalog(catalog_href: str, duration_hours: int) -> None:
             start = item_start_dt
         if end == None or item_end_dt > end:
             end = item_end_dt
-    calendar = Calendar(start, end, datetime.timedelta(hours=1))
-    id_array = np.array(id_list, dtype=np.dtypes.StrDType)
-    mean_array = np.array(mean_list, dtype=np.float64)
-    sorted_indexes = np.argsort(mean_array)[::-1]
-    sorted_id_array = id_array[sorted_indexes]
-    true_rank = 1
+
+
+def main(collection_href: str) -> None:
+    collection = Collection.from_file(collection_href)
+    metrics = collect_collection_metrics(collection)
+    calendar = Calendar(metrics.start, metrics.end, datetime.timedelta(hours=1))
+    overall_rank = 1
     declustered_rank = 1
-    for item_id in sorted_id_array.tolist():
-        item = next(catalog.get_items(item_id))
-        item.properties["rank"] = true_rank
-        true_rank += 1
-        unblocked = calendar.unblocked_dates()
+    year_rank_dict: dict[int, tuple[int, int]] = {}
+    sorted_id_list = rank_ids(metrics.id_list, metrics.mean_list)
+    for item_id in sorted_id_list:
+        item = next(collection.get_items(item_id))
+        item.properties["overall_rank"] = overall_rank
+        overall_rank += 1
         item_start_dt, item_end_dt = parse_item_time_range(item)
-        np_item_start_dt = np.datetime64(item_start_dt)
-        np_item_end_dt = np.datetime64(item_end_dt)
-        if np_item_start_dt in unblocked and np_item_end_dt in unblocked:
-            calendar.block_window(np_item_start_dt, np_item_end_dt)
-            item.properties["declustered_rank"] = declustered_rank
+        year_rank, declustered_year_rank = year_rank_dict.get(item_start_dt.year, (1, 1))
+        item.properties["year_rank"] = year_rank
+        year_rank += 1
+        available = calendar.block_if_available(item_start_dt, item_end_dt)
+        if available:
+            item.properties["declustered_overall_rank"] = declustered_rank
+            item.properties["declustered_year_rank"] = declustered_year_rank
             declustered_rank += 1
+            declustered_year_rank += 1
         else:
             item.properties["declustered_rank"] = -1
-    catalog.normalize_and_save(catalog.get_self_href(), CatalogType.ABSOLUTE_PUBLISHED)
+            item.properties["declustered_year_rank"] = -1
+        year_rank_dict[item_start_dt.year] = (year_rank, declustered_year_rank)
+    collection.normalize_and_save(collection.get_self_href(), CatalogType.ABSOLUTE_PUBLISHED)
 
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("catalog_href", type=str)
+    parser.add_argument("collection_href", type=str)
     parser.add_argument("--duration_hours", type=int, default=72)
 
     args = parser.parse_args()
 
-    rank_catalog(args.catalog_href, args.duration_hours)
+    main(args.collection_href, args.duration_hours)

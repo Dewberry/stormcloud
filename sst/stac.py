@@ -214,7 +214,7 @@ class SSTItem(Item):
             sst.statistics = best_transpose.sst_statistics
             sst.transform = best_transpose.affine
         if return_data:
-            return aorc_thumbnail, transpose_geometry, valid_area
+            return aorc_thumbnail, transpose_geometry, valid_area, best_transpose.sst_statistics
 
     def create_transposition_domain_asset(
         self,

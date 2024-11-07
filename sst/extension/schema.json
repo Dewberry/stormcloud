@@ -1,0 +1,197 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json#",
+    "title": "SST Extension",
+    "description": "STAC SST Extension for STAC Items.",
+    "oneOf": [
+      {
+        "allOf": [
+          {
+            "$ref": "#/definitions/stac_extensions"
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "properties",
+              "assets"
+            ],
+            "properties": {
+              "type": {
+                "const": "Feature"
+              },
+              "properties": {
+                "allOf": [
+                  {
+                    "$comment": "Require fields here for Item Properties.",
+                    "required": [
+                      "sst:statistics"
+                    ]
+                  },
+                  {
+                    "$ref": "#/definitions/fields"
+                  }
+                ]
+              },
+              "assets": {
+                "$comment": "This validates the fields in Item Assets, but does not require them.",
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/fields"
+                }
+              }
+            }
+          }
+        ]
+      },
+      {
+        "$comment": "This is the schema for STAC Collections.",
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "const": "Collection"
+              },
+              "assets": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/fields"
+                }
+              },
+              "item_assets": {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/definitions/fields"
+                }
+              }
+            }
+          },
+          {
+            "$ref": "#/definitions/stac_extensions"
+          }
+        ]
+      }
+    ],
+    "definitions": {
+      "stac_extensions": {
+        "type": "object",
+        "required": [
+          "stac_extensions"
+        ],
+        "properties": {
+          "stac_extensions": {
+            "type": "array",
+            "contains": {
+              "const": "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
+            }
+          }
+        }
+      },
+      "require_any_field": {
+        "$comment": "Please list all fields here so that we can force the existence of one of them in other parts of the schemas.",
+        "anyOf": [
+          {
+            "required": [
+              "sst:statistics",
+              "sst:transform"
+            ]
+          }
+        ]
+      },
+      "accumulation_measurement_with_units": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "description": "precipitation accumulation value",
+            "type": "number",
+            "minimum": 0
+          },
+          "unit": {
+            "description": "unit of linear distance measurement used to measure precipitation accumulation",
+            "enum": [
+              "in",
+              "mm"
+            ]
+          }
+        }
+      },
+      "sst:statistics": {
+        "title": "Precipitation Accumultation Statistics",
+        "description": "A collection of statistics computed using accumulated AORC precipitation data for a transposed watershed within the transposition domain",
+        "type": "object",
+        "properties": {
+          "min": {
+            "title": "Minimum Precipitation",
+            "description": "Minimum precipitation accumulation value",
+            "$ref": "#/definitions/accumulation_measurement_with_units"
+          },
+          "mean": {
+            "title": "Mean Precipitation",
+            "description": "Mean precipitation accumulation value",
+            "$ref": "#/definitions/accumulation_measurement_with_units"
+          },
+          "max": {
+            "title": "Maximum Precipitation",
+            "description": "Maximum precipitation accumulation value",
+            "$ref": "#/definitions/accumulation_measurement_with_units"
+          },
+          "count": {
+            "title": "Count",
+            "description": "Count of gridded precipitation cells used to calculate accumulation measurements",
+            "type": "integer",
+            "minimum": 1
+          },
+          "normalized_mean": {
+            "title": "Normalized Mean Precipitation",
+            "description": "Mean of precipitation accumulation values divided by corresponding ATLAS14 data values for normalization",
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "min",
+          "mean",
+          "max",
+          "count"
+        ]
+      },
+      "sst:transform": {
+        "title":"Transform",
+        "description": "A 3x3 matrix stored as a flat array of 9 elements in row major order. Since the last row is always 0,0,1 it can be omitted, in which case only 6 elements are recorded. Refers to the transform applied to the original watershed geometry to yield the provided watershed geometry",
+        "type":"array",
+        "oneOf": [
+          {
+            "minItems":6,
+            "maxItems":6
+          },
+          {
+            "minItems":9,
+            "maxItems":9
+          }
+        ],
+        "items":{
+          "type":"number"
+        }
+      },
+      "fields": {
+        "$comment": "Add your new fields here. Don't require them here, do that above in the corresponding schema.",
+        "type": "object",
+        "properties": {
+          "sst:statistics": {
+            "$ref": "#/definitions/sst:statistics"
+          },
+          "sst:transform": {
+            "$ref": "#/definitions/sst:transform"
+          },
+          "patternProperties": {
+            "^(?!sst:)": {}
+          },
+          "additionalProperties": false
+        }
+      }
+    }
+  }

@@ -126,6 +126,9 @@
               "description": "End date for peak flow data."
             }
           },
+          "patternProperties": {
+            "^(?!sgage:)": {}
+          },
           "additionalProperties": false
         }
       }

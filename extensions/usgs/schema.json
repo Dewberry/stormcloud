@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/dewberry/stormcloud/refs/heads/feature/gages/extensions/usgs/schema.json#",
-  "title": "USGS NWIS Extension",
-  "description": "STAC extension for USGS NWIS gage data, supporting hydrologic and geographic attributes.",
+  "$id": "https://raw.githubusercontent.com/dewberry/stormcloud/refs/heads/feature/gages/extensions/sgage/schema.json#",
+  "title": "sgage NWIS Extension",
+  "description": "STAC extension for sgage NWIS gage data, supporting hydrologic and geographic attributes.",
   "oneOf": [
     {
       "allOf": [
@@ -24,12 +24,12 @@
                 {
                   "$comment": "Required fields for Item properties",
                   "required": [
-                    "usgs:gage_number",
-                    "usgs:gage_name",
-                    "usgs:state",
-                    "usgs:huc",
-                    "usgs:drainage_area",
-                    "usgs:time_zone"
+                    "sgage:gage_number",
+                    "sgage:gage_name",
+                    "sgage:state",
+                    "sgage:huc",
+                    "sgage:drainage_area",
+                    "sgage:time_zone"
                   ]
                 },
                 {
@@ -86,81 +86,81 @@
         "stac_extensions": {
           "type": "array",
           "contains": {
-            "const": "https://example.com/extensions/usgs-nwis/v1.0.0/schema.json"
+            "const": "https://example.com/extensions/sgage-nwis/v1.0.0/schema.json"
           }
         }
       }
     },
     "fields": {
-      "$comment": "Nomenclature developed from the usgs dataretrieval-python api: https://github.com/DOI-USGS/dataretrieval-python/blob/main/dataretrieval/nwis.py",
+      "$comment": "Nomenclature developed from the sgage dataretrieval-python api: https://github.com/DOI-sgage/dataretrieval-python/blob/main/dataretrieval/nwis.py",
       "type": "object",
       "properties": {
-        "usgs:gage_number": {
+        "sgage:gage_number": {
           "type": "string",
-          "description": "Unique identifier for the USGS gage station."
+          "description": "Unique identifier for the sgage gage station."
         },
-        "usgs:gage_name": {
+        "sgage:gage_name": {
           "type": "string",
-          "description": "Name of the USGS gage station."
+          "description": "Name of the sgage gage station."
         },
-        "usgs:state": {
+        "sgage:state": {
           "type": "string",
           "description": "State where the gage is located."
         },
-        "usgs:huc": {
+        "sgage:huc": {
           "type": "string",
           "description": "Hydrologic Unit Code for the watershed."
         },
-        "usgs:drainage_area": {
+        "sgage:drainage_area": {
           "type": "number",
           "description": "Drainage area in square miles."
         },
-        "usgs:altitude": {
+        "sgage:altitude": {
           "type": "number",
           "description": "Altitude of the gage station in feet."
         },
-        "usgs:vertical_datum": {
+        "sgage:vertical_datum": {
           "type": "string",
           "description": "Vertical datum reference (e.g., NAVD88)."
         },
-        "usgs:time_zone": {
+        "sgage:time_zone": {
           "type": "string",
           "description": "Time zone of the gage station (e.g., MST)."
         },
-        "usgs:peaks:start": {
+        "sgage:peaks:start": {
           "type": ["string", "null"],
           "format": "date",
           "description": "Start date for peak flow data."
         },
-        "usgs:peaks:end": {
+        "sgage:peaks:end": {
           "type": ["string", "null"],
           "format": "date",
           "description": "End date for peak flow data."
         },
-        "usgs:daily:start": {
+        "sgage:daily:start": {
           "type": ["string", "null"],
           "format": "date",
           "description": "Start date for daily flow data."
         },
-        "usgs:daily:end": {
+        "sgage:daily:end": {
           "type": ["string", "null"],
           "format": "date",
           "description": "End date for daily flow data."
         },
-        "usgs:daily:years_of_record": {
+        "sgage:daily:years_of_record": {
           "type": ["number", "null"],
           "description": "Years of record for daily data."
         },
-        "usgs:instantaneous:end": {
+        "sgage:instantaneous:end": {
           "type": ["string", "null"],
           "format": "date",
           "description": "End date for instantaneous flow data."
         },
-        "usgs:instantaneous:years_of_record": {
+        "sgage:instantaneous:years_of_record": {
           "type": ["number", "null"],
           "description": "Years of record for instantaneous data."
         },
-        "usgs:monthly_mean_flow": {
+        "sgage:monthly_mean_flow": {
           "type": ["number", "null"],
           "description": "Mean monthly flow."
         }

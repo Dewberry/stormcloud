@@ -13,7 +13,7 @@ PREFIX: str = "sgage"
 
 
 def extension_key(key: str) -> str:
-    return f"{PREFIX}{key}"
+    return f"{PREFIX}:{key}"
 
 
 GAGE_NUMBER_PROP: str = extension_key("gage_number")

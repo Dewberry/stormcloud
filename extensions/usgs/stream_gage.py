@@ -5,7 +5,7 @@ import pystac
 from pystac.extensions.base import ExtensionManagementMixin, PropertiesExtension
 from pystac.item import Item
 
-USGS_EXTENSION_URI = "https://dewberry.github.com/stormcloud/blob/feature/gages/extensions/usgs/schema.json"
+USGS_EXTENSION_URI = "https://github.com/dewberry/stormcloud/blob/feature/gages/extensions/usgs/schema.json"
 
 PREFIX: str = "sgage"
 

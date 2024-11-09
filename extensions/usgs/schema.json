@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/dewberry/stormcloud/blob/feature/gages/extensions/usgs/schema.json#",
+  "$id": "https://raw.githubusercontent.com/dewberry/stormcloud/refs/heads/feature/gages/extensions/usgs/schema.json#",
   "title": "USGS NWIS Extension",
   "description": "STAC extension for USGS NWIS gage data, supporting hydrologic and geographic attributes.",
   "oneOf": [

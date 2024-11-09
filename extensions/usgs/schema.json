@@ -165,7 +165,7 @@
           "description": "Mean monthly flow."
         }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

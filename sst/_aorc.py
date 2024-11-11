@@ -16,6 +16,7 @@ from shapely.affinity import affine_transform
 from shapely.geometry import shape
 
 from .extension.extension import SSTExtension, SSTStatistics
+from .transpose import Transpose
 
 NULL_POLYGON = Polygon([0, 0], [0, 1], [1, 1], [1, 0])
 
@@ -80,6 +81,7 @@ class AORCItem(Item):
         self._register_extensions()
         self._add_watershed_asset(watershed, watershed_name)
         self._add_transposition_domain_asset(transposition_domain, transposition_domain_name)
+        self._transpose: Transpose | None = None
         self._watershed_mask: np.ndarray | None = None
         self._valid_spaces: np.ndarray | None = None
 
@@ -122,65 +124,18 @@ class AORCItem(Item):
         "calculates amount of memory occupied by AORC data for this object"
         pass
 
+    def transpose(self) -> Transpose:
+        "creates transpose class to use for transposition functions"
+        pass
+
     def sum_aorc(self) -> xr.DataArray:
         "sums AORC precipitation data over the duration"
         pass
 
-    @property
-    def watershed_mask(self) -> np.ndarray:
-        "creates 2D boolean numpy array with true values where the watershed lies in the AORC dataset"
-        if self._watershed_mask == None:
-            pass
-        return self._watershed_mask
-
-    @property
-    def valid_shifts(self) -> list[tuple[int, int]]:
-        """
-        - runs transposition using watershed, transposition domain, and summed aorc dataset
-        - returns list of axis shift values applied to watershed mask to get all valid spaces
-        """
-        if self._valid_spaces == None:
-            pass
-        return self._valid_spaces
-
-    @property
-    def valid_spaces(self) -> np.ndarray:
-        """
-        - initializes valid mask as just watershed mask value
-        - iterates over list of shift values
-        - applies shift (perhaps with np.roll) to watershed mask
-        - performs logical_or with valid mask and rolled watershed mask
-        - returns valid mask array
-        """
-        valid_spaces = self.watershed_mask.copy()
-        for shift in self.valid_shifts:
-            rolled = np.roll(valid_spaces, shift)
-            valid_spaces = np.logical_or(valid_spaces, rolled)
-        return valid_spaces
-
-    def _array_to_polygon(self, arr: np.ndarray) -> Polygon:
-        "convert supplied array to geometry using coordinates of AORC dataset"
-        pass
-
-    def valid_spaces_polygon(self, add_asset: bool = True, write: bool = True) -> Polygon:
-        "converts valid mask to a polygon"
-        valid_spaces_polygon = self._array_to_polygon(self.valid_spaces)
+    def valid_spaces_polygon(self, transpose: Transpose, add_asset: bool = True, write: bool = True) -> Polygon:
+        "converts valid spaces boolean array to a polygon"
+        valid_spaces_polygon = transpose.valid_spaces_polygon()
         # if add asset or write is true, save to file and add valid area asset to assets
-
-    def max_transpose(self) -> tuple[Polygon, Affine, SSTStatistics]:
-        """
-        - initializes max transpose array, max shift, and stats collection as None
-        - iterates over list of shift values
-        - applies shift to watershed mask
-        - calculates stats
-        - if stats collection has greater mean than max stats, overwrite max stats, max shift, and max transpose array
-        - convert max array to polygon
-        - add stats object to item properties
-        - record transpose centroid as item geometry
-        - record max shift (as affine transform) to item properties
-        - return polygon and stats
-        """
-        pass
 
     def aorc_thumbnail(self, scale_max: float, add_asset: bool = True, write: bool = True) -> Figure:
         """
@@ -202,14 +157,26 @@ class AORCItem(Item):
         # if add_asset or write is true, save to file and add DSS asset to assets
         pass
 
-    def run(self) -> None:
+    @staticmethod
+    def _create_stats(masked_array: np.ma.MaskedArray) -> SSTStatistics:
+        stats = SSTStatistics.create(
+            masked_array.min(), masked_array.mean(), masked_array.max(), len(masked_array.compressed)
+        )
+        return stats
+
+    def run(self, scale_max: float) -> None:
         # load aorc data, registering sources as assets
         # calculate sum
         # calculate valid shifts
         # calculate max transpose, updating item properties using results
         # create valid area polygon, write to asset
         # create png using watershed geom, summed AORC data, and valid area polygon, write to asset
-        pass
+        sum_data = self.sum_aorc()
+        transpose = self.transpose()
+        max_transpose_poly, max_transpose_affine, max_transpose_stats = transpose.max_transpose(self._create_stats)
+        max_transpose_stats: SSTStatistics
+        self.valid_spaces_polygon(transpose, True, True)
+        self.aorc_thumbnail(scale_max, True, True)
 
 
 def main(

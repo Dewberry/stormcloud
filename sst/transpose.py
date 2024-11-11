@@ -14,6 +14,7 @@ class Transpose:
         self.watershed = watershed
         self.x_var = x_var
         self.y_var = y_var
+        self.x_cellsize, self.y_cellsize = self.data_array.rio.resolution
         self._np_data_array = None
         self._watershed_window = None
         self._watershed_mask = None
@@ -116,16 +117,15 @@ class Transpose:
     def _array_to_polygon(self, arr: np.ndarray) -> Polygon:
         "convert supplied boolean array to geometry using coordinates of dataset"
         cells = np.flip(np.column_stack(np.where(self.valid_spaces)), 1)
-        coords = np.column_stack((self.x_coords[cells[:, 0]], self.y_coords[cells[:, 1]]))
-        cellsize_x, cellsize_y = self.data_array.rio.resolution
+        coords = np.column_stack((self.data_array_x_coords[cells[:, 0]], self.data_array_y_coords[cells[:, 1]]))
 
         boxes = []
         for coord in coords:
             x, y = coord
-            minx = x - (cellsize_x / 2)
-            maxx = x + (cellsize_x / 2)
-            miny = y - (cellsize_y / 2)
-            maxy = y + (cellsize_y / 2)
+            minx = x - (self.x_cellsize / 2)
+            maxx = x + (self.x_cellsize / 2)
+            miny = y - (self.y_cellsize / 2)
+            maxy = y + (self.y_cellsize / 2)
 
             boxes.append(box(minx, miny, maxx, maxy))
 
@@ -134,7 +134,7 @@ class Transpose:
     def valid_spaces_polygon(self) -> Polygon:
         "converts valid spaces boolean array to a polygon"
         valid_spaces_polygon = self._array_to_polygon(self.valid_spaces)
-        # if add asset or write is true, save to file and add valid area asset to assets
+        return valid_spaces_polygon
 
     def max_transpose(self, callable: Callable[[np.ma.MaskedArray], Any]) -> tuple[Polygon, Affine, Any]:
         """

@@ -70,10 +70,6 @@ class Transpose:
         return self._watershed_mask
 
     @property
-    def watershed_count(self) -> int:
-        "gets the count of how many data array cells are in a watershed"
-
-    @property
     def valid_shifts(self) -> list[tuple[int, int]]:
         """
         - runs transposition using watershed, transposition domain, and summed aorc dataset

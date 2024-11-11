@@ -15,6 +15,8 @@ class Transpose:
         self.x_var = x_var
         self.y_var = y_var
         self.x_cellsize, self.y_cellsize = self.data_array.rio.resolution
+        self.width = self.data_array.rio.width
+        self.height = self.data_array.rio.height
         self._np_data_array = None
         self._watershed_window = None
         self._watershed_mask = None
@@ -81,8 +83,8 @@ class Transpose:
         if self._valid_spaces == None:
             min_x_delta = 0 - self.watershed_window.col_off
             min_y_delta = 0 - self.watershed_window.row_off
-            max_x_delta = self.data_array.rio.width - self.watershed_window.width
-            max_y_delta = self.data_array.rio.height - self.watershed_window.height
+            max_x_delta = self.width - self.watershed_window.width
+            max_y_delta = self.height - self.watershed_window.height
             x_delta = min_x_delta
             y_delta = min_y_delta
             while x_delta <= max_x_delta:

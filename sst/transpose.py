@@ -1,13 +1,15 @@
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import numpy as np
 import rioxarray as rxr
 import xarray as xr
 from affine import Affine
+from rasterio.features import shapes
 from rasterio.mask import geometry_mask
 from rasterio.windows import Window, get_data_window
-from shapely import Polygon, box, unary_union
+from shapely import Geometry, Polygon
 from shapely.affinity import translate
+from shapely.geometry import shape
 
 
 class Transpose:
@@ -17,6 +19,7 @@ class Transpose:
         self.x_var = x_var
         self.y_var = y_var
         self.x_cellsize, self.y_cellsize = self.data_array.rio.resolution()
+        self.transform = self.data_array.rio.transform()
         self.width = self.data_array.rio.width
         self.height = self.data_array.rio.height
         self._np_data_array = None
@@ -25,6 +28,7 @@ class Transpose:
         self._watershed_mask_clipped = None
         self._valid_shifts = None
         self._valid_spaces = None
+        self._valid_spaces_polygon = None
         self._data_array_x_coords = None
         self._data_array_y_coords = None
 
@@ -134,25 +138,22 @@ class Transpose:
 
     def _array_to_polygon(self, arr: np.ndarray) -> Polygon:
         "convert supplied boolean array to geometry using coordinates of dataset"
-        cells = np.flip(np.column_stack(np.where(arr)), 1)
-        coords = np.column_stack((self.data_array_x_coords[cells[:, 0]], self.data_array_y_coords[cells[:, 1]]))
+        shapely_shapes = [
+            shape(converted_shape) for converted_shape, _ in shapes(arr.astype(np.ubyte), arr, transform=self.transform)
+        ]
+        if len(shapely_shapes) != 1:
+            raise ValueError(f"Expected single geometry feature, got {len(shapely_shapes)}")
+        valid_spaces_geom = shapely_shapes[0]
+        if valid_spaces_geom.geom_type != "Polygon":
+            raise TypeError(f"Expected geometry type 'Polygon', got {valid_spaces_geom.geom_type}")
+        return valid_spaces_geom
 
-        boxes = []
-        for coord in coords:
-            x, y = coord
-            minx = x - (self.x_cellsize / 2)
-            maxx = x + (self.x_cellsize / 2)
-            miny = y - (self.y_cellsize / 2)
-            maxy = y + (self.y_cellsize / 2)
-
-            boxes.append(box(minx, miny, maxx, maxy))
-
-        return unary_union(boxes)
-
+    @property
     def valid_spaces_polygon(self) -> Polygon:
         "converts valid spaces boolean array to a polygon"
-        valid_spaces_polygon = self._array_to_polygon(self.valid_spaces)
-        return valid_spaces_polygon
+        if self._valid_spaces_polygon == None:
+            self._valid_spaces_polygon = self._array_to_polygon(self.valid_spaces)
+        return self._valid_spaces_polygon
 
     def max_transpose(self, callable: Callable[[np.ndarray], Any] | None = None) -> tuple[Polygon, Affine, Any | None]:
         """

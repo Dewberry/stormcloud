@@ -5,14 +5,15 @@ from typing import Any
 
 import fiona
 import numpy as np
+import s3fs
 import xarray as xr
 from affine import Affine
+from fsspec import FSMap
 from matplotlib.figure import Figure
 from pyproj import CRS
 from pystac import Asset, Collection, Item, MediaType
 from pystac.extensions.projection import ProjectionExtension
 from shapely import Geometry, Polygon, to_geojson
-from shapely.affinity import affine_transform
 from shapely.geometry import shape
 
 from .extension.extension import SSTExtension, SSTStatistics
@@ -37,7 +38,9 @@ def convert_to_geojson_dict(geom: Geometry) -> dict[str, Any]:
 
 
 class AORCItem(Item):
-    NOAA_AORC_S3_BUCKET = "noaa"
+    NOAA_AORC_S3_BASE_URL = "s3://noaa-nws-aorc-v1-1-1km"
+    AORC_X_VAR = "longitude"
+    AORC_Y_VAR = "latitude"
 
     def __init__(
         self,
@@ -64,14 +67,16 @@ class AORCItem(Item):
         )
         self.transposition_domain_geometry: Polygon
         self.local_directory = local_directory
+        self.start_datetime = start_datetime
+        self.end_datetime = start_datetime + duration
         super().__init__(
             id,
             NULL_POLYGON,
             self.transposition_domain_geometry.bounds,
-            start_datetime,
+            self.start_datetime,
             properties,
-            start_datetime,
-            start_datetime + duration,
+            self.start_datetime,
+            self.end_datetime,
             stac_extensions,
             href,
             collection,
@@ -81,9 +86,9 @@ class AORCItem(Item):
         self._register_extensions()
         self._add_watershed_asset(watershed, watershed_name)
         self._add_transposition_domain_asset(transposition_domain, transposition_domain_name)
+        self._aorc_source_data: xr.Dataset | None = None
         self._transpose: Transpose | None = None
-        self._watershed_mask: np.ndarray | None = None
-        self._valid_spaces: np.ndarray | None = None
+        self._sum_aorc: xr.DataArray | None = None
 
     def _add_watershed_asset(self, href: str, name: str) -> Asset:
         asset = Asset(href, title=name, media_type=MediaType.GEOJSON)
@@ -106,9 +111,15 @@ class AORCItem(Item):
         ProjectionExtension.add_to(self)
 
     @property
-    def aorc_paths(self) -> list[str]:
+    def aorc_paths(self) -> list[FSMap]:
         "constructs s3 paths for AORC datasets for given start time and duration"
-        pass
+        s3_out = s3fs.S3FileSystem(anon=True)
+        unique_years = set([self.start_datetime.year, self.end_datetime.year])
+        fileset = [
+            s3fs.S3Map(root=f"s3://{self.NOAA_AORC_S3_BASE_URL}/{dataset_year}.zarr", s3=s3_out, check=False)
+            for dataset_year in unique_years
+        ]
+        return fileset
 
     @property
     def aorc_source_data(self) -> xr.Dataset:
@@ -117,25 +128,55 @@ class AORCItem(Item):
         - doesn't read the entire ZARR files, instead just reads slice of data corresponding to transposition domain geometry and limited to start and end time
         - adds ZARR files to assets if they don't exist already
         """
-        pass
+        if self._aorc_source_data == None:
+            ds = xr.open_mfdataset(self.aorc_paths, engine="zarr", chunks="auto", consolidated=True)
+            bounds = self.transposition_domain_geometry.bounds
+            subsection = ds.sel(
+                time=slice(self.start_datetime, self.end_datetime),
+                longitude=slice(bounds[0], bounds[2]),
+                latitude=slice(bounds[1], bounds[3]),
+            )
+            self._aorc_source_data = subsection.rio.clip(
+                [self.transposition_domain_geometry], drop=True, all_touched=True
+            )
+        return self._aorc_source_data
 
     @property
     def aorc_size_in_memory(self) -> int:
         "calculates amount of memory occupied by AORC data for this object"
         pass
 
+    @property
     def transpose(self) -> Transpose:
         "creates transpose class to use for transposition functions"
-        pass
+        if self._transpose == None:
+            self._transpose = Transpose(self.sum_aorc, self.watershed_geometry, self.AORC_X_VAR, self.AORC_Y_VAR)
+        return self._transpose
 
+    @property
     def sum_aorc(self) -> xr.DataArray:
         "sums AORC precipitation data over the duration"
-        pass
+        if self._sum_aorc == None:
+            self._sum_aorc = self.aorc_source_data.sum(dim="time", skipna=True, min_count=1)
+        return self._sum_aorc
 
-    def valid_spaces_polygon(self, transpose: Transpose, add_asset: bool = True, write: bool = True) -> Polygon:
+    def valid_spaces_polygon(self, add_asset: bool = True, write: bool = True) -> Polygon:
         "converts valid spaces boolean array to a polygon"
-        valid_spaces_polygon = transpose.valid_spaces_polygon()
+        valid_spaces_polygon = self.transpose.valid_spaces_polygon()
         # if add asset or write is true, save to file and add valid area asset to assets
+
+    def max_transpose(self, add_properties: bool = True) -> tuple[Polygon, Affine, SSTStatistics]:
+        """
+        - convert max array to polygon
+        - add stats object to item properties
+        - record transpose centroid as item geometry
+        - record max shift (as affine transform) to item properties
+        - return polygon, transform, and stats
+        """
+        transposed_watershed_polygon, transposition_transform, sst_stats = self.transpose.max_transpose(
+            self._create_stats
+        )
+        # if add_properties is true, update the internal item geometry to be the centroid of the transposed geometry, add the sst statistics and transform to item properties using the SST extension
 
     def aorc_thumbnail(self, scale_max: float, add_asset: bool = True, write: bool = True) -> Figure:
         """
@@ -158,10 +199,9 @@ class AORCItem(Item):
         pass
 
     @staticmethod
-    def _create_stats(masked_array: np.ma.MaskedArray) -> SSTStatistics:
-        stats = SSTStatistics.create(
-            masked_array.min(), masked_array.mean(), masked_array.max(), len(masked_array.compressed)
-        )
+    def _create_stats(array: np.ndarray) -> SSTStatistics:
+        count = np.count_nonzero(np.isfinite(array))
+        stats = SSTStatistics.create(array.min(), array.mean(), array.max(), count)
         return stats
 
     def run(self, scale_max: float) -> None:
@@ -171,12 +211,14 @@ class AORCItem(Item):
         # calculate max transpose, updating item properties using results
         # create valid area polygon, write to asset
         # create png using watershed geom, summed AORC data, and valid area polygon, write to asset
-        sum_data = self.sum_aorc()
-        transpose = self.transpose()
-        max_transpose_poly, max_transpose_affine, max_transpose_stats = transpose.max_transpose(self._create_stats)
+        max_transpose_poly, max_transpose_affine, max_transpose_stats = self.transpose.max_transpose(self._create_stats)
         max_transpose_stats: SSTStatistics
-        self.valid_spaces_polygon(transpose, True, True)
+        self.valid_spaces_polygon(True, True)
         self.aorc_thumbnail(scale_max, True, True)
+
+    def check_for_null_geometry(self) -> None:
+        if self.geometry == convert_to_geojson_dict(NULL_POLYGON):
+            raise ValueError(f"Geometry was never redefined in item")
 
 
 def main(

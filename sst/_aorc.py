@@ -9,6 +9,9 @@ import s3fs
 import xarray as xr
 from affine import Affine
 from fsspec import FSMap
+from matplotlib import patches
+from matplotlib import pyplot as plt
+from matplotlib.cm import get_cmap
 from matplotlib.figure import Figure
 from pyproj import CRS
 from pystac import Asset, Collection, Item, MediaType
@@ -16,10 +19,16 @@ from pystac.extensions.projection import ProjectionExtension
 from shapely import Geometry, Polygon, to_geojson
 from shapely.geometry import shape
 
-from .extension.extension import SSTExtension, SSTStatistics
+from .extension.extension import (
+    AccumulationMeasurementWithUnits,
+    SSTExtension,
+    SSTStatistics,
+    Unit,
+)
 from .transpose import Transpose
 
 NULL_POLYGON = Polygon([0, 0], [0, 1], [1, 1], [1, 0])
+MM_TO_INCH_CONVERSION_FACTOR = 0.03937007874015748
 
 
 def read_geojson_href(href: str, **fiona_env_kwargs) -> tuple[Geometry, CRS]:
@@ -89,6 +98,9 @@ class AORCItem(Item):
         self._aorc_source_data: xr.Dataset | None = None
         self._transpose: Transpose | None = None
         self._sum_aorc: xr.DataArray | None = None
+        self._transposed_watershed: Polygon | None = None
+        self._transposition_transform: Affine | None = None
+        self._stats: SSTStatistics | None = None
 
     def _add_watershed_asset(self, href: str, name: str) -> Asset:
         asset = Asset(href, title=name, media_type=MediaType.GEOJSON)
@@ -139,6 +151,8 @@ class AORCItem(Item):
             self._aorc_source_data = subsection.rio.clip(
                 [self.transposition_domain_geometry], drop=True, all_touched=True
             )
+            for fsmap in self.aorc_paths:
+                print(fsmap)
         return self._aorc_source_data
 
     @property
@@ -162,7 +176,7 @@ class AORCItem(Item):
 
     def valid_spaces_polygon(self, add_asset: bool = True, write: bool = True) -> Polygon:
         "converts valid spaces boolean array to a polygon"
-        valid_spaces_polygon = self.transpose.valid_spaces_polygon()
+        valid_spaces_polygon = self.transpose.valid_spaces_polygon
         # if add asset or write is true, save to file and add valid area asset to assets
 
     def max_transpose(self, add_properties: bool = True) -> tuple[Polygon, Affine, SSTStatistics]:
@@ -173,9 +187,10 @@ class AORCItem(Item):
         - record max shift (as affine transform) to item properties
         - return polygon, transform, and stats
         """
-        transposed_watershed_polygon, transposition_transform, sst_stats = self.transpose.max_transpose(
-            self._create_stats
-        )
+        if not all([self._transposed_watershed_polygon, self._transposition_transform, self._stats]):
+            self._transposed_watershed_polygon, self._transposition_transform, self._stats = (
+                self.transpose.max_transpose(self._create_stats)
+            )
         # if add_properties is true, update the internal item geometry to be the centroid of the transposed geometry, add the sst statistics and transform to item properties using the SST extension
 
     def aorc_thumbnail(self, scale_max: float, add_asset: bool = True, write: bool = True) -> Figure:
@@ -186,6 +201,31 @@ class AORCItem(Item):
         - valid area of transposition
         - original transposition domain
         """
+        if self._transposed_watershed_polygon == None:
+            self._transposed_watershed_polygon, self._transposition_transform, self._stats = (
+                self.transpose.max_transpose(self._create_stats)
+            )
+        fig, ax = plt.subplots(figsize=(5, 5))
+        fig.set_facecolor("w")
+        colormap = get_cmap("Spectral")
+        (self.sum_aorc["APCP_surface"] * MM_TO_INCH_CONVERSION_FACTOR).plot(
+            ax=ax, cmap=colormap, cbar_kwargs={"label": "Accumulation (Inches)"}, vmin=0, vmax=scale_max
+        )
+        valid_area_plt_polygon = patches.Polygon(
+            np.column_stack(self.transpose.valid_spaces_polygon.exterior.coords.xy),
+            lw=0.7,
+            facecolor="none",
+            edgecolor="gray",
+        )
+        ax.add_patch(valid_area_plt_polygon)
+        transposed_watershed_plt_polygon = patches.Polygon(
+            np.column_stack(self._transposed_watershed_polygon.exterior.coords.xy),
+            lw=1,
+            facecolor="none",
+            edgecolor="black",
+        )
+        ax.add_patch(transposed_watershed_plt_polygon)
+        ax.set(title=None, xlabel=None, ylabel=None)
         # if add_asset or write is true, save to file and add thumbnail asset to assets
         pass
 
@@ -201,7 +241,12 @@ class AORCItem(Item):
     @staticmethod
     def _create_stats(array: np.ndarray) -> SSTStatistics:
         count = np.count_nonzero(np.isfinite(array))
-        stats = SSTStatistics.create(array.min(), array.mean(), array.max(), count)
+        stats = SSTStatistics.create(
+            AccumulationMeasurementWithUnits(array.min() * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(array.mean() * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(array.max() * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            count,
+        )
         return stats
 
     def run(self, scale_max: float) -> None:
@@ -211,10 +256,10 @@ class AORCItem(Item):
         # calculate max transpose, updating item properties using results
         # create valid area polygon, write to asset
         # create png using watershed geom, summed AORC data, and valid area polygon, write to asset
-        max_transpose_poly, max_transpose_affine, max_transpose_stats = self.transpose.max_transpose(self._create_stats)
-        max_transpose_stats: SSTStatistics
+        self.max_transpose(True)
         self.valid_spaces_polygon(True, True)
         self.aorc_thumbnail(scale_max, True, True)
+        self.check_for_null_geometry()
 
     def check_for_null_geometry(self) -> None:
         if self.geometry == convert_to_geojson_dict(NULL_POLYGON):

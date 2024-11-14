@@ -151,17 +151,19 @@ class AORCTestCase(unittest.TestCase):
     def test_max_transpose_properties(self):
 
         expected_properties_subset = {
-            "sst:statistics": {
+            "aorc:statistics": {
                 "min": {"value": 0.04724409519218084, "unit": "in"},
                 "mean": {"value": 0.0508231933128006, "unit": "in"},
                 "max": {"value": 0.05118110312486258, "unit": "in"},
                 "count": 11,
             },
-            "sst:transform": [1.0, 0.0, 0.016665999999986525, 0.0, 1.0, 0.0],
+            "aorc:transform": [1.0, 0.0, 0.016665999999986525, 0.0, 1.0, 0.0],
         }
         self.test_item.max_transpose(True)
-        self.assertTrue(expected_properties_subset["sst:statistics"] == self.test_item.properties.get("sst:statistics"))
-        self.assertTrue(expected_properties_subset["sst:transform"] == self.test_item.properties.get("sst:transform"))
+        self.assertTrue(
+            expected_properties_subset["aorc:statistics"] == self.test_item.properties.get("aorc:statistics")
+        )
+        self.assertTrue(expected_properties_subset["aorc:transform"] == self.test_item.properties.get("aorc:transform"))
         self.assertNotEqual(NULL_POLYGON, self.test_item.geometry)
 
     def test_thumbnail_asset(self):

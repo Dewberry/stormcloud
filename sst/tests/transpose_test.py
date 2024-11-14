@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 from affine import Affine
 from rasterio.windows import Window
-from shapely import Polygon, to_geojson
+from shapely import Polygon
 
 from ..transpose import Transpose
 from .const import TRINITY_TRANSPOSITION_DOMAIN_GEOJSON, TRINITY_WATERSHED_GEOJSON

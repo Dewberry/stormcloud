@@ -271,9 +271,9 @@ class AORCItem(Item):
     def _create_stats(array: np.ndarray) -> SSTStatistics:
         count = np.count_nonzero(np.isfinite(array))
         stats = SSTStatistics.create(
-            AccumulationMeasurementWithUnits(float(array.min()) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
-            AccumulationMeasurementWithUnits(float(array.mean()) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
-            AccumulationMeasurementWithUnits(float(array.max()) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(float(np.nanmin(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(float(np.nanmean(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(float(np.nanmax(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
             count,
         )
         return stats

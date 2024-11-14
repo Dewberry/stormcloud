@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json#",
-    "title": "SST Extension",
-    "description": "STAC SST Extension for STAC Items.",
+    "title": "AORC Extension",
+    "description": "STAC AORC Extension for STAC Items.",
     "oneOf": [
       {
         "allOf": [
@@ -25,7 +25,7 @@
                   {
                     "$comment": "Require fields here for Item Properties.",
                     "required": [
-                      "sst:statistics"
+                      "aorc:statistics"
                     ]
                   },
                   {
@@ -96,8 +96,8 @@
         "anyOf": [
           {
             "required": [
-              "sst:statistics",
-              "sst:transform"
+              "aorc:statistics",
+              "aorc:transform"
             ]
           }
         ]
@@ -119,7 +119,7 @@
           }
         }
       },
-      "sst:statistics": {
+      "aorc:statistics": {
         "title": "Precipitation Accumultation Statistics",
         "description": "A collection of statistics computed using accumulated AORC precipitation data for a transposed watershed within the transposition domain",
         "type": "object",
@@ -159,7 +159,7 @@
           "count"
         ]
       },
-      "sst:transform": {
+      "aorc:transform": {
         "title":"Transform",
         "description": "A 3x3 matrix stored as a flat array of 9 elements in row major order. Since the last row is always 0,0,1 it can be omitted, in which case only 6 elements are recorded. Refers to the transform applied to the original watershed geometry to yield the provided watershed geometry",
         "type":"array",
@@ -181,14 +181,14 @@
         "$comment": "Add your new fields here. Don't require them here, do that above in the corresponding schema.",
         "type": "object",
         "properties": {
-          "sst:statistics": {
-            "$ref": "#/definitions/sst:statistics"
+          "aorc:statistics": {
+            "$ref": "#/definitions/aorc:statistics"
           },
-          "sst:transform": {
-            "$ref": "#/definitions/sst:transform"
+          "aorc:transform": {
+            "$ref": "#/definitions/aorc:transform"
           },
           "patternProperties": {
-            "^(?!sst:)": {}
+            "^(?!aorc:)": {}
           },
           "additionalProperties": false
         }

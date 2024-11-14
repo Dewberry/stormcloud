@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import json
 import os
@@ -43,6 +44,25 @@ def read_geojson_href(href: str, **fiona_env_kwargs) -> tuple[Geometry, CRS]:
 
 def convert_to_geojson_dict(geom: Geometry) -> dict[str, Any]:
     return json.loads(to_geojson(geom))
+
+
+class ValidateDatetime(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            dt = datetime.datetime.strptime("%Y-%m-%d")
+        except:
+            try:
+                dt = datetime.datetime.fromisoformat(values)
+            except:
+                parser.error(f"Provided date string {values} is not in %Y-%m-%d format or in isoformat")
+        setattr(namespace, self.dest, dt)
+
+
+class ValidateDirectory(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not os.path.isdir(values):
+            parser.error(f"Provided value {values} is not a directory")
+        setattr(namespace, self.dest, values)
 
 
 class AORCItem(Item):
@@ -361,7 +381,6 @@ def main(
     watershed_name: str,
     transposition_domain: str,
     transposition_domain_name: str,
-    start_datetime: datetime.datetime,
     duration: datetime.timedelta,
     local_directory: str,
     interval: datetime.timedelta = datetime.timedelta(days=1),
@@ -379,7 +398,7 @@ def main(
             watershed_name,
             transposition_domain,
             transposition_domain_name,
-            start_datetime,
+            current_time,
             duration,
             local_directory,
             href=item_path,
@@ -388,3 +407,52 @@ def main(
         item.run()
         item.save_object()
         current_time += interval
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("start", type=str, action=ValidateDatetime)
+    parser.add_argument("stop", type=str, action=ValidateDatetime)
+    parser.add_argument("watershed", type=str, help="filepath of watershed geojson")
+    parser.add_argument("watershed_name", type=str)
+    parser.add_argument("transposition_domain", type=str, help="filepath of transposition domain geojson")
+    parser.add_argument("transposition_domain_name", type=str)
+    parser.add_argument(
+        "local_directory",
+        type=str,
+        action=ValidateDirectory,
+        help="directory where item and assets created will be saved",
+    )
+    parser.add_argument(
+        "-d",
+        "--duration_hours",
+        type=int,
+        required=False,
+        default=72,
+        help="duration of accumulation for AORC items in hours; defaults to 72 hours",
+    )
+    parser.add_argument(
+        "-i",
+        "--interval_days",
+        type=int,
+        required=False,
+        default=1,
+        help="time step separating items created; defaults to 1 day",
+    )
+
+    args = parser.parse_args()
+
+    main(
+        args.start,
+        args.stop,
+        args.watershed,
+        args.watershed_name,
+        args.transposition_domain,
+        args.transposition_domain_name,
+        datetime.timedelta(hours=args.duration_hours),
+        args.local_directory,
+        datetime.timedelta(days=args.interval_days),
+    )

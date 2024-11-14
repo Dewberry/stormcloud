@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from pystac import Asset, MediaType
 from shapely import Polygon
 
-from .._aorc import NULL_POLYGON, AORCItem
+from ..aorc import NULL_POLYGON, AORCItem
 from .const import (
     TRINITY_TRANSPOSITION_DOMAIN_SUBSET_GEOJSON,
     TRINITY_WATERSHED_SUBSET_GEOJSON,

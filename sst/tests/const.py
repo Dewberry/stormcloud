@@ -108,3 +108,57 @@ TRINITY_WATERSHED_GEOJSON = {
         }
     ],
 }
+
+TRINITY_TRANSPOSITION_DOMAIN_SUBSET_GEOJSON = {
+    "type": "FeatureCollection",
+    "name": "trinity-transpo-sub",
+    "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"id": 1},
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [-97.256774909084953, 32.667333368358101],
+                            [-97.261472269389174, 32.641758851146193],
+                            [-97.231983285257087, 32.609138293477955],
+                            [-97.178224606219814, 32.630015450385628],
+                            [-97.157608413773502, 32.671247835278287],
+                            [-97.256774909084953, 32.667333368358101],
+                        ]
+                    ]
+                ],
+            },
+        }
+    ],
+}
+
+
+TRINITY_WATERSHED_SUBSET_GEOJSON = {
+    "type": "FeatureCollection",
+    "name": "trinity-sub",
+    "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"id": 1},
+            "geometry": {
+                "type": "MultiPolygon",
+                "coordinates": [
+                    [
+                        [
+                            [-97.199362727588863, 32.662896972515213],
+                            [-97.20014562097289, 32.650370678370606],
+                            [-97.180573286371953, 32.651153571754648],
+                            [-97.180312321910606, 32.662896972515213],
+                            [-97.199362727588863, 32.662896972515213],
+                        ]
+                    ]
+                ],
+            },
+        }
+    ],
+}

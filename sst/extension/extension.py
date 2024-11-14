@@ -3,7 +3,7 @@ from typing import Any, Literal, Optional
 from affine import Affine
 from pystac import ExtensionTypeError, Item
 from pystac.extensions.base import ExtensionManagementMixin, PropertiesExtension
-from pystac.utils import StringEnum, get_opt, get_required
+from pystac.utils import StringEnum, get_required
 
 SST_SCHEMA_URI = "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
 SST_PREFIX = "sst:"
@@ -79,7 +79,8 @@ class SSTStatistics:
 
     @normalized_mean.setter
     def normalized_mean(self, normalized_mean: float | None) -> None:
-        self.properties["normalized_mean"] = normalized_mean
+        if normalized_mean != None:
+            self.properties["normalized_mean"] = normalized_mean
 
     def __repr__(self) -> str:
         return f"<Statistics min={self.min} mean={self.mean} max={self.max} count={self.count} normalized_mean={self.normalized_mean}>"

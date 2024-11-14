@@ -15,6 +15,7 @@ from matplotlib.figure import Figure
 from pyproj import CRS, Transformer
 from pystac import Asset, Collection, Item, MediaType
 from pystac.extensions.projection import ProjectionExtension
+from pystac.extensions.storage import CloudPlatform, StorageExtension
 from shapely import Geometry, Polygon, to_geojson
 from shapely.geometry import mapping, shape
 from shapely.ops import transform
@@ -150,6 +151,7 @@ class AORCItem(Item):
     def _register_extensions(self) -> None:
         AORCExtension.add_to(self)
         ProjectionExtension.add_to(self)
+        StorageExtension.add_to(self)
 
     # @property
     # def is_ranked(self) -> bool:
@@ -196,6 +198,27 @@ class AORCItem(Item):
                 latitude=slice(bounds[1], bounds[3]),
             )
             self._aorc_source_data = subsection.rio.clip([transposition_geom_for_clip], drop=True, all_touched=True)
+            for aorc_path in self.aorc_paths:
+                aorc_year = int(os.path.basename(aorc_path).replace(".zarr", ""))
+                aorc_start_datetime = datetime.datetime(
+                    year=aorc_year, month=1, day=1, hour=0, tzinfo=datetime.timezone.utc
+                )
+                aorc_end_datetime = datetime.datetime(
+                    year=aorc_year + 1, month=1, day=1, hour=0, tzinfo=datetime.timezone.utc
+                )
+                asset = Asset(
+                    aorc_path,
+                    media_type=MediaType.ZARR,
+                    extra_fields={
+                        "start_datetime": aorc_start_datetime.isoformat(),
+                        "end_datetime": aorc_end_datetime.isoformat(),
+                    },
+                )
+                storage = StorageExtension.ext(asset)
+                storage.platform = CloudPlatform.AWS
+                storage.requester_pays = True
+                self.add_asset(f"aorc_{aorc_year}", asset)
+
         return self._aorc_source_data
 
     @property

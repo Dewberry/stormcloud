@@ -178,7 +178,7 @@ class Transpose:
             mean = np.nanmean(data_clipped)
             if max_mean == None or mean > max_mean:
                 max_mean = mean
-                max_shift = (x_delta * self.x_cellsize, y_delta * self.y_cellsize)
+                max_shift = (float(x_delta * self.x_cellsize), float(y_delta * self.y_cellsize))
                 if callable:
                     results = callable(data_clipped)
         poly = self._array_to_polygon(self.watershed_mask)

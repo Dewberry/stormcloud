@@ -5,10 +5,10 @@ from pystac import ExtensionTypeError, Item
 from pystac.extensions.base import ExtensionManagementMixin, PropertiesExtension
 from pystac.utils import StringEnum, get_required
 
-SST_SCHEMA_URI = "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
-SST_PREFIX = "sst:"
-SST_STATISTICS_PROP = SST_PREFIX + "statistics"
-SST_TRANSFORM_PROP = SST_PREFIX + "transform"
+AORC_SCHEMA_URI = "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
+AORC_PREFIX = "aorc:"
+AORC_STATISTICS_PROP = AORC_PREFIX + "statistics"
+AORC_TRANSFORM_PROP = AORC_PREFIX + "transform"
 
 
 class Unit(StringEnum):
@@ -32,7 +32,7 @@ class AccumulationMeasurementWithUnits:
         return cls(dictionary["value"], Unit(dictionary["unit"]))
 
 
-class SSTStatistics:
+class AORCStatistics:
     properties: dict[str, Any]
 
     def __init__(self, properties: dict[str, Any]):
@@ -107,10 +107,10 @@ class SSTStatistics:
         max: AccumulationMeasurementWithUnits,
         count: int,
         normalized_mean: Optional[float] = None,
-    ) -> "SSTStatistics":
-        sst_s = cls({})
-        sst_s.apply(min, mean, max, count, normalized_mean)
-        return sst_s
+    ) -> "AORCStatistics":
+        aorc_s = cls({})
+        aorc_s.apply(min, mean, max, count, normalized_mean)
+        return aorc_s
 
     def __dict__(self) -> dict[str, Any]:
         return self.properties
@@ -119,43 +119,43 @@ class SSTStatistics:
         return self.properties
 
 
-class SSTExtension(PropertiesExtension, ExtensionManagementMixin[Item]):
-    name: Literal["sst"] = "sst"
+class AORCExtension(PropertiesExtension, ExtensionManagementMixin[Item]):
+    name: Literal["aorc"] = "aorc"
 
     def __init__(self, item: Item):
         self.item = item
         self.properties = item.properties
 
-    def apply(self, statistics: SSTStatistics, transform: list[float]) -> None:
+    def apply(self, statistics: AORCStatistics, transform: list[float]) -> None:
         self.statistics = statistics
         self.transform = transform
 
     @property
     def statistics(self) -> dict[str, Any]:
-        return get_required(self._get_property(SST_STATISTICS_PROP, dict), self, SST_STATISTICS_PROP)
+        return get_required(self._get_property(AORC_STATISTICS_PROP, dict), self, AORC_STATISTICS_PROP)
 
     @statistics.setter
-    def statistics(self, statistics: SSTStatistics) -> None:
-        self._set_property(SST_STATISTICS_PROP, statistics.to_dict())
+    def statistics(self, statistics: AORCStatistics) -> None:
+        self._set_property(AORC_STATISTICS_PROP, statistics.to_dict())
 
     @property
     def transform(self) -> list[float]:
-        return get_required(self._get_property(SST_TRANSFORM_PROP, list), self, SST_TRANSFORM_PROP)
+        return get_required(self._get_property(AORC_TRANSFORM_PROP, list), self, AORC_TRANSFORM_PROP)
 
     @transform.setter
     def transform(self, transform: Affine | list[float]) -> None:
         if not isinstance(transform, Affine):
             transform = Affine(*transform)
         self._set_property(
-            SST_TRANSFORM_PROP, [transform.a, transform.b, transform.c, transform.d, transform.e, transform.f]
+            AORC_TRANSFORM_PROP, [transform.a, transform.b, transform.c, transform.d, transform.e, transform.f]
         )
 
     @classmethod
     def get_schema_uri(cls) -> str:
-        return SST_SCHEMA_URI
+        return AORC_SCHEMA_URI
 
     @classmethod
-    def ext(cls, item: Item, add_if_missing: bool = True) -> "SSTExtension":
+    def ext(cls, item: Item, add_if_missing: bool = True) -> "AORCExtension":
         if isinstance(item, Item):
             cls.ensure_has_extension(item, add_if_missing)
             return cls(item)

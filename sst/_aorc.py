@@ -1,7 +1,7 @@
 import datetime
 import json
 import os
-from typing import Any
+from typing import Any, Iterator
 
 import fiona
 import numpy as np
@@ -11,16 +11,17 @@ from affine import Affine
 from matplotlib import patches
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from pyproj import CRS
+from pyproj import CRS, Transformer
 from pystac import Asset, Collection, Item, MediaType
 from pystac.extensions.projection import ProjectionExtension
 from shapely import Geometry, Polygon, to_geojson
 from shapely.geometry import mapping, shape
+from shapely.ops import transform
 
 from .extension.extension import (
     AccumulationMeasurementWithUnits,
-    SSTExtension,
-    SSTStatistics,
+    AORCExtension,
+    AORCStatistics,
     Unit,
 )
 from .transpose import Transpose
@@ -48,6 +49,16 @@ class AORCItem(Item):
     NOAA_AORC_S3_BASE_URL = "s3://noaa-nws-aorc-v1-1-1km"
     AORC_X_VAR = "longitude"
     AORC_Y_VAR = "latitude"
+    AORC_VARS = [
+        "APCP_surface",
+        "DLWRF_surface",
+        "DSWRF_surface",
+        "PRES_surface",
+        "SPFH_2maboveground",
+        "TMP_2maboveground",
+        "UGRD_10maboveground",
+        "VGRD_10maboveground",
+    ]
 
     def __init__(
         self,
@@ -98,7 +109,7 @@ class AORCItem(Item):
         self._sum_aorc: xr.DataArray | None = None
         self._transposed_watershed: Polygon | None = None
         self._transposition_transform: Affine | None = None
-        self._stats: SSTStatistics | None = None
+        self._stats: AORCStatistics | None = None
 
     def _add_watershed_asset(self, href: str, name: str) -> Asset:
         asset = Asset(href, title=name, media_type=MediaType.GEOJSON)
@@ -117,8 +128,15 @@ class AORCItem(Item):
         return asset
 
     def _register_extensions(self) -> None:
-        SSTExtension.add_to(self)
+        AORCExtension.add_to(self)
         ProjectionExtension.add_to(self)
+
+    # @property
+    # def is_ranked(self) -> bool:
+    #     rank_property = self.properties.get("aorc:rank")
+    #     if rank_property == None:
+    #         return False
+    #     return True
 
     @property
     def aorc_paths(self) -> list[str]:
@@ -145,28 +163,50 @@ class AORCItem(Item):
             s3_out = s3fs.S3FileSystem(anon=True)
             fileset = [s3fs.S3Map(root=aorc_path, s3=s3_out, check=False) for aorc_path in self.aorc_paths]
             ds = xr.open_mfdataset(fileset, engine="zarr", chunks="auto", consolidated=True)
-            bounds = self.transposition_domain_geometry.bounds
+            pyproj_crs = CRS.from_user_input(ds.rio.crs)
+            if pyproj_crs != self.transposition_domain_crs:
+                transform_function = Transformer.from_crs(self.transposition_domain_crs, pyproj_crs).transform
+                transposition_geom_for_clip = transform(transform_function, self.transposition_domain_geometry)
+            else:
+                transposition_geom_for_clip = self.transposition_domain_geometry
+            bounds = transposition_geom_for_clip.bounds
             subsection = ds.sel(
                 time=slice(self.start_datetime, self.end_datetime),
                 longitude=slice(bounds[0], bounds[2]),
                 latitude=slice(bounds[1], bounds[3]),
             )
-            self._aorc_source_data = subsection.rio.clip(
-                [self.transposition_domain_geometry], drop=True, all_touched=True
-            )
+            self._aorc_source_data = subsection.rio.clip([transposition_geom_for_clip], drop=True, all_touched=True)
         return self._aorc_source_data
 
     @property
     def aorc_size_in_memory(self) -> int:
         "calculates amount of memory occupied by AORC data for this object"
-        pass
+        # if no source data is loaded, size is 0
+        if self._aorc_source_data == None:
+            ds_size = 0
+        # if source data is loaded, size is dataset nbytes (not sure if this is true)
+        else:
+            ds_size = self._aorc_source_data.nbytes
+        # if sum data is not calculated, size is 0
+        if self._sum_aorc == None:
+            da_size = 0
+        # if sum data is calculated size is data array nbytes (not sure if this is true)
+        else:
+            da_size = self._sum_aorc.nbytes
+        return ds_size + da_size
 
     @property
     def transpose(self) -> Transpose:
         "creates transpose class to use for transposition functions"
         if self._transpose == None:
+            pyproj_crs = CRS.from_user_input(self.aorc_source_data.rio.crs)
+            if pyproj_crs != self.watershed_crs:
+                transform_function = Transformer.from_crs(self.watershed_crs, pyproj_crs).transform
+                watershed_geom_for_transpose = transform(transform_function, self.watershed_geometry)
+            else:
+                watershed_geom_for_transpose = self.watershed_geometry
             self._transpose = Transpose(
-                self.sum_aorc["APCP_surface"], self.watershed_geometry, self.AORC_X_VAR, self.AORC_Y_VAR
+                self.sum_aorc["APCP_surface"], watershed_geom_for_transpose, self.AORC_X_VAR, self.AORC_Y_VAR
             )
         return self._transpose
 
@@ -199,7 +239,7 @@ class AORCItem(Item):
             self.add_asset("valid_spaces_polygon", asset)
         return valid_spaces_polygon
 
-    def max_transpose(self, add_properties: bool = True) -> tuple[Polygon, Affine, SSTStatistics]:
+    def max_transpose(self, add_properties: bool = True) -> tuple[Polygon, Affine, AORCStatistics]:
         """
         - convert max array to polygon
         - add stats object to item properties
@@ -213,7 +253,7 @@ class AORCItem(Item):
             )
         if add_properties:
             self.geometry = convert_to_geojson_dict(self._transposed_watershed.centroid)
-            sst = SSTExtension.ext(self)
+            sst = AORCExtension.ext(self)
             sst.statistics = self._stats
             sst.transform = self._transposition_transform
         return self._transposed_watershed, self._transposition_transform, self._stats
@@ -258,19 +298,24 @@ class AORCItem(Item):
             self.add_asset("thumbnail", asset)
         return fig
 
-    def dss(self, add_asset: bool = False, write: bool = False) -> Any:
+    def dss(self, aorc_variables: list[str], add_asset: bool = False, write: bool = False) -> Any:
         """
         creates DSS file (not sure what to return as class)
         contains either precipitation or tempeerature data or both over the duration of the item for the valid transposition area
         references source data, not summed data
         """
+        var_set = set(aorc_variables)
+        diff = var_set.difference(self.AORC_VARS)
+        if diff:
+            raise ValueError(f"AORC variables provided {diff} are not in AORC variables available {self.AORC_VARS}")
+        # for each aorc variable in set, create DSS file with each variable having different units, cumulative vs instantaneous setting, etc.
         # if add_asset or write is true, save to file and add DSS asset to assets
         pass
 
     @staticmethod
-    def _create_stats(array: np.ndarray) -> SSTStatistics:
+    def _create_stats(array: np.ndarray) -> AORCStatistics:
         count = np.count_nonzero(np.isfinite(array))
-        stats = SSTStatistics.create(
+        stats = AORCStatistics.create(
             AccumulationMeasurementWithUnits(float(np.nanmin(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
             AccumulationMeasurementWithUnits(float(np.nanmean(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
             AccumulationMeasurementWithUnits(float(np.nanmax(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
@@ -295,6 +340,18 @@ class AORCItem(Item):
     def check_for_null_geometry(self) -> None:
         if self.geometry == convert_to_geojson_dict(NULL_POLYGON):
             raise ValueError(f"Geometry was never redefined in item")
+
+
+# def write_to_grid(items: Iterator[AORCItem]) -> Any:
+#     for item in items:
+#         if not item.is_ranked:
+#             raise ValueError(f"Item {item.id} is not ranked")
+#     # check item for dss assets
+#     # create grid entry for each dss asset associated with item
+#     # create title using item rank, potentially storm type, and date
+#     # create body using dss asset filename, 'dss:first_pathname' property, and 'sst:aorc_variable' property
+#     # get dss pathname using property 'dss:first_pathname' from dss asset
+#     # get SHG_WKT x and y using dss asset 'proj:centroid' property
 
 
 def main(

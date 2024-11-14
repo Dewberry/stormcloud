@@ -405,7 +405,8 @@ def main(
     transposition_domain_name: str,
     duration: datetime.timedelta,
     local_directory: str,
-    interval: datetime.timedelta = datetime.timedelta(days=1),
+    interval: datetime.timedelta,
+    scale_max: float,
     **fiona_env_kwargs,
 ):
     current_time = start
@@ -426,7 +427,7 @@ def main(
             href=item_path,
             **fiona_env_kwargs,
         )
-        item.run()
+        item.run(scale_max)
         item.save_object()
         current_time += interval
 
@@ -464,6 +465,14 @@ if __name__ == "__main__":
         default=1,
         help="time step separating items created; defaults to 1 day",
     )
+    parser.add_argument(
+        "-s",
+        "--scale_max",
+        type=float,
+        required=False,
+        default=5.0,
+        help="inches of accumulation to use as the maximum value in the plot image",
+    )
 
     args = parser.parse_args()
 
@@ -477,4 +486,5 @@ if __name__ == "__main__":
         datetime.timedelta(hours=args.duration_hours),
         args.local_directory,
         datetime.timedelta(days=args.interval_days),
+        args.scale_max,
     )

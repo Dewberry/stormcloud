@@ -216,7 +216,6 @@ class AORCItem(Item):
                 )
                 storage = StorageExtension.ext(asset)
                 storage.platform = CloudPlatform.AWS
-                storage.requester_pays = True
                 self.add_asset(f"aorc_{aorc_year}", asset)
 
         return self._aorc_source_data
@@ -281,6 +280,17 @@ class AORCItem(Item):
             proj.geometry = convert_to_geojson_dict(valid_spaces_polygon)
             self.add_asset("valid_spaces_polygon", asset)
         return valid_spaces_polygon
+
+    @staticmethod
+    def _create_stats(array: np.ndarray) -> AORCStatistics:
+        count = np.count_nonzero(np.isfinite(array))
+        stats = AORCStatistics.create(
+            AccumulationMeasurementWithUnits(float(np.nanmin(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(float(np.nanmean(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            AccumulationMeasurementWithUnits(float(np.nanmax(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
+            count,
+        )
+        return stats
 
     def max_transpose(self, add_properties: bool = True) -> tuple[Polygon, Affine, AORCStatistics]:
         """
@@ -354,17 +364,6 @@ class AORCItem(Item):
         # for each aorc variable in set, create DSS file with each variable having different units, cumulative vs instantaneous setting, etc.
         # if add_asset or write is true, save to file and add DSS asset to assets
         pass
-
-    @staticmethod
-    def _create_stats(array: np.ndarray) -> AORCStatistics:
-        count = np.count_nonzero(np.isfinite(array))
-        stats = AORCStatistics.create(
-            AccumulationMeasurementWithUnits(float(np.nanmin(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
-            AccumulationMeasurementWithUnits(float(np.nanmean(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
-            AccumulationMeasurementWithUnits(float(np.nanmax(array)) * MM_TO_INCH_CONVERSION_FACTOR, Unit.INCH),
-            count,
-        )
-        return stats
 
     def run(self, scale_max: float) -> None:
         # load aorc data, registering sources as assets

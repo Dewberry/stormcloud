@@ -74,8 +74,8 @@ class SSTStatistics:
         self.properties["count"] = count
 
     @property
-    def normalized_mean(self) -> float:
-        return get_opt(self.properties.get("normalized_mean"))
+    def normalized_mean(self) -> float | None:
+        return self.properties.get("normalized_mean")
 
     @normalized_mean.setter
     def normalized_mean(self, normalized_mean: float | None) -> None:

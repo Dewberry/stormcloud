@@ -47,25 +47,6 @@ def convert_to_geojson_dict(geom: Geometry) -> dict[str, Any]:
     return json.loads(to_geojson(geom))
 
 
-class ValidateDatetime(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        try:
-            dt = datetime.datetime.strptime("%Y-%m-%d")
-        except:
-            try:
-                dt = datetime.datetime.fromisoformat(values)
-            except:
-                parser.error(f"Provided date string {values} is not in %Y-%m-%d format or in isoformat")
-        setattr(namespace, self.dest, dt)
-
-
-class ValidateDirectory(argparse.Action):
-    def __call__(self, parser, namespace, values, option_string=None):
-        if not os.path.isdir(values):
-            parser.error(f"Provided value {values} is not a directory")
-        setattr(namespace, self.dest, values)
-
-
 class AORCItem(Item):
     NOAA_AORC_S3_BASE_URL = "s3://noaa-nws-aorc-v1-1-1km"
     AORC_X_VAR = "longitude"
@@ -430,6 +411,25 @@ def main(
         item.run(scale_max)
         item.save_object()
         current_time += interval
+
+
+class ValidateDatetime(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            dt = datetime.datetime.strptime("%Y-%m-%d")
+        except:
+            try:
+                dt = datetime.datetime.fromisoformat(values)
+            except:
+                parser.error(f"Provided date string {values} is not in %Y-%m-%d format or in isoformat")
+        setattr(namespace, self.dest, dt)
+
+
+class ValidateDirectory(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not os.path.isdir(values):
+            parser.error(f"Provided value {values} is not a directory")
+        setattr(namespace, self.dest, values)
 
 
 if __name__ == "__main__":

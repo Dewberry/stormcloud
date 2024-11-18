@@ -9,6 +9,10 @@ AORC_SCHEMA_URI = "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/sch
 AORC_PREFIX = "aorc:"
 AORC_STATISTICS_PROP = AORC_PREFIX + "statistics"
 AORC_TRANSFORM_PROP = AORC_PREFIX + "transform"
+AORC_OVERLAPPING_OVERALL_RANK_PROP = AORC_PREFIX + "overlapping_overall_rank"
+AORC_NON_OVERLAPPING_OVERALL_RANK_PROP = AORC_PREFIX + "non_overlapping_overall_rank"
+AORC_OVERLAPPING_YEAR_RANK_PROP = AORC_PREFIX + "overlapping_year_rank"
+AORC_NON_OVERLAPPING_YEAR_RANK_PROP = AORC_PREFIX + "non_overlapping_year_rank"
 
 
 class Unit(StringEnum):
@@ -149,6 +153,38 @@ class AORCExtension(PropertiesExtension, ExtensionManagementMixin[Item]):
         self._set_property(
             AORC_TRANSFORM_PROP, [transform.a, transform.b, transform.c, transform.d, transform.e, transform.f]
         )
+
+    @property
+    def overlapping_overall_rank(self) -> int:
+        return self._get_property(AORC_OVERLAPPING_OVERALL_RANK_PROP, int)
+
+    @overlapping_overall_rank.setter
+    def overlapping_overall_rank(self, rank: int) -> None:
+        self._set_property(AORC_NON_OVERLAPPING_OVERALL_RANK_PROP, rank)
+
+    @property
+    def overlapping_year_rank(self) -> int:
+        return self._get_property(AORC_OVERLAPPING_YEAR_RANK_PROP, int)
+
+    @overlapping_year_rank.setter
+    def overlapping_year_rank(self, rank: int) -> None:
+        self._set_property(AORC_OVERLAPPING_YEAR_RANK_PROP, rank)
+
+    @property
+    def non_overlapping_overall_rank(self) -> int:
+        return self._get_property(AORC_NON_OVERLAPPING_OVERALL_RANK_PROP, int)
+
+    @non_overlapping_overall_rank.setter
+    def non_overlapping_overall_rank(self, rank: int) -> None:
+        self._set_property(AORC_NON_OVERLAPPING_OVERALL_RANK_PROP, rank)
+
+    @property
+    def non_overlapping_year_rank(self) -> int:
+        return self._get_property(AORC_NON_OVERLAPPING_YEAR_RANK_PROP, int)
+
+    @non_overlapping_year_rank.setter
+    def non_overlapping_year_rank(self, rank: int) -> None:
+        self._set_property(AORC_NON_OVERLAPPING_YEAR_RANK_PROP, rank)
 
     @classmethod
     def get_schema_uri(cls) -> str:

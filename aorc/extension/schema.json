@@ -177,6 +177,42 @@
           "type":"number"
         }
       },
+      "aorc:overlapping_overall_rank": {
+        "title": "Overlapping Overall Rank",
+        "description": "Overall rank of storm, starting at 1, which does not distinguish between storm with temporal extents which overlap and temporal extents which do not overlap. This means that the number 1 ranked 72 hour duration storm could have a temporal extent from 1979-01-01 00:00 to 1979-01-04 00:00 and the number 2 ranked 72 hour duration storm could have a temporal extent from 1979-01-02 00:00 to 1979-01-05 00:00, meaning the number 1 and number 2 storms share 48 hours of overlapping precipitation data.",
+        "type": "integer",
+        "minimum": 1
+      },
+      "aorc:overlapping_year_rank": {
+        "title": "Overlapping Year Rank",
+        "description": "Rank of storm within its year, starting at 1, which does not distinguish between storm with temporal extents which overlap and temporal extents which do not overlap. This means that the number 1 ranked 72 hour duration storm for the year 1979 could have a temporal extent from 1979-01-01 00:00 to 1979-01-04 00:00 and the number 2 ranked 72 hour duration storm for the year 1979 could have a temporal extent from 1979-01-02 00:00 to 1979-01-05 00:00, meaning the number 1 and number 2 storms share 48 hours of overlapping precipitation data.",
+        "type": "integer",
+        "minimum": 1
+      },
+      "aorc:non_overlapping_overall_rank": {
+        "title": "Non-overlapping Overall Rank",
+        "description": "Overall rank of storm, starting at 1, which does not allow storms with temporal extents which overlap, assigning storms which would overlap with higher ranked storms a value of -1. This means that if the number 1 ranked 72 hour duration storm had a temporal extent from 1979-01-01 00:00 to 1979-01-04 00:00, any storm identified which overlapped with that temporal extent would be assigned the value -1.",
+        "type": "integer",
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1
+          },
+          {"const": -1}
+        ]
+      },
+      "aorc:non_overlapping_year_rank": {
+        "title": "Non-overlapping Year Rank",
+        "description": "Rank of storm within its year, starting at 1, which does not allow storms with temporal extents which overlap, assigning storms which would overlap with higher ranked storms a value of -1. This means that if the number 1 ranked 72 hour duration storm for the year 1979 had a temporal extent from 1979-01-01 00:00 to 1979-01-04 00:00, any storm identified which overlapped with that temporal extent would be assigned the value -1.",
+        "type": "integer",
+        "oneOf": [
+          {
+            "type": "integer",
+            "minimum": 1
+          },
+          {"const": -1}
+        ]
+      },
       "fields": {
         "$comment": "Add your new fields here. Don't require them here, do that above in the corresponding schema.",
         "type": "object",
@@ -186,6 +222,18 @@
           },
           "aorc:transform": {
             "$ref": "#/definitions/aorc:transform"
+          },
+          "aorc:overlapping_overall_rank": {
+            "$ref": "#/definitions/aorc:overlapping_overall_rank"
+          },
+          "aorc:overlapping_year_rank": {
+            "$ref": "#/definitions/aorc:overlapping_year_rank"
+          },
+          "aorc:non_overlapping_overall_rank": {
+            "$ref": "#/definitions/aorc:non_overlapping_overall_rank"
+          },
+          "aorc:non_overlapping_year_rank": {
+            "$ref": "#/definitions/aorc:non_overlapping_year_rank"
           },
           "patternProperties": {
             "^(?!aorc:)": {}

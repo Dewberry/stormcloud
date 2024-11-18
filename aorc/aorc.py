@@ -20,6 +20,7 @@ from shapely import Geometry, Polygon, to_geojson
 from shapely.geometry import mapping, shape
 from shapely.ops import transform
 
+from .dss import DSSFileWriter
 from .extension.extension import (
     AccumulationMeasurementWithUnits,
     AORCExtension,
@@ -27,6 +28,7 @@ from .extension.extension import (
     Unit,
 )
 from .transpose import Transpose
+from .vars import AORCVariable, str_to_aorc_variable
 
 NULL_POLYGON = Polygon()
 MM_TO_INCH_CONVERSION_FACTOR = 0.03937007874015748
@@ -51,16 +53,6 @@ class AORCItem(Item):
     NOAA_AORC_S3_BASE_URL = "s3://noaa-nws-aorc-v1-1-1km"
     AORC_X_VAR = "longitude"
     AORC_Y_VAR = "latitude"
-    AORC_VARS = [
-        "APCP_surface",
-        "DLWRF_surface",
-        "DSWRF_surface",
-        "PRES_surface",
-        "SPFH_2maboveground",
-        "TMP_2maboveground",
-        "UGRD_10maboveground",
-        "VGRD_10maboveground",
-    ]
 
     def __init__(
         self,
@@ -82,6 +74,7 @@ class AORCItem(Item):
     ):
         self.watershed_geometry, self.watershed_crs = read_geojson_href(watershed, **fiona_env_kwargs)
         self.watershed_geometry: Polygon
+        self.watershed_name = watershed_name
         self.transposition_domain_geometry, self.transposition_domain_crs = read_geojson_href(
             transposition_domain, **fiona_env_kwargs
         )
@@ -104,7 +97,7 @@ class AORCItem(Item):
             assets,
         )
         self._register_extensions()
-        self._add_watershed_asset(watershed, watershed_name)
+        self._add_watershed_asset(watershed, self.watershed_name)
         self._add_transposition_domain_asset(transposition_domain, transposition_domain_name)
         self._aorc_source_data: xr.Dataset | None = None
         self._transpose: Transpose | None = None
@@ -338,10 +331,19 @@ class AORCItem(Item):
         contains either precipitation or tempeerature data or both over the duration of the item for the valid transposition area
         references source data, not summed data
         """
-        var_set = set(aorc_variables)
-        diff = var_set.difference(self.AORC_VARS)
-        if diff:
-            raise ValueError(f"AORC variables provided {diff} are not in AORC variables available {self.AORC_VARS}")
+        if add_asset | write:
+            fn = os.path.join(
+                self.local_directory,
+                f"{self.start_datetime.strftime('%Y%m%d')}_{self.end_datetime.strftime('%Y%m%d')}.dss",
+            )
+            with DSSFileWriter(fn, "SHG1K", self.watershed_name.upper(), "AORC") as dss_writer:
+                aorc_enum_variables = [str_to_aorc_variable(v) for v in aorc_variables]
+                aorc_meta_list = [
+                    (e.value.name, e.value.dss_label, e.value.dss_unit, e.value.dss_measurement_type)
+                    for e in aorc_enum_variables
+                ]
+                dss_writer.write_from_xr_dataset(self.aorc_source_data, aorc_meta_list)
+
         # for each aorc variable in set, create DSS file with each variable having different units, cumulative vs instantaneous setting, etc.
         # if add_asset or write is true, save to file and add DSS asset to assets
         pass

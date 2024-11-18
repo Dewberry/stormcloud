@@ -93,21 +93,21 @@ def main(collection_href: str) -> None:
     sorted_id_list = rank_ids(metrics.id_list, metrics.mean_list)
     for item_id in sorted_id_list:
         item = next(collection.get_items(item_id))
-        item.properties["overlapping_overall_rank"] = overlapping_overall_rank
+        item.properties["aorc:overlapping_overall_rank"] = overlapping_overall_rank
         overlapping_overall_rank += 1
         item_start_dt, item_end_dt = parse_item_time_range(item)
         overlapping_year_rank, non_overlapping_year_rank = year_rank_dict.get(item_start_dt.year, (1, 1))
-        item.properties["overlapping_year_rank"] = year_rank
+        item.properties["aorc:overlapping_year_rank"] = year_rank
         year_rank += 1
         available = calendar.block_if_available(item_start_dt, item_end_dt)
         if available:
-            item.properties["non_overlapping_overall_rank"] = non_overlapping_rank
-            item.properties["non_overlapping_year_rank"] = non_overlapping_year_rank
+            item.properties["aorc:non_overlapping_overall_rank"] = non_overlapping_rank
+            item.properties["aorc:non_overlapping_year_rank"] = non_overlapping_year_rank
             non_overlapping_rank += 1
             non_overlapping_year_rank += 1
         else:
-            item.properties["non_overlapping_rank"] = -1
-            item.properties["non_overlapping_year_rank"] = -1
+            item.properties["aorc:non_overlapping_rank"] = -1
+            item.properties["aorc:non_overlapping_year_rank"] = -1
         year_rank_dict[item_start_dt.year] = (overlapping_year_rank, non_overlapping_year_rank)
     collection.normalize_and_save(collection.get_self_href(), CatalogType.ABSOLUTE_PUBLISHED)
 

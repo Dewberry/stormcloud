@@ -18,7 +18,15 @@ def convert_notebooks_to_html(directory):
 
             # Use nbconvert command line tool to convert the notebook to HTML
             subprocess.run(
-                ["jupyter", "nbconvert", file_path, "--to", "html_embed", "--no-input"],
+                [
+                    "jupyter",
+                    "nbconvert",
+                    file_path,
+                    "--to",
+                    "html",
+                    "--no-input",
+                    "--embed-images",
+                ],
                 check=True,
             )
 

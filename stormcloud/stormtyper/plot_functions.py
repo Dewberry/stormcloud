@@ -14,6 +14,7 @@ from constants import M_TO_IN_FACTOR, MM_TO_IN_FACTOR, WATERSHED_FILE_LOCATION
 from dotenv import find_dotenv, load_dotenv
 from matplotlib.colors import LinearSegmentedColormap
 from shapely.geometry.base import BaseGeometry
+import matplotlib.colors as mcolors
 
 load_dotenv(find_dotenv())
 session = boto3.session.Session()
@@ -56,12 +57,12 @@ def setup_plot(ax, lon, lat, lon_step=50, lat_step=50):
     ax.add_feature(cartopy.feature.STATES, linestyle="-", alpha=0.2)
     ax.coastlines(resolution="50m")
 
-    lon_labels = lon[0, ::lon_step].values
-    lat_labels = lat[::lat_step, 0].values
+    lon_labels = lon[250, ::lon_step].values
+    lat_labels = lat[::lat_step, 250].values
 
-    ax.set_xticks(lon[0, ::lon_step].values, crs=cartopy.crs.PlateCarree())
+    ax.set_xticks(lon[250, ::lon_step].values, crs=cartopy.crs.PlateCarree())
     ax.set_xticklabels([round(label, 2) for label in lon_labels])
-    ax.set_yticks(lat[::lat_step, 0].values, crs=cartopy.crs.PlateCarree())
+    ax.set_yticks(lat[::lat_step, 250].values, crs=cartopy.crs.PlateCarree())
     ax.set_yticklabels([round(label, 2) for label in lat_labels])
 
     ax.set_ylabel("Latitude (degrees north)")
@@ -72,10 +73,10 @@ def plot_SLP(ds: xr.Dataset, var: str):
     """Plots sea level pressure"""
     plt.figure(figsize=(12, 6))
 
-    var_array = ds[var][0, :, :]
+    var_array = ds[var][:, :]
     lon = var_array["XLONG"]
     lat = var_array["XLAT"]
-    date_str = ds["Time"].values[0].astype(str)
+    date_str = ds["time"].values.astype(str)
     formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
     ax = plt.axes(projection=ccrs.PlateCarree())
     setup_plot(ax, lon, lat)
@@ -86,7 +87,9 @@ def plot_SLP(ds: xr.Dataset, var: str):
     contours = plt.contour(lon, lat, var_array, levels=levels, colors="Black")
     cf = plt.contourf(lon, lat, var_array, levels=levels, cmap="Blues_r")
     for geom in watershed_poly:
-        ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
     plt.clabel(contours, inline=True, fontsize=10)
 
     plt.colorbar(cf, label=f"SLP (hPa)")
@@ -96,20 +99,64 @@ def plot_SLP(ds: xr.Dataset, var: str):
 def plot_SBCAPE(ds: xr.Dataset, var: str):
     """Plots surface based CAPE"""
     plt.figure(figsize=(12, 6))
-    var_array = ds[var][0, :, :]
+    var_array = ds[var][:, :]
     lon = var_array["XLONG"]
     lat = var_array["XLAT"]
     data_values = var_array.values
-    date_str = ds["Time"].values[0].astype(str)
+    date_str = ds["time"].values.astype(str)
     formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
     ax = plt.axes(projection=ccrs.PlateCarree())
     setup_plot(ax, lon, lat)
     levels = [50, 250, 500, 1000, 2000, 3000, 4000, 6000]
-    cf = plt.contourf(lon, lat, data_values, levels=levels, cmap=plt.cm.turbo, vmin=250, vmax=4000)
+    cf = plt.contourf(
+        lon, lat, data_values, levels=levels, cmap=plt.cm.turbo, vmin=250, vmax=4000
+    )
     for geom in watershed_poly:
-        ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
 
     plt.colorbar(cf, label="SBCAPE J kg^-1")
+    plt.title(f"{var} @ {formatted_date}")
+
+
+def plot_IVT(ds: xr.Dataset, var: str):
+    """Plots Integrated Vapor Transport (IVT)"""
+    plt.figure(figsize=(12, 6))
+
+    var_array = ds[var][:, :]
+    lon = var_array["XLONG"]
+    lat = var_array["XLAT"]
+    # convert meters to inches
+    data_values = var_array.values
+    date_str = ds["time"].values.astype(str)
+    formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    setup_plot(ax, lon, lat)
+    colors = [
+        (0.9, 0.9, 0.9),  # Very light blue/gray
+        (0.6, 0.8, 1.0),  # Light blue
+        (0.3, 0.7, 0.3),  # Green
+        (1.0, 1.0, 0.0),  # Yellow
+        (1.0, 0.5, 0.0),  # Orange
+        (1.0, 0.0, 0.0),  # Red
+        (0.5, 0.0, 0.5),  # Purple
+    ]
+    cmap = mcolors.LinearSegmentedColormap.from_list("custom_ivt", colors, N=256)
+    cf = plt.pcolormesh(
+        lon,
+        lat,
+        data_values,
+        cmap=cmap,
+        vmax=1250,
+        vmin=0,
+        shading="auto",
+    )
+    for geom in watershed_poly:
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
+    plt.colorbar(cf, label="IVT (kg m-1 s-1)")
     plt.title(f"{var} @ {formatted_date}")
 
 
@@ -117,12 +164,12 @@ def plot_PWAT(ds: xr.Dataset, var: str):
     """Plots precipitable water"""
     plt.figure(figsize=(12, 6))
 
-    var_array = ds[var][0, :, :]
+    var_array = ds[var][:, :]
     lon = var_array["XLONG"]
     lat = var_array["XLAT"]
     # convert meters to inches
     data_values = var_array.values * M_TO_IN_FACTOR
-    date_str = ds["Time"].values[0].astype(str)
+    date_str = ds["time"].values.astype(str)
     formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
     ax = plt.axes(projection=ccrs.PlateCarree())
     setup_plot(ax, lon, lat)
@@ -137,7 +184,9 @@ def plot_PWAT(ds: xr.Dataset, var: str):
         extend="max",
     )
     for geom in watershed_poly:
-        ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
     plt.colorbar(cf, label="PWAT (in)")
     plt.title(f"{var} @ {formatted_date}")
 
@@ -150,7 +199,9 @@ def plot_PREC_ACC_NC(
     precip_accum_interval: int,
 ):
     "Plots accumulated precipitation"
-    fig, axs = plt.subplots(1, 2, figsize=(24, 6), subplot_kw={"projection": ccrs.PlateCarree()})
+    fig, axs = plt.subplots(
+        1, 2, figsize=(24, 6), subplot_kw={"projection": ccrs.PlateCarree()}
+    )
     datasets = [ds_roll, ds_accum]
     titles = [
         f"{precip_accum_interval}hr Accumulated Precip",
@@ -160,7 +211,9 @@ def plot_PREC_ACC_NC(
         var_array = ds[var][:, :]
         lon = var_array["XLONG"]
         lat = var_array["XLAT"]
-        data_values = var_array.values / MM_TO_IN_FACTOR  # Assuming MM_TO_IN_FACTOR is defined elsewhere
+        data_values = (
+            var_array.values / MM_TO_IN_FACTOR
+        )  # Assuming MM_TO_IN_FACTOR is defined elsewhere
         formatted_end_time = end_time.strftime("%Y-%m-%d_%Hz")
 
         setup_plot(ax, lon, lat)
@@ -176,10 +229,14 @@ def plot_PREC_ACC_NC(
         ]
         custom_cmap = LinearSegmentedColormap.from_list("custom_colormap", colors)
         levels = [0.001, 0.1, 0.25, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 15, 20]
-        cf = ax.contourf(lon, lat, data_values, levels=levels, cmap=custom_cmap, extend="max")
+        cf = ax.contourf(
+            lon, lat, data_values, levels=levels, cmap=custom_cmap, extend="max"
+        )
 
         for geom in watershed_poly:
-            ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+            ax.add_geometries(
+                [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+            )
 
     fig.colorbar(
         cf,
@@ -192,11 +249,11 @@ def plot_SRH03(ds: xr.Dataset, var: str):
     """Plots 0-3km storm relative helicity(SRH)"""
     plt.figure(figsize=(12, 6))
 
-    var_array = ds[var][0, :, :]
+    var_array = ds[var][:, :]
     lon = var_array["XLONG"]
     lat = var_array["XLAT"]
     data_values = var_array.values
-    date_str = ds["Time"].values[0].astype(str)
+    date_str = ds["time"].values.astype(str)
     formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
     ax = plt.axes(projection=ccrs.PlateCarree())
     setup_plot(ax, lon, lat)
@@ -214,7 +271,9 @@ def plot_SRH03(ds: xr.Dataset, var: str):
     levels = [1, 50, 75, 100, 150, 200, 300, 400, 500, 700, 900, 1100, 1500]
     cf = plt.contourf(lon, lat, data_values, levels=levels, cmap=custom_cmap)
     for geom in watershed_poly:
-        ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
     plt.colorbar(cf, label=f"Storm Relative Helecity m2 s-2")
     plt.title(f"{var} @ {formatted_date}")
 
@@ -223,11 +282,11 @@ def plot_Z_50000Pa(ds: xr.Dataset, var: str):
     """Plots 500mb geopotential height"""
     plt.figure(figsize=(12, 6))
 
-    var_array = ds[var][0, :, :]
+    var_array = ds[var][:, :]
     lon = var_array["XLONG"]
     lat = var_array["XLAT"]
     data_values = var_array.values
-    date_str = ds["Time"].values[0].astype(str)
+    date_str = ds["time"].values.astype(str)
     formatted_date = pd.to_datetime(date_str).strftime("%Y-%m-%d_%Hz")
     ax = plt.axes(projection=ccrs.PlateCarree())
     setup_plot(ax, lon, lat, lon_step=75, lat_step=75)
@@ -239,7 +298,9 @@ def plot_Z_50000Pa(ds: xr.Dataset, var: str):
     contours = ax.contour(lon, lat, data_values, levels=levels, colors="black")
     plt.clabel(contours, inline=True, fontsize=10)
     for geom in watershed_poly:
-        ax.add_geometries([geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red")
+        ax.add_geometries(
+            [geom], crs=ccrs.PlateCarree(), facecolor="none", edgecolor="red"
+        )
     plt.colorbar(cf, label=f"500mb Geopotential Height")
     plt.title(f"{var} @ {formatted_date}")
 

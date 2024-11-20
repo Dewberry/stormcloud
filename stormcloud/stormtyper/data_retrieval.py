@@ -7,18 +7,10 @@ from typing import Any, Callable, Dict, List
 
 import boto3
 import matplotlib.pyplot as plt
-import pandas as pd
 import xarray as xr
 from constants import (
-    SOUTH_NORTH_DIM,
-    SOUTH_NORTH_DIM_3D,
-    TIME_DIM,
     TRINITY_IBTRACS_JSON,
-    URL_ROOT,
-    WEST_EAST_DIM,
-    WEST_EAST_DIM_3D,
 )
-from conus404_utils import calc_geopot_at_press_lvl, calculate_slp, destagger_grid
 from dotenv import find_dotenv, load_dotenv
 from IPython.display import HTML
 from PIL import Image
@@ -35,7 +27,9 @@ logging.basicConfig(
 )
 
 
-def process_date_intervals(start_date_str: str, duration_hours: int, vars_2d: Dict[str, int]) -> Dict[str, List[str]]:
+def process_date_intervals(
+    start_date_str: str, duration_hours: int, vars_2d: Dict[str, int]
+) -> Dict[str, List[str]]:
     """
     Generate a dictionary of date strings for different variables over specified duration intervals.
     """
@@ -48,7 +42,11 @@ def process_date_intervals(start_date_str: str, duration_hours: int, vars_2d: Di
         end_date = start_date + timedelta(hours=duration_hours)
         while current_date <= end_date:
             # Since PREC_ACC_NC is accumulated precip over the past hour, add 1 hour to each time to get desired interval
-            adjusted_date = current_date + timedelta(hours=1) if var == "PREC_ACC_NC" else current_date
+            adjusted_date = (
+                current_date + timedelta(hours=1)
+                if var == "PREC_ACC_NC"
+                else current_date
+            )
             variable_dates[var].append(adjusted_date.strftime("%Y-%m-%d_%H"))
             current_date += timedelta(hours=interval)
 
@@ -63,18 +61,20 @@ def process_date_intervals(start_date_str: str, duration_hours: int, vars_2d: Di
     return variable_dates
 
 
-def process_date(date_str: str):
-    """
-    Process a date string and return the year, month, day, hour, and water year.
-    """
-    date_obj = datetime.strptime(date_str, "%Y-%m-%d_%H")
-    year = date_obj.year
-    month = f"{date_obj.month:02d}"
-    day = f"{date_obj.day:02d}"
-    hour = f"{date_obj.hour:02d}"
-    water_year = year + 1 if date_obj.month > 9 else year
+def get_widget_dates(start_date_str, duration_hours):
+    start_date = datetime.strptime(start_date_str[:-2], "%Y/%m/%d-%H")
 
-    return year, month, day, hour, water_year
+    # Calculate the end date by adding the duration in hours
+    end_date = start_date + timedelta(hours=duration_hours)
+
+    # Collect all full days within the range
+    current_date = start_date
+    full_days = []
+
+    while current_date < end_date:
+        full_days.append(current_date.strftime("%Y/%m/%d"))
+        current_date += timedelta(days=1)
+    return full_days
 
 
 def search_tropical_events(start_date_str, duration):
@@ -94,7 +94,8 @@ def search_tropical_events(start_date_str, duration):
 
         # Generate a list of dates within the event's duration
         event_date_list = [
-            event_start_date + timedelta(days=i) for i in range((event_end_date - event_start_date).days + 1)
+            event_start_date + timedelta(days=i)
+            for i in range((event_end_date - event_start_date).days + 1)
         ]
 
         # Check for any overlap between date_list and event_date_list
@@ -107,51 +108,9 @@ def search_tropical_events(start_date_str, duration):
     return storm_data
 
 
-def get_2d_dataset(variable: str, date: str) -> xr.Dataset:
-    """Fetch basic 2D variable datasets, derive sea level pressure (SLP) if needed"""
-
-    # Extract date vars for URL
-    year, month, day, hour, water_year = process_date(date)
-
-    url_var_format = f"{variable}{TIME_DIM}{SOUTH_NORTH_DIM}{WEST_EAST_DIM}"
-
-    # Construct the dataset URL for the 2D variables
-    url_2d = f"{URL_ROOT}/wy{water_year}/{year}{month}/wrf2d_d01_{year}-{month}-{day}_{hour}:00:00.nc?Time{TIME_DIM},XLAT{SOUTH_NORTH_DIM}{WEST_EAST_DIM},XLONG{SOUTH_NORTH_DIM}{WEST_EAST_DIM},{url_var_format}"
-    ds_2d = xr.open_dataset(url_2d)
-
-    # If the variable is surface pressure (PSFC), terrain height must be combined with PSFC to create more useful sea level pressure(SLP)
-    if variable == "PSFC":
-        # URL for terrain height data
-        constants_url = f"{URL_ROOT}/INVARIANT/wrfconstants_usgs404.nc?Time[0:1:0],XLAT{SOUTH_NORTH_DIM}{WEST_EAST_DIM},XLONG{SOUTH_NORTH_DIM}{WEST_EAST_DIM},HGT[0:1:0]{SOUTH_NORTH_DIM}{WEST_EAST_DIM}"
-        ds_constants = xr.open_dataset(constants_url)
-        ds_2d["SLP"] = calculate_slp(ds_2d["PSFC"][0, :, :] * 0.01, ds_constants["HGT"][0, :, :])
-        ds_2d["SLP"] = ds_2d["SLP"].expand_dims(dim={"Time": ds_2d["Time"]})
-        ds_2d = ds_2d.drop_vars(["PSFC"])
-
-    return ds_2d
-
-
-def get_3d_dataset(z_var: str, date: str) -> xr.Dataset:
-    """
-    Fetch and derive data for specified geopotential height variable.
-    """
-
-    # Extract date vars for URL
-    year, month, day, hour, water_year = process_date(date)
-
-    url_3d = f"{URL_ROOT}/wy{water_year}/{year}{month}/wrf3d_d01_{year}-{month}-{day}_{hour}:00:00.nc?Time[0:1:0],XLAT{SOUTH_NORTH_DIM_3D}{WEST_EAST_DIM_3D},XLONG{SOUTH_NORTH_DIM_3D}{WEST_EAST_DIM_3D},P[0:1:0][0:1:49]{SOUTH_NORTH_DIM_3D}{WEST_EAST_DIM_3D},Z[0:1:0][0:1:50]{SOUTH_NORTH_DIM_3D}{WEST_EAST_DIM_3D}"
-    ds_3d = xr.open_dataset(url_3d)
-    # Destagger geopotential height grid
-    ds_3d["Z_unstag"] = destagger_grid(ds_3d["Z"])
-
-    # Calculate geopotential height at pressure level from z_var
-    pressure_level = z_var.lstrip("Z_").rstrip("Pa")
-    ds_3d[z_var] = calc_geopot_at_press_lvl(ds_3d["P"], ds_3d["Z_unstag"], pressure_level)
-    ds = ds_3d.drop_vars(["P", "Z", "Z_unstag"])
-    return ds
-
-
-def get_precip_dataset(dates: List[str], precip_accum_interval: int) -> (List[tuple], List[tuple]):
+def get_precip_dataset(
+    dates: List[str], precip_accum_interval: int, zarr_path: str
+) -> (List[tuple], List[tuple]):
     """
     Fetch and accumulate precipitation datasets over a given interval.
     Returns two lists of datasets:
@@ -162,26 +121,29 @@ def get_precip_dataset(dates: List[str], precip_accum_interval: int) -> (List[tu
     prec_acc_nc_data = []
     cumulative_datasets = []  # List to store total accumulations datasets
     rolling_datasets = []  # List for rolling accumulation datasets
+    first_date = dates[0].rsplit("_", 1)[0] + "_00"
+    ds = xr.open_zarr(zarr_path, group=first_date)
 
     for date in dates:
-        # Extract date vars for URL
-        year, month, day, hour, water_year = process_date(date)
+        # Extract the target time
+        target_time = datetime.strptime(date, "%Y-%m-%d_%H")
 
-        # URL with just the accumulated precip variable
-        precip_url = f"{URL_ROOT}/wy{water_year}/{year}{month}/wrf2d_d01_{year}-{month}-{day}_{hour}:00:00.nc?Time{TIME_DIM},XLAT{SOUTH_NORTH_DIM}{WEST_EAST_DIM},XLONG{SOUTH_NORTH_DIM}{WEST_EAST_DIM},PREC_ACC_NC{TIME_DIM}{SOUTH_NORTH_DIM}{WEST_EAST_DIM}"
-        ds = xr.open_dataset(precip_url)
-
+        # Select the corresponding dataset for the target time
         if "PREC_ACC_NC" in ds.data_vars:
-            # Append the 'PREC_ACC_NC' data array to the list
-            prec_acc_nc_data.append(ds["PREC_ACC_NC"])
+            selected_data = ds["PREC_ACC_NC"].sel(time=target_time)
+
+            # Append the selected data array to the list
+            prec_acc_nc_data.append(selected_data)
 
             if len(prec_acc_nc_data) == precip_accum_interval:
                 # Concatenate along the time dimension
-                accumulated_prec = xr.concat(prec_acc_nc_data, dim="Time").sum(dim="Time")
-                new_dataset = accumulated_prec.to_dataset()
+                accumulated_prec = xr.concat(prec_acc_nc_data, dim="time").sum(
+                    dim="time"
+                )
+                new_dataset = accumulated_prec.to_dataset(name="PREC_ACC_NC")
 
                 # Format the end time for this dataset
-                end_time = datetime.strptime(date, "%Y-%m-%d_%H")
+                end_time = target_time
 
                 # For cumulative list, add the last dataset if it exists
                 if cumulative_datasets:
@@ -199,7 +161,9 @@ def get_precip_dataset(dates: List[str], precip_accum_interval: int) -> (List[tu
     return cumulative_datasets, rolling_datasets
 
 
-def create_gif(param_plots: List[plt.Figure], timestamp: str, var_name: str, gif_folder="gifs") -> str:
+def create_gif(
+    param_plots: List[plt.Figure], timestamp: str, var_name: str, gif_folder="gifs"
+) -> str:
     """
     Create an animated GIF from a list of matplotlib plots.
     """
@@ -241,6 +205,7 @@ def precip_plotter(
     var: str,
     data_getter: Callable,
     plotter: Callable,
+    zarr_path,
 ):
     """
     Gather data and generate GIF for accumulated precip variable.
@@ -249,7 +214,9 @@ def precip_plotter(
     if var in vars_dates:
         dates = vars_dates[var]
         first_date = dates[0]  # used for gif output naming
-        cumulative_datasets, rolling_datasets = data_getter(dates, storm_params["precip_accum_interval"])
+        cumulative_datasets, rolling_datasets = data_getter(
+            dates, storm_params["precip_accum_interval"], zarr_path
+        )
 
     for (cumulative_ds, cumulative_end_time), (
         rolling_ds,
@@ -275,8 +242,8 @@ def precip_plotter(
 def alt_plotter(
     vars_dates: Dict[str, List[str]],
     var: str,
-    data_getter: Callable,
     plotter: Callable,
+    zarr_path: str,
     alt_var: str = None,
 ):
     """
@@ -286,13 +253,15 @@ def alt_plotter(
     if var in vars_dates:
         dates = vars_dates[var]
         first_date = dates[0]  # used for gif output naming
+        ds = xr.open_zarr(zarr_path, group=first_date)
         for date in dates:
-            ds = data_getter(var, date)
+            target_time = datetime.strptime(date, "%Y-%m-%d_%H")
+            selected_ds = ds.sel(time=target_time)
 
             if alt_var:
-                plotter(ds, alt_var)
+                plotter(selected_ds, alt_var)
             else:
-                plotter(ds, var)
+                plotter(selected_ds, var)
 
             fig = plt.gcf()
             plt.close(fig)

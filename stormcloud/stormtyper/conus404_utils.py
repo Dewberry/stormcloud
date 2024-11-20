@@ -1,25 +1,59 @@
 import logging
 
-import wrf
 import xarray as xr
+import numpy as np
 from scipy.interpolate import interp1d
 
 
-def destagger_grid(data_variable: xr.DataArray, dim: int = 1) -> xr.DataArray:
-    """
-    Destagger a given data variable along a specified dimension.
-    More on staggered grids here: https://amps-backup.ucar.edu/information/configuration/wrf_grid_structure.html
+# Copied over from wrf-python to avoid dependency
+def destagger(var, stagger_dim: int = 1, meta=False):
+    """Return the variable on the unstaggered grid.
+
+    This function destaggers the variable by taking the average of the
+    values located on either side of the grid box.
 
     Args:
-    data_variable (xr.DataArray): The data variable to be destaggered.
-    dim (int): The dimension index to destagger along. Default is 1.
+
+        var (:class:`xarray.DataArray` or :class:`numpy.ndarray`): A variable
+            on a staggered grid.
+
+        stagger_dim (:obj:`int`): The dimension index to destagger.
+            Negative values can be used to choose dimensions referenced
+            from the right hand side (-1 is the rightmost dimension).
+
+        meta (:obj:`bool`, optional): Set to False to disable metadata and
+            return :class:`numpy.ndarray` instead of
+            :class:`xarray.DataArray`.  Default is False.
 
     Returns:
-    xr.DataArray: The destaggered data variable.
+
+        :class:`xarray.DataArray` or :class:`numpy.ndarray`:
+        The destaggered variable.  If xarray is enabled and
+        the *meta* parameter is True, then the result will be a
+        :class:`xarray.DataArray` object.  Otherwise, the result will be a
+        :class:`numpy.ndarray` object with no metadata.
+
     """
     logging.debug("Destaggering Z grid")
-    unstag_var = wrf.destagger(data_variable, dim, meta=True)
-    return unstag_var
+    var_shape = var.shape
+    num_dims = var.ndim
+    stagger_dim_size = var_shape[stagger_dim]
+
+    full_slice = slice(None)
+    slice1 = slice(0, stagger_dim_size - 1, 1)
+    slice2 = slice(1, stagger_dim_size, 1)
+
+    # default to full slices
+    dim_ranges_1 = [full_slice] * num_dims
+    dim_ranges_2 = [full_slice] * num_dims
+
+    # for the stagger dim, insert the appropriate slice range
+    dim_ranges_1[stagger_dim] = slice1
+    dim_ranges_2[stagger_dim] = slice2
+
+    result = 0.5 * (var[tuple(dim_ranges_1)] + var[tuple(dim_ranges_2)])
+
+    return result
 
 
 def interp_pressure_level(
@@ -95,3 +129,40 @@ def calculate_slp(
         gravity / (lapse_rate * gas_constant)
     )
     return slp
+
+
+def calculate_ivt(
+    u_wind: xr.DataArray,
+    v_wind: xr.DataArray,
+    pressure: xr.DataArray,
+    mixing_ratio: xr.DataArray,
+    vertical_dim: str = "bottom_top",
+) -> xr.Dataset:
+    """
+    Calculate the Integrated Vapor Transport (IVT) from wind components, pressure, and mixing ratio.
+    """
+
+    specific_humidity = mixing_ratio / (1 + mixing_ratio)
+
+    # Slice q, u, v to match dp dimensions
+    q_slice = specific_humidity.isel(bottom_top=slice(None, -1))
+    u_slice = u_wind.isel(bottom_top=slice(None, -1))
+    v_slice = v_wind.isel(bottom_top=slice(None, -1))
+
+    dp = pressure.diff(dim=vertical_dim)
+
+    ivt_x = -(1 / 9.81) * (q_slice * u_slice * dp).sum(dim=vertical_dim)
+    ivt_y = -(1 / 9.81) * (q_slice * v_slice * dp).sum(dim=vertical_dim)
+    ivt = np.sqrt(ivt_x**2 + ivt_y**2)
+
+    ivt_ds = xr.Dataset(
+        {
+            "IVT": (["Time", "south_north", "west_east"], ivt.data),
+        },
+        coords={
+            "Time": ivt["Time"],
+            "XLAT": ivt["XLAT"],
+            "XLONG": ivt["XLONG"],
+        },
+    )
+    return ivt_ds

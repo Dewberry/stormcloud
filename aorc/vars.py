@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from dss import DSSMeasurementType, DSSUnit
+from .dss import DSSMeasurementType, DSSUnit
 
 
 @dataclass
@@ -47,6 +47,6 @@ def str_to_aorc_variable(input_str: str) -> AORCVariable:
         return AORCVariable[input_str]
     except KeyError:
         for var in AORCVariable:
-            if var.name == input_str:
+            if var.value.name == input_str:
                 return var
     raise ValueError(f"Provided string {input_str} could not be parsed as AORCVariable")

@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "$id": "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json#",
+    "$id": "https://raw.githubusercontent.com/Dewberry/stormcloud/refs/heads/sst_example/aorc/extension/schema.json#",
     "title": "AORC Extension",
     "description": "STAC AORC Extension for STAC Items.",
     "oneOf": [
@@ -86,7 +86,7 @@
           "stac_extensions": {
             "type": "array",
             "contains": {
-              "const": "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
+              "const": "https://raw.githubusercontent.com/Dewberry/stormcloud/refs/heads/sst_example/aorc/extension/schema.json"
             }
           }
         }

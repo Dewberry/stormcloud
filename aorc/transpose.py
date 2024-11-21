@@ -129,7 +129,7 @@ class Transpose:
         - returns valid mask array
         """
         if not isinstance(self._valid_spaces, np.ndarray):
-            valid_spaces = np.full(self.watershed_mask.shape, False, dtype=np.bool)
+            valid_spaces = np.full(self.watershed_mask.shape, False, dtype=bool)
             for shift in self.valid_shifts:
                 rolled = np.roll(self.watershed_mask, shift, axis=(1, 0))
                 valid_spaces = np.logical_or(valid_spaces, rolled)

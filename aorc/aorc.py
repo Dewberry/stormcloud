@@ -2,6 +2,7 @@ import argparse
 import datetime
 import json
 import os
+from tempfile import TemporaryDirectory
 from typing import Any, Iterator
 
 import fiona
@@ -28,7 +29,7 @@ from .extension.extension import (
     Unit,
 )
 from .transpose import Transpose
-from .vars import AORCVariable, str_to_aorc_variable
+from .vars import str_to_aorc_variable
 
 NULL_POLYGON = Polygon()
 MM_TO_INCH_CONVERSION_FACTOR = 0.03937007874015748
@@ -127,12 +128,18 @@ class AORCItem(Item):
         ProjectionExtension.add_to(self)
         StorageExtension.add_to(self)
 
-    # @property
-    # def is_ranked(self) -> bool:
-    #     rank_property = self.properties.get("aorc:rank")
-    #     if rank_property == None:
-    #         return False
-    #     return True
+    @property
+    def is_ranked(self) -> bool:
+        aorc = AORCExtension.ext(self)
+        ranks = [
+            aorc.non_overlapping_overall_rank,
+            aorc.overlapping_overall_rank,
+            aorc.non_overlapping_year_rank,
+            aorc.overlapping_year_rank,
+        ]
+        if any(ranks):
+            return True
+        return False
 
     @property
     def aorc_paths(self) -> list[str]:
@@ -166,8 +173,10 @@ class AORCItem(Item):
             else:
                 transposition_geom_for_clip = self.transposition_domain_geometry
             bounds = transposition_geom_for_clip.bounds
+            # adjust start slice to make sure start datetime is exclusive minimum (get data > start not data >= start)
+            start_timeslice_value = self.start_datetime + datetime.timedelta(hours=1)
             subsection = ds.sel(
-                time=slice(self.start_datetime, self.end_datetime),
+                time=slice(start_timeslice_value, self.end_datetime),
                 longitude=slice(bounds[0], bounds[2]),
                 latitude=slice(bounds[1], bounds[3]),
             )
@@ -280,9 +289,9 @@ class AORCItem(Item):
             )
         if add_properties:
             self.geometry = convert_to_geojson_dict(self._transposed_watershed.centroid)
-            sst = AORCExtension.ext(self)
-            sst.statistics = self._stats
-            sst.transform = self._transposition_transform
+            aorc = AORCExtension.ext(self)
+            aorc.statistics = self._stats
+            aorc.transform = self._transposition_transform
         return self._transposed_watershed, self._transposition_transform, self._stats
 
     def aorc_thumbnail(self, scale_max: float, add_asset: bool = True, write: bool = True) -> Figure:
@@ -325,36 +334,50 @@ class AORCItem(Item):
             self.add_asset("thumbnail", asset)
         return fig
 
-    def dss(self, aorc_variables: list[str], add_asset: bool = False, write: bool = False) -> Any:
+    def dss(self, aorc_variables: list[str], add_asset: bool = False, write: bool = False) -> list:
         """
-        creates DSS file (not sure what to return as class)
+        creates DSS file, returns list of pydss gridInfo objects
         contains either precipitation or tempeerature data or both over the duration of the item for the valid transposition area
         references source data, not summed data
         """
-        if add_asset | write:
+        if add_asset or write:
             fn = os.path.join(
                 self.local_directory,
                 f"{self.start_datetime.strftime('%Y%m%d')}_{self.end_datetime.strftime('%Y%m%d')}.dss",
             )
-            with DSSFileWriter(fn, "SHG1K", self.watershed_name.upper(), "AORC") as dss_writer:
-                aorc_enum_variables = [str_to_aorc_variable(v) for v in aorc_variables]
-                aorc_meta_list = [
-                    (e.value.name, e.value.dss_label, e.value.dss_unit, e.value.dss_measurement_type)
-                    for e in aorc_enum_variables
+        else:
+            temp_dir = TemporaryDirectory()
+            fn = os.path.join(
+                temp_dir.name, f"{self.start_datetime.strftime('%Y%m%d')}_{self.end_datetime.strftime('%Y%m%d')}.dss"
+            )
+        with DSSFileWriter(fn, "SHG1K", self.watershed_name.upper(), "AORC") as dss_writer:
+            aorc_enum_variables = [str_to_aorc_variable(v) for v in aorc_variables]
+            aorc_meta_list = [
+                (e.value.name, e.value.dss_label, e.value.dss_unit, e.value.dss_measurement_type)
+                for e in aorc_enum_variables
+            ]
+            if add_asset or write:
+                dss_meta_list = dss_writer.write_from_xr_dataset(self.aorc_source_data, aorc_meta_list)
+                if add_asset:
+                    asset = Asset(fn, roles=["dss"])
+                    self.add_asset("dss", asset)
+            else:
+                dss_meta_list = [
+                    t for t in dss_writer.create_dss_metadata_from_xr_dataset(self.aorc_source_data, aorc_meta_list)
                 ]
-                dss_writer.write_from_xr_dataset(self.aorc_source_data, aorc_meta_list)
-
-        # for each aorc variable in set, create DSS file with each variable having different units, cumulative vs instantaneous setting, etc.
-        # if add_asset or write is true, save to file and add DSS asset to assets
-        pass
+        if not add_asset and not write:
+            temp_dir.cleanup()
+        return dss_meta_list
 
     def run(self, scale_max: float) -> None:
-        # load aorc data, registering sources as assets
-        # calculate sum
-        # calculate valid shifts
-        # calculate max transpose, updating item properties using results
-        # create valid area polygon, write to asset
-        # create png using watershed geom, summed AORC data, and valid area polygon, write to asset
+        """
+        - load aorc data, registering sources as assets
+        - calculate sum
+        - calculate valid shifts
+        - calculate max transpose, updating item properties using results
+        - create valid area polygon, write to asset
+        - create png using watershed geom, summed AORC data, and valid area polygon, write to asset
+        """
         self.max_transpose(True)
         self.valid_spaces_polygon(True, True)
         fig = self.aorc_thumbnail(scale_max, True, True)

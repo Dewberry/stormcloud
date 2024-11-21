@@ -67,7 +67,7 @@ class TransposeTestCase(unittest.TestCase):
                 [True, True, True, False, False, False, False, False, False, False, False],
                 [False, False, False, False, False, False, False, False, False, False, False],
             ],
-            dtype=np.bool,
+            dtype=bool,
         )
         self.assertTrue(np.array_equal(expected_array, self.transpose.watershed_mask))
 
@@ -97,7 +97,7 @@ class TransposeTestCase(unittest.TestCase):
                 [True, True, True, True, True, True, True, True, True, True, False],
                 [False, False, False, False, True, True, True, True, False, False, False],
             ],
-            dtype=np.bool,
+            dtype=bool,
         )
         self.assertTrue(np.array_equal(expected_valid_spaces, self.transpose.valid_spaces))
 

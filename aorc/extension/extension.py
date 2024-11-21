@@ -5,7 +5,9 @@ from pystac import ExtensionTypeError, Item
 from pystac.extensions.base import ExtensionManagementMixin, PropertiesExtension
 from pystac.utils import StringEnum, get_required
 
-AORC_SCHEMA_URI = "https://dewberry.github.io/sst-stac-extension/v0.1.0-beta/schema.json"
+AORC_SCHEMA_URI = (
+    "https://raw.githubusercontent.com/Dewberry/stormcloud/refs/heads/sst_example/aorc/extension/schema.json"
+)
 AORC_PREFIX = "aorc:"
 AORC_STATISTICS_PROP = AORC_PREFIX + "statistics"
 AORC_TRANSFORM_PROP = AORC_PREFIX + "transform"

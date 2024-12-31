@@ -134,3 +134,4 @@ dmypy.json
 # DSS data and GRID files
 *.dss
 *.grid
+*.zarr

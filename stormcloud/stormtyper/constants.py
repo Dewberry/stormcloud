@@ -8,10 +8,8 @@ TIME_DIM = "[0:1:0]"
 SOUTH_NORTH_DIM_3D = "[550:1:1014]"
 WEST_EAST_DIM_3D = "[0:1:450]"
 
-WATERSHED_FILE_LOCATION = (
-    "s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson"
-)
+WATERSHED_FILE_LOCATION = "s3://tempest/watersheds/duwamish/duwamish-transpo-area-v01.geojson"
 
 
-URL_ROOT = "https://thredds.rda.ucar.edu/thredds/dodsC/files/g/ds559.0"
-TRINITY_IBTRACS_JSON = ''
+URL_ROOT = "https://thredds.rda.ucar.edu/thredds/dodsC/files/g/d559000"
+TRINITY_IBTRACS_JSON = ""
